@@ -1,0 +1,229 @@
+/* ===== Reset và thiết lập cơ bản ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+body,
+html {
+    height: 100%;
+    background-color: #f9fbff;
+}
+
+/* ===== Bố cục chính của trang ===== */
+.signup-body {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ===== Cột ảnh minh họa (bên trái) ===== */
+.illustration-column {
+    flex-basis: 45%;
+    /* Chiếm 45% chiều rộng */
+    background-color: #f0f3f8;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+/* ===== Cột Form (bên phải) ===== */
+.form-column {
+    flex-basis: 55%;
+    /* Chiếm 55% chiều rộng */
+    padding: 40px 60px;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 30px;
+}
+
+.logo {
+    font-weight: 600;
+    font-size: 20px;
+    color: #007bff;
+}
+
+.form-container {
+    width: 100%;
+    max-width: 450px;
+    /* Giới hạn chiều rộng của form */
+    margin: auto;
+    /* Căn giữa form trong cột */
+}
+
+.form-container h1 {
+    font-size: 28px;
+    color: #222;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+/* ===== Form Styles ===== */
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-row .input-group {
+    flex: 1;
+}
+
+.input-group {
+    margin-bottom: 20px;
+}
+
+.signup-form label {
+    display: block;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.signup-form input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+}
+
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-wrapper input {
+    padding-right: 40px;
+}
+
+.toggle-password-visibility {
+    position: absolute;
+    right: 14px;
+    cursor: pointer;
+    color: #888;
+}
+
+/* Checkbox Điều khoản */
+.terms-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    font-size: 13px;
+}
+
+.terms-group label a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.signup-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Link đăng nhập */
+.login-link {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+}
+
+.login-link span {
+    color: #007bff;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* Separator và Social Login */
+.separator {
+    text-align: center;
+    margin: 25px 0 15px;
+    font-size: 14px;
+    color: #888;
+}
+
+.social-login {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.social-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: #fff;
+    font-weight: 500;
+}
+
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+    .signup-body {
+        flex-direction: column;
+    }
+
+    .illustration-column,
+    .form-column {
+        flex-basis: auto;
+        /* Reset flex-basis */
+        width: 100%;
+    }
+
+    .illustration-column {
+        display: none;
+        /* Ẩn ảnh trên mobile để tiết kiệm không gian */
+    }
+
+    .form-column {
+        padding: 40px 30px;
+    }
+
+    .form-header {
+        justify-content: flex-start;
+        /* Logo về bên trái trên mobile */
+    }
+
+    .form-container {
+        margin: 0;
+        /* Không cần căn giữa nữa */
+        max-width: none;
+    }
+}
+
+@media (max-width: 500px) {
+    .form-row {
+        flex-direction: column;
+        /* Xếp chồng các input trên màn hình rất nhỏ */
+        gap: 0;
+    }
+
+    .form-column {
+        padding: 30px 20px;
+    }
+}
