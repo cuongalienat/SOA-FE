@@ -1,0 +1,237 @@
+/* ===== Reset và thiết lập cơ bản ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+}
+
+body,
+html {
+    height: 100%;
+    background-color: #f9fbff;
+}
+
+/* ===== Toàn bộ trang ===== */
+.signIn-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+/* ===== Khung chính ===== */
+.signIn-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    width: 90%;
+    max-width: 1000px;
+    background-color: #fff;
+    border-radius: 16px;
+    box-shadow: 0 0 20px rgba(0, 123, 255, 0.1);
+    overflow: hidden;
+    border: 2px solid #e3f0ff;
+}
+
+/* ===== Cột bên trái (Form đăng nhập) ===== */
+.signIn-section {
+    flex: 1;
+    padding: 60px 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.logo {
+    font-weight: 600;
+    font-size: 20px;
+    color: #007bff;
+    margin-bottom: 30px;
+}
+
+.signIn-section h1 {
+    font-size: 28px;
+    color: #222;
+    margin-bottom: 10px;
+}
+
+.signIn-section p {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+/* ===== Form ===== */
+.signIn-form .input-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+.signIn-form label {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.signIn-form input {
+    padding: 12px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.signIn-form input:focus {
+    border-color: #007bff;
+}
+
+/* ===== Tùy chọn dưới form ===== */
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.form-options a {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.form-options a:hover {
+    text-decoration: underline;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.signIn-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.signIn-btn:hover {
+    background-color: #0056cc;
+}
+
+/* ===== Liên kết đăng ký ===== */
+.signup-link {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+}
+
+.signup-link a {
+    color: #007bff;
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.signup-link a:hover {
+    text-decoration: underline;
+}
+
+/* ===== Separator (Hoặc login bằng) ===== */
+.separator {
+    text-align: center;
+    margin: 25px 0 15px;
+    font-size: 14px;
+    color: #888;
+}
+
+/* ===== Nút mạng xã hội ===== */
+.social-login {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.social-btn {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: #fff;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.social-btn:hover {
+    background-color: #f0f8ff;
+    border-color: #007bff;
+}
+
+/* ===== Cột bên phải (Hình minh họa) ===== */
+.illustration-section {
+    flex: 1;
+    background: url("/assets/login-illustration.png") center/contain no-repeat;
+    background-color: #f9fbff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+    .signIn-container {
+        flex-direction: column;
+        width: 95%;
+    }
+
+    .illustration-section {
+        order: -1;
+        height: 250px;
+        background-size: contain;
+    }
+
+    .signIn-section {
+        padding: 40px 30px;
+    }
+}
+
+@media (max-width: 500px) {
+    .signIn-section h1 {
+        font-size: 22px;
+    }
+
+    .signIn-form input {
+        padding: 10px;
+    }
+
+    .signIn-btn {
+        padding: 10px;
+    }
+
+    .social-btn {
+        font-size: 13px;
+        padding: 8px;
+    }
+}
+
+.forgot-password-link {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 13px;
+    cursor: pointer;
+    transition: text-decoration 0.3s;
+}
+
+.forgot-password-link:hover {
+    text-decoration: underline;
+}
