@@ -1,19 +1,32 @@
-import React from 'react';
-// 1. Import hook useNavigate
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuths';
 import './signIn.css';
 
 export const SignIn = () => {
-    // 2. Khởi tạo hook
     const navigate = useNavigate();
+    const { login, loading, error } = useAuth();
+
+    const [username, setUsername] = useState("john.doe@gmail.com");
+    const [password, setPassword] = useState("12345678");
 
     const handleForgotPassword = () => {
         navigate('/forgot-password');
     };
 
-    // 3. Tạo hàm điều hướng đến trang đăng ký
     const handleSignUpRedirect = () => {
         navigate('/signup');
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+
+        const result = await login(username, password);
+
+        if (result) {
+            console.log("🎉 Đăng nhập thành công:", result);
+        }
     };
 
     return (
@@ -24,30 +37,53 @@ export const SignIn = () => {
                     <h1>Login</h1>
                     <p>Login to access your travelwise account</p>
 
-                    <form className="signIn-form">
+                    {/* ✅ Gắn hàm handleSubmit */}
+                    <form className="signIn-form" onSubmit={handleSubmit}>
                         <div className="input-group">
-                            <label htmlFor="email">Email</label>
-                            <input type="email" id="email" name="email" defaultValue="john.doe@gmail.com" required />
+                            <label htmlFor="username">Username</label>
+                            <input
+                                type="username"
+                                id="username"
+                                name="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                required
+                            />
                         </div>
 
                         <div className="input-group">
                             <label htmlFor="password">Password</label>
-                            <input type="password" id="password" name="password" defaultValue="12345678" required />
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
                         </div>
 
                         <div className="form-options">
-                            <span onClick={handleForgotPassword} className="forgot-password-link" style={{ cursor: 'pointer', color: '#007bff' }}>
+                            <span
+                                onClick={handleForgotPassword}
+                                className="forgot-password-link"
+                                style={{ cursor: 'pointer', color: '#007bff' }}
+                            >
                                 Forgot Password
                             </span>
                         </div>
 
-                        <button type="submit" className="signIn-btn">Login</button>
+                        <button type="submit" className="signIn-btn" disabled={loading}>
+                            {loading ? "Logging in..." : "Login"}
+                        </button>
                     </form>
 
-                    {/* 4. Cập nhật liên kết đăng ký */}
                     <p className="signup-link">
-                        Don't have an account?
-                        <span onClick={handleSignUpRedirect} style={{ cursor: 'pointer', color: '#007bff', fontWeight: 500 }}>
+                        Don't have an account?{" "}
+                        <span
+                            onClick={handleSignUpRedirect}
+                            style={{ cursor: 'pointer', color: '#007bff', fontWeight: 500 }}
+                        >
                             Sign up
                         </span>
                     </p>
@@ -60,7 +96,6 @@ export const SignIn = () => {
                         <button className="social-btn">Apple</button>
                     </div>
                 </section>
-
             </main>
         </div>
     );
