@@ -25,8 +25,8 @@ html {
     display: flex;
     justify-content: space-between;
     align-items: stretch;
-    width: 90%;
-    max-width: 1000px;
+    width: 45%;
+    max-width: 500px;
     background-color: #fff;
     border-radius: 16px;
     box-shadow: 0 0 20px rgba(0, 123, 255, 0.1);
@@ -174,17 +174,6 @@ html {
 .social-btn:hover {
     background-color: #f0f8ff;
     border-color: #007bff;
-}
-
-/* ===== Cột bên phải (Hình minh họa) ===== */
-.illustration-section {
-    flex: 1;
-    background: url("/assets/login-illustration.png") center/contain no-repeat;
-    background-color: #f9fbff;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 40px;
 }
 
 /* ===== Responsive ===== */

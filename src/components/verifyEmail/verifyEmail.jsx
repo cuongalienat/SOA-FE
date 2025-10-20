@@ -66,11 +66,6 @@ export const VerifyCode = () => {
                         <button type="submit" onClick={handleBackToLogin} className="verifyCode-btn">Verify</button>
                     </form>
                 </section>
-
-                {/* === Cột ảnh minh họa (bên phải) === */}
-                <div className="illustration-section">
-                    {/* Ảnh nền được thêm từ CSS */}
-                </div>
             </main>
         </div>
     );

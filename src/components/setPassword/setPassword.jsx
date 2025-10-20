@@ -40,7 +40,7 @@ export const SetPassword = () => {
 
                     <form className="setPassword-form" onSubmit={handleSubmit}>
                         <div className="input-group">
-                            <label htmlFor="create-password">Create Password</label>
+                            <label htmlFor="create-password">New Password</label>
                             <div className="password-wrapper">
                                 <input
                                     type={showPassword ? "text" : "password"}
@@ -59,7 +59,7 @@ export const SetPassword = () => {
                         </div>
 
                         <div className="input-group">
-                            <label htmlFor="reenter-password">Re-enter Password</label>
+                            <label htmlFor="reenter-password">Confirm Password</label>
                             <div className="password-wrapper">
                                 <input
                                     type={showConfirmPassword ? "text" : "password"}
@@ -80,10 +80,6 @@ export const SetPassword = () => {
                         <button type="submit" className="setPassword-btn">Set password</button>
                     </form>
                 </section>
-
-                <div className="illustration-section">
-                    {/* Ảnh nền được thêm từ CSS */}
-                </div>
             </main>
         </div>
     );
