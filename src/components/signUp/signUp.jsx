@@ -21,13 +21,6 @@ export const SignUp = () => {
 
     return (
         <div className="signup-body">
-            {/* === Cột ảnh minh họa (bên trái) === */}
-            <section className="illustration-column">
-                {/* Ảnh có thể được thêm vào đây hoặc qua CSS */}
-                <div className="illustration-image">
-                    {/*  */}
-                </div>
-            </section>
 
             {/* === Cột Form (bên phải) === */}
             <section className="form-column">
@@ -42,26 +35,29 @@ export const SignUp = () => {
                     <form className="signup-form" onSubmit={handleSignUp}>
                         <div className="form-row">
                             <div className="input-group">
-                                <label htmlFor="first-name">First Name</label>
-                                <input type="text" id="first-name" name="first-name" defaultValue="john.doe@gmail.com" required />
+                                <label htmlFor="username">Username</label>
+                                <input type="text" id="username" name="username" defaultValue="john.doe@gmail.com" required />
                             </div>
                             <div className="input-group">
-                                <label htmlFor="last-name">Last Name</label>
-                                <input type="text" id="last-name" name="last-name" defaultValue="john.doe@gmail.com" required />
+                                <label htmlFor="full-name">Full Name</label>
+                                <input type="text" id="full-name" name="full-name" defaultValue="john.doe@gmail.com" required />
                             </div>
                         </div>
 
                         <div className="form-row">
                             <div className="input-group">
-                                <label htmlFor="email">Email</label>
-                                <input type="email" id="email" name="email" defaultValue="john.doe@gmail.com" required />
+                                <label htmlFor="age">Age</label>
+                                <input type="age" id="age" name="age" defaultValue="18" required />
                             </div>
                             <div className="input-group">
                                 <label htmlFor="phone">Phone Number</label>
                                 <input type="tel" id="phone" name="phone" defaultValue="john.doe@gmail.com" required />
                             </div>
                         </div>
-
+                        <div className="input-group">
+                            <label htmlFor="email">Email</label>
+                            <input type="email" id="email" name="email" defaultValue="john.doe@gmail.com" required />
+                        </div>
                         <div className="input-group">
                             <label htmlFor="password">Password</label>
                             <div className="password-wrapper">
@@ -79,7 +75,7 @@ export const SignUp = () => {
                         </div>
 
                         <div className="terms-group">
-                            <input type="checkbox" id="terms" name="terms" required />
+                            <input type="checkbox" id="terms" name="terms" style={{ width: "20px" }} required />
                             <label htmlFor="terms">
                                 I agree to all the <a href="#">Terms</a> and <a href="#">Privacy Policies</a>
                             </label>

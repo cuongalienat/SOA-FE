@@ -36,11 +36,6 @@ export const SignIn = () => {
                         </div>
 
                         <div className="form-options">
-                            <div className="remember-me">
-                                <input type="checkbox" id="remember" />
-                                <label htmlFor="remember">Remember me</label>
-                            </div>
-
                             <span onClick={handleForgotPassword} className="forgot-password-link" style={{ cursor: 'pointer', color: '#007bff' }}>
                                 Forgot Password
                             </span>
@@ -66,7 +61,6 @@ export const SignIn = () => {
                     </div>
                 </section>
 
-                <div className="illustration-section"></div>
             </main>
         </div>
     );

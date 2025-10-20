@@ -53,10 +53,6 @@ export const ForgotPassword = () => {
                     </div>
                 </section>
 
-                {/* === Cột ảnh minh họa (bên phải) === */}
-                <div className="illustration-section">
-                    {/* Ảnh nền được thêm từ CSS */}
-                </div>
             </main>
         </div>
     );

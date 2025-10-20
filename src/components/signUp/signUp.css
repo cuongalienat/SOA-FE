@@ -14,19 +14,11 @@ html {
 
 /* ===== Bố cục chính của trang ===== */
 .signup-body {
+    margin-top: 10vh;
     display: flex;
-    min-height: 100vh;
-}
-
-/* ===== Cột ảnh minh họa (bên trái) ===== */
-.illustration-column {
-    flex-basis: 45%;
-    /* Chiếm 45% chiều rộng */
-    background-color: #f0f3f8;
-    display: flex;
+    height: 80vh;
     justify-content: center;
     align-items: center;
-    padding: 40px;
 }
 
 /* ===== Cột Form (bên phải) ===== */
@@ -37,6 +29,7 @@ html {
     background-color: #fff;
     display: flex;
     flex-direction: column;
+    border-radius: 30px;
 }
 
 .form-header {
