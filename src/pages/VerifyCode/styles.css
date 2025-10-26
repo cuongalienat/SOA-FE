@@ -1,0 +1,84 @@
+.verifyCode-body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f9f9f9;
+}
+
+.verifyCode-container {
+    width: 100%;
+    max-width: 450px;
+    padding: 20px;
+}
+
+.verifyCode-section {
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.verifyCode-title {
+    font-size: 28px;
+    color: #222;
+    margin-bottom: 10px;
+}
+
+.verifyCode-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.verifyCode-form {
+    margin-bottom: 20px;
+}
+
+.resend-link {
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #555;
+}
+
+.resend-link a {
+    color: #ff4d4d;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.resend-link a:hover {
+    text-decoration: underline;
+}
+
+.verifyCode-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.verifyCode-btn:hover {
+    background-color: #0056cc;
+}
+
+@media (max-width: 500px) {
+    .verifyCode-section {
+        padding: 30px 20px;
+    }
+
+    .verifyCode-title {
+        font-size: 22px;
+    }
+
+    .verifyCode-btn {
+        padding: 10px;
+    }
+}
