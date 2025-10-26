@@ -1,0 +1,113 @@
+.signIn-body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f9f9f9;
+}
+
+.signIn-container {
+    width: 100%;
+    max-width: 450px;
+    padding: 20px;
+}
+
+.signIn-section {
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.signIn-title {
+    font-size: 28px;
+    color: #222;
+    margin-bottom: 10px;
+}
+
+.signIn-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 30px;
+}
+
+.signIn-form {
+    margin-bottom: 20px;
+}
+
+.form-options {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 25px;
+}
+
+.forgot-password-link {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.forgot-password-link:hover {
+    text-decoration: underline;
+}
+
+.signIn-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.signIn-btn:hover:not(:disabled) {
+    background-color: #0056cc;
+}
+
+.signIn-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 14px;
+    margin: 10px 0;
+    text-align: center;
+}
+
+.signup-link {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 14px;
+    color: #555;
+}
+
+.signup-link span {
+    color: #007bff;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.signup-link span:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 500px) {
+    .signIn-section {
+        padding: 30px 20px;
+    }
+
+    .signIn-title {
+        font-size: 22px;
+    }
+
+    .signIn-btn {
+        padding: 10px;
+    }
+}

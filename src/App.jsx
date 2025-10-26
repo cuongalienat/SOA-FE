@@ -1,9 +1,9 @@
 import { Routes, Route } from "react-router-dom"
-import { SignIn } from "./components/signIn/signIn.jsx";
-import { ForgotPassword } from "./components/forgotPassword/forgotPassword.jsx";
-import { SetPassword } from "./components/setPassword/setPassword.jsx";
-import { SignUp } from "./components/signUp/signUp.jsx";
-import { VerifyCode } from "./components/verifyEmail/verifyEmail.jsx";
+import SignIn from "./pages/SignIn";
+import ForgotPassword from "./pages/ForgotPassword";
+import SetPassword from "./pages/SetPassword";
+import SignUp from "./pages/SignUp";
+import VerifyCode from "./pages/VerifyCode";
 
 function App() {
 
