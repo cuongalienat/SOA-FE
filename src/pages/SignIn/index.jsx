@@ -4,8 +4,6 @@ import { useAuth } from '../../hooks/useAuths';
 import Logo from '../../components/common/Logo';
 import Input from '../../components/common/Input';
 import PasswordInput from '../../components/common/PasswordInput';
-import SocialLogin from '../../components/common/SocialLogin';
-import Separator from '../../components/common/Separator';
 import NotificationPopup from '../../components/common/NotificationPopup';
 import './styles.css';
 
@@ -31,16 +29,16 @@ const SignIn = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         // Hiển thị thông báo đang đăng nhập
         setNotification({
             isVisible: true,
             message: 'Đang đăng nhập...',
             type: 'info'
         });
-        
+
         const result = await signin(username, password);
-        
+
         if (result) {
             // Đăng nhập thành công
             setNotification({
@@ -48,7 +46,7 @@ const SignIn = () => {
                 message: 'Đăng nhập thành công! Chào mừng bạn trở lại.',
                 type: 'success'
             });
-            
+
             // Chuyển hướng sau 1.5 giây
             setTimeout(() => {
                 navigate('/dashboard'); // hoặc trang chính của app
@@ -68,7 +66,7 @@ const SignIn = () => {
             <main className="signIn-container">
                 <section className="signIn-section">
                     <Logo />
-                    <h1 className="signIn-title">Login</h1>
+                    <h1 className="signIn-title">Sign in</h1>
                     <p className="signIn-subtitle">Login to access your travelwise account</p>
 
                     <form className="signIn-form" onSubmit={handleSubmit}>
@@ -77,7 +75,7 @@ const SignIn = () => {
                             type="text"
                             id="username"
                             name="username"
-                            value={username}
+                            placeholder="Tên đăng nhập"
                             onChange={(e) => setUsername(e.target.value)}
                             required
                         />
@@ -86,7 +84,7 @@ const SignIn = () => {
                             label="Password"
                             id="password"
                             name="password"
-                            value={password}
+                            placeholder="Mật khẩu"
                             onChange={(e) => setPassword(e.target.value)}
                             required
                         />
@@ -113,12 +111,9 @@ const SignIn = () => {
                             Sign up
                         </span>
                     </p>
-
-                    <Separator text="Or login with" />
-                    <SocialLogin />
                 </section>
             </main>
-            
+
             {/* Notification Popup */}
             <NotificationPopup
                 message={notification.message}
