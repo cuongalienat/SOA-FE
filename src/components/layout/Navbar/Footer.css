@@ -1,0 +1,27 @@
+.footer {
+    background-color: #fff;
+    border-top: 1px solid #ddd;
+    padding: 20px 0;
+    margin-top: 60px;
+}
+
+.footer-content {
+    text-align: center;
+    color: #555;
+}
+
+.footer-logo {
+    font-weight: bold;
+    color: #ff5722;
+    margin-bottom: 10px;
+}
+
+.socials a {
+    margin: 0 10px;
+    text-decoration: none;
+    color: #0077cc;
+}
+
+.socials a:hover {
+    text-decoration: underline;
+}
