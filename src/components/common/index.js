@@ -5,3 +5,4 @@ export { default as PasswordInput } from './PasswordInput';
 export { default as BackLink } from './BackLink';
 export { default as SocialLogin } from './SocialLogin';
 export { default as Separator } from './Separator';
+export { default as NotificationPopup } from './NotificationPopup';

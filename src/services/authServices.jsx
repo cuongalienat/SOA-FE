@@ -10,3 +10,13 @@ export const signInUser = async (credentials) => {
     throw error.response?.data || { message: "Lỗi không xác định" };
   }
 };
+
+// Gọi API đăng ký
+export const signUpUser = async (userData) => {
+  try {
+    const response = await api.post(ENDPOINTS.AUTH.SIGNUP, userData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Lỗi không xác định" };
+  }
+};
