@@ -39,11 +39,6 @@ export const useEmailVerification = () => {
   };
 
   const resendVerification = async (email) => {
-    if (!email) {
-      setError("Vui lòng nhập email");
-      return { success: false, error: "Email là bắt buộc" };
-    }
-
     setLoading(true);
     setError(null);
     setSuccess(false);

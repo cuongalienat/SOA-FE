@@ -35,11 +35,11 @@ export const verifyEmail = async (email, otpCode) => {
 };
 
 // Gửi lại mã OTP xác thực
-// export const resendVerificationEmail = async (email) => {
-//   try {
-//     const response = await api.post(ENDPOINTS.AUTH.RESEND_VERIFICATION, { email });
-//     return response.data;
-//   } catch (error) {
-//     throw error.response?.data || { message: "Lỗi gửi lại mã xác thực" };
-//   }
-// };
+export const resendVerificationEmail = async (email) => {
+  try {
+    const response = await api.patch(ENDPOINTS.AUTH.RESEND_VERIFICATION, { email });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Lỗi gửi lại mã xác thực " };
+  }
+};

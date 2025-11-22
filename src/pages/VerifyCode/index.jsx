@@ -19,7 +19,6 @@ const VerifyCode = () => {
         loading,
         error,
         success,
-        serverMessage,
         email,
         setEmail,
         otpCode,
@@ -57,9 +56,9 @@ const VerifyCode = () => {
 
     useEffect(() => {
         if (success) {
-            showNotification(serverMessage || 'Xác thực thành công! Đang chuyển hướng bạn sang trang đăng nhập...', 'success');
+            showNotification('Xác thực thành công! Đang chuyển hướng bạn sang trang đăng nhập...', 'success');
         }
-    }, [success, serverMessage]);
+    }, [success]);
 
     useEffect(() => {
         if (error) {
@@ -76,7 +75,7 @@ const VerifyCode = () => {
         event.preventDefault();
         const result = await resendVerification(email);
         if (result?.success) {
-            showNotification(result?.message || 'Đã gửi lại mã OTP, vui lòng kiểm tra email.', 'success');
+            showNotification('Đã gửi lại mã OTP, vui lòng kiểm tra email.', 'success');
         } else {
             showNotification(result?.error || 'Không thể gửi lại mã OTP.', 'error');
         }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuths';
+import { useEmailVerification } from '../../hooks/useEmailVerification';
 import Logo from '../../components/common/Logo';
 import Input from '../../components/common/Input';
 import PasswordInput from '../../components/common/PasswordInput';
@@ -10,7 +11,7 @@ import './styles.css';
 const SignIn = () => {
     const navigate = useNavigate();
     const { signin, loading, error } = useAuth();
-
+    const { resendVerification } = useEmailVerification();
     const [username, setUsername] = useState("john.doe@gmail.com");
     const [password, setPassword] = useState("12345678");
     const [notification, setNotification] = useState({
@@ -38,6 +39,25 @@ const SignIn = () => {
         });
 
         const result = await signin(username, password);
+        console.log("isverified:", result?.user?.isVerified);
+
+        if (result?.user?.isVerified === 'no' || result?.user?.isVerified === false) {
+            const emailToVerify = result?.user?.email || username;
+            setNotification({
+                isVisible: true,
+                message: 'Tài khoản của bạn chưa xác thực. Vui lòng nhập mã OTP để kích hoạt.',
+                type: 'warning'
+            });
+            resendVerification(emailToVerify);
+            setTimeout(() => {
+                navigate('/verify-code', {
+                    state: {
+                        email: emailToVerify,
+                    },
+                });
+            }, 1200);
+            return;
+        }
 
         if (result) {
             // Đăng nhập thành công
