@@ -99,7 +99,11 @@ const SignUp = () => {
 
                 // Chuyển hướng sau 2 giây
                 setTimeout(() => {
-                    navigate('/verify-code');
+                    navigate('/verify-code', {
+                        state: {
+                            email: formData.email,
+                        },
+                    });
                 }, 2000);
             } else {
                 // Đăng ký thất bại - hiển thị lỗi từ API
