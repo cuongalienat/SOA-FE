@@ -5,15 +5,13 @@ import { validateSignupData } from '../../utils/validationUtils.js';
 import Logo from '../../components/common/Logo';
 import Input from '../../components/common/Input';
 import PasswordInput from '../../components/common/PasswordInput';
-import SocialLogin from '../../components/common/SocialLogin';
-import Separator from '../../components/common/Separator';
 import NotificationPopup from '../../components/common/NotificationPopup';
 import './styles.css';
 
 const SignUp = () => {
     const navigate = useNavigate();
     const { signup, loading, error } = useAuth();
-    
+
     const [formData, setFormData] = useState({
         username: '',
         fullName: '',
@@ -23,7 +21,7 @@ const SignUp = () => {
         password: '',
         confirmPassword: ''
     });
-    
+
     const [notification, setNotification] = useState({
         isVisible: false,
         message: '',
@@ -59,13 +57,13 @@ const SignUp = () => {
 
     const handleSignUp = async (event) => {
         event.preventDefault();
-        
+
         // Kiểm tra mật khẩu xác nhận trước
         if (formData.password !== formData.confirmPassword) {
             showNotification('Mật khẩu xác nhận không khớp', 'error');
             return;
         }
-        
+
         // Validate dữ liệu trước khi gọi API
         const validationErrors = validateSignupData({
             username: formData.username,
@@ -75,15 +73,15 @@ const SignUp = () => {
             phone: formData.phone,
             password: formData.password
         });
-        
+
         if (validationErrors.length > 0) {
             showNotification(validationErrors.join(', '), 'error');
             return;
         }
-        
+
         // Hiển thị thông báo đang xử lý
         showNotification('Đang xử lý đăng ký...', 'info');
-        
+
         try {
             // Gọi API đăng ký (bỏ qua validation ở hook vì đã validate ở component)
             const result = await signup({
@@ -94,14 +92,18 @@ const SignUp = () => {
                 phone: formData.phone,
                 password: formData.password
             }, true); // skipValidation = true
-            
+
             if (result) {
                 // Đăng ký thành công
                 showNotification('Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.', 'success');
-                
+
                 // Chuyển hướng sau 2 giây
                 setTimeout(() => {
-                    navigate('/verify-code');
+                    navigate('/verify-code', {
+                        state: {
+                            email: formData.email,
+                        },
+                    });
                 }, 2000);
             } else {
                 // Đăng ký thất bại - hiển thị lỗi từ API
@@ -133,7 +135,7 @@ const SignUp = () => {
                                 name="username"
                                 value={formData.username}
                                 onChange={handleInputChange}
-                                placeholder="Ít nhất 3 ký tự"
+                                placeholder="Tên đăng nhập"
                                 required
                             />
                             <Input
@@ -143,7 +145,7 @@ const SignUp = () => {
                                 name="fullName"
                                 value={formData.fullName}
                                 onChange={handleInputChange}
-                                placeholder="Họ tên đầy đủ"
+                                placeholder="Họ tên"
                                 required
                             />
                         </div>
@@ -190,7 +192,7 @@ const SignUp = () => {
                             name="password"
                             value={formData.password}
                             onChange={handleInputChange}
-                            placeholder="Ít nhất 6 ký tự"
+                            placeholder="Mật khẩu"
                             required
                         />
 
@@ -217,14 +219,12 @@ const SignUp = () => {
                     </form>
 
                     <p className="login-link">
-                        Already have an account? <span onClick={handleLoginRedirect}>Login</span>
+                        Already have an account? <span onClick={handleLoginRedirect}>Sign in</span>
                     </p>
 
-                    <Separator text="Or Sign up with" />
-                    <SocialLogin />
                 </div>
             </section>
-            
+
             {/* Notification Popup */}
             <NotificationPopup
                 message={notification.message}

@@ -1,21 +1,84 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Logo from '../../components/common/Logo';
-import PasswordInput from '../../components/common/PasswordInput';
+import Input from '../../components/common/Input';
 import BackLink from '../../components/common/BackLink';
+import NotificationPopup from '../../components/common/NotificationPopup';
+import { useEmailVerification } from '../../hooks/useEmailVerification.jsx';
 import './styles.css';
 
 const VerifyCode = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const [notification, setNotification] = useState({
+        isVisible: false,
+        message: '',
+        type: 'info',
+    });
+    const {
+        loading,
+        error,
+        success,
+        email,
+        setEmail,
+        otpCode,
+        setOtpCode,
+        verify,
+        resendVerification,
+    } = useEmailVerification();
+
+    useEffect(() => {
+        if (location.state?.email) {
+            setEmail(location.state.email);
+        } else {
+            setTimeout(() => navigate('/signup'), 0);
+        }
+    }, [location.state, navigate, setEmail]);
 
     const handleBackToSignup = () => {
         navigate('/signup');
     };
 
-    const handleVerify = (event) => {
+    const showNotification = (message, type = 'info') => {
+        setNotification({
+            isVisible: true,
+            message,
+            type,
+        });
+    };
+
+    const hideNotification = () => {
+        setNotification(prev => ({
+            ...prev,
+            isVisible: false,
+        }));
+    };
+
+    useEffect(() => {
+        if (success) {
+            showNotification('Xác thực thành công! Đang chuyển hướng bạn sang trang đăng nhập...', 'success');
+        }
+    }, [success]);
+
+    useEffect(() => {
+        if (error) {
+            showNotification(error, 'error');
+        }
+    }, [error]);
+
+    const handleVerify = async (event) => {
         event.preventDefault();
-        console.log('Verifying code...');
-        navigate('/signin');
+        await verify(email, otpCode);
+    };
+
+    const handleResend = async (event) => {
+        event.preventDefault();
+        const result = await resendVerification(email);
+        if (result?.success) {
+            showNotification('Đã gửi lại mã OTP, vui lòng kiểm tra email.', 'success');
+        } else {
+            showNotification(result?.error || 'Không thể gửi lại mã OTP.', 'error');
+        }
     };
 
     return (
@@ -31,20 +94,44 @@ const VerifyCode = () => {
                     </p>
 
                     <form className="verifyCode-form" onSubmit={handleVerify}>
-                        <PasswordInput
-                            label="Enter Code"
+                        <Input
+                            label="Email"
+                            type="email"
+                            id="verify-email"
+                            name="verify-email"
+                            value={email}
+                            readOnly
+                            disabled
+                        />
+
+                        <Input
+                            label="Mã OTP"
+                            type="text"
                             id="verify-code"
                             name="verify-code"
-                            defaultValue="7789BM&X"
+                            value={otpCode}
+                            onChange={(e) => setOtpCode(e.target.value)}
+                            placeholder="Nhập mã OTP"
+                            inputMode="numeric"
                             required
                         />
 
                         <p className="resend-link">
-                            Didn't receive a code? <a href="#" onClick={(e) => { e.preventDefault(); console.log('Resend code'); }}>Resend</a>
+                            Chưa nhận được mã? <a href="#" onClick={handleResend}>Gửi lại</a>
                         </p>
-
-                        <button type="submit" className="verifyCode-btn">Verify</button>
+                        <button type="submit" className="verifyCode-btn" disabled={loading}>
+                            {loading ? 'Đang xác thực...' : 'Xác thực'}
+                        </button>
                     </form>
+                    <NotificationPopup
+                        message={notification.message}
+                        type={notification.type}
+                        isVisible={notification.isVisible}
+                        onClose={hideNotification}
+                        autoClose
+                        duration={3000}
+                        position={{ vertical: 'top', horizontal: 'right' }}
+                    />
                 </section>
             </main>
         </div>

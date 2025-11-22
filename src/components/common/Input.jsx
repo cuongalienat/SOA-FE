@@ -11,7 +11,10 @@ const Input = ({
     onChange, 
     required = false,
     placeholder,
-    className = ""
+    className = "",
+    readOnly = false,
+    disabled = false,
+    ...rest
 }) => {
     return (
         <div className={`input-group ${className}`}>
@@ -25,6 +28,9 @@ const Input = ({
                 onChange={onChange}
                 required={required}
                 placeholder={placeholder}
+                readOnly={readOnly}
+                disabled={disabled}
+                {...rest}
             />
         </div>
     );

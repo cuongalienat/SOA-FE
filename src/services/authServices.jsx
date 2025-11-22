@@ -20,3 +20,26 @@ export const signUpUser = async (userData) => {
     throw error.response?.data || { message: "Lỗi không xác định" };
   }
 };
+
+// Xác thực email với OTP
+export const verifyEmail = async (email, otpCode) => {
+  try {
+    const response = await api.patch(ENDPOINTS.AUTH.VERIFY, { 
+      email,
+      otpCode 
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Lỗi xác thực email" };
+  }
+};
+
+// Gửi lại mã OTP xác thực
+export const resendVerificationEmail = async (email) => {
+  try {
+    const response = await api.patch(ENDPOINTS.AUTH.RESEND_VERIFICATION, { email });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Lỗi gửi lại mã xác thực " };
+  }
+};

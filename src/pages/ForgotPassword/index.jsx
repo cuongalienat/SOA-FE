@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import Logo from '../../components/common/Logo';
 import Input from '../../components/common/Input';
 import BackLink from '../../components/common/BackLink';
-import SocialLogin from '../../components/common/SocialLogin';
-import Separator from '../../components/common/Separator';
 import './styles.css';
 
 const ForgotPassword = () => {
@@ -37,14 +35,11 @@ const ForgotPassword = () => {
                             type="email"
                             id="email"
                             name="email"
-                            defaultValue="john.doe@gmail.com"
+                            placeholder="Email"
                             required
                         />
                         <button type="submit" className="submit-btn">Submit</button>
                     </form>
-
-                    <Separator text="Or login with" />
-                    <SocialLogin />
                 </section>
             </main>
         </div>
