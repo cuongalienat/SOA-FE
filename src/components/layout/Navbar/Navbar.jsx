@@ -16,7 +16,6 @@ export default function Navbar() {
                 {/* Bên phải */}
                 <ul className="nav-links">
                     <li><Link to="/">Trang chủ</Link></li>
-                    <li><Link to="/deals">Ưu đãi</Link></li>
                     <li><Link to="/contact">Liên hệ</Link></li>
                     <li><Link to="/cart">🛒 Giỏ hàng</Link></li>
                     <li className="login-btn"><Link to="/signin">Đăng nhập</Link></li>
