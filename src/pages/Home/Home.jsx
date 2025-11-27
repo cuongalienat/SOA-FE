@@ -27,7 +27,7 @@ const Home = () => {
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 space-y-6">
               <span className="inline-block px-4 py-1.5 rounded-full bg-orange-100 text-orange-600 font-semibold text-sm">
-                ⚡️ Giao nhanh siêu tốc trong 15 phút
+                ⚡️ Giao nhanh nhanh chóng, tin cậy
               </span>
               <h1 className="text-5xl md:text-5xl font-extrabold text-gray-900 leading-tight">
                 Thèm là có, <span className="text-orange-500">Món ngon</span>{" "}
