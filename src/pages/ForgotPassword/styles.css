@@ -1,0 +1,69 @@
+.forgotPassword-body {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f9f9f9;
+}
+
+.forgotPassword-container {
+    width: 100%;
+    max-width: 450px;
+    padding: 20px;
+}
+
+.forgotPassword-section {
+    background: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.forgotPassword-title {
+    font-size: 28px;
+    color: #222;
+    margin-bottom: 10px;
+}
+
+.forgotPassword-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.forgotPassword-form {
+    margin-bottom: 20px;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 12px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 10px;
+    transition: background-color 0.3s;
+}
+
+.submit-btn:hover {
+    background-color: #0056cc;
+}
+
+@media (max-width: 500px) {
+    .forgotPassword-section {
+        padding: 30px 20px;
+    }
+
+    .forgotPassword-title {
+        font-size: 22px;
+    }
+
+    .submit-btn {
+        padding: 10px;
+    }
+}

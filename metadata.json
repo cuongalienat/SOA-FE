@@ -1,0 +1,5 @@
+{
+  "name": "FlavorDash",
+  "description": "Thèm là có! Khám phá thiên đường ẩm thực Việt quanh bạn. Gợi ý món chuẩn gu, giao hàng thần tốc, nóng hổi thơm ngon.",
+  "requestFramePermissions": ["geolocation"]
+}
