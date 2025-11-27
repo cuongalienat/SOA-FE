@@ -1,91 +1,36 @@
 import React from "react";
-import "./Deals.css";
+import FoodCard from "../../components/FoodCard.jsx";
+import { FOOD_DATA } from "../../constants.js";
 
-export default function Deals() {
-    const vouchers = [
-        {
-            id: 1,
-            brand: "Highlands Coffee",
-            image: "https://upload.wikimedia.org/wikipedia/vi/0/09/Highlands_Coffee_Logo.png",
-            title: "Giảm 30% cho đơn từ 2 ly trở lên",
-            desc: "Áp dụng tại toàn bộ chi nhánh TP.HCM",
-            code: "HIGHLANDS30",
-            expiry: "HSD: 30/11/2025",
-        },
-        {
-            id: 2,
-            brand: "The Coffee House",
-            image: "https://upload.wikimedia.org/wikipedia/commons/8/8c/The_Coffee_House_logo.png",
-            title: "Giảm 20% đơn hàng đầu tiên",
-            desc: "Chỉ áp dụng khi đặt qua Foodie",
-            code: "TCH20NEW",
-            expiry: "HSD: 15/12/2025",
-        },
-        {
-            id: 3,
-            brand: "Pizza Hut",
-            image: "https://upload.wikimedia.org/wikipedia/commons/d/d2/Pizza_Hut_logo.svg",
-            title: "Mua 1 tặng 1 Pizza size M",
-            desc: "Áp dụng từ 17h - 21h mỗi ngày",
-            code: "PIZZA1TANG1",
-            expiry: "HSD: 31/12/2025",
-        },
-        {
-            id: 4,
-            brand: "Phúc Long",
-            image: "https://upload.wikimedia.org/wikipedia/commons/2/2d/Phuc_Long_logo.png",
-            title: "Giảm 25% cho hóa đơn trên 100.000đ",
-            desc: "Áp dụng toàn quốc",
-            code: "PHUCLONG25",
-            expiry: "HSD: 28/02/2026",
-        },
-        {
-            id: 5,
-            brand: "KFC Việt Nam",
-            image: "https://upload.wikimedia.org/wikipedia/commons/6/6e/KFC_logo.svg",
-            title: "Giảm 40% combo 2 người",
-            desc: "Áp dụng tại chi nhánh nội thành",
-            code: "KFC40",
-            expiry: "HSD: 25/12/2025",
-        },
-    ];
+const Deals = () => {
+  // Simulate deals by picking a few items and slashing prices
+  const dealItems = FOOD_DATA.slice(0, 3).map((item) => ({
+    ...item,
+    price: item.price * 0.8, // 20% off
+    name: `${item.name} (Ưu đãi đặc biệt)`,
+  }));
 
-    const handleCopy = (code) => {
-        navigator.clipboard.writeText(code);
-        alert(`Đã sao chép mã: ${code}`);
-    };
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-extrabold text-gray-900 mb-4">
+          Ưu đãi nóng hôm nay 🔥
+        </h1>
+        <p className="text-gray-500">Hãy chớp lấy trước khi nguội!</p>
+      </div>
 
-    return (
-        <div className="deals-page">
-            <section className="deals-header">
-                <h1>Voucher & Ưu đãi hot</h1>
-                <p>Nhận mã giảm giá độc quyền – Săn deal siêu hời!</p>
-            </section>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        {dealItems.map((food) => (
+          <div key={food.id} className="relative">
+            <div className="absolute top-4 left-4 z-10 bg-red-500 text-white px-3 py-1 rounded-full font-bold text-sm shadow-md">
+              GIẢM 20%
+            </div>
+            <FoodCard food={food} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
-            <section className="voucher-grid">
-                {vouchers.map((v) => (
-                    <div className="voucher-card" key={v.id}>
-                        <div className="voucher-left">
-                            <img src={v.image} alt={v.brand} />
-                        </div>
-
-                        <div className="voucher-right">
-                            <h3>{v.title}</h3>
-                            <p className="desc">{v.desc}</p>
-                            <p className="expiry">{v.expiry}</p>
-                            <div className="voucher-actions">
-                                <span className="voucher-code">{v.code}</span>
-                                <button
-                                    className="copy-btn"
-                                    onClick={() => handleCopy(v.code)}
-                                >
-                                    Lưu mã
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </section>
-        </div>
-    );
-}
+export default Deals;

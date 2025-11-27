@@ -1,71 +1,37 @@
-import React, { useState, useRef, useEffect } from "react";
-import "./LocationSelector.css";
+import React, { useState } from "react";
+import { MapPin } from "lucide-react";
 
-export default function LocationSelector() {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const [selected, setSelected] = useState("TP. HCM");
-    const wrapperRef = useRef(null);
+const LocationSelector = () => {
+  const [location, setLocation] = useState("Hà Nội, Việt Nam");
 
-    const cities = [
-        "TP. HCM", "Hà Nội", "Đà Nẵng", "Cần Thơ", "Hải Phòng",
-        "Huế", "Khánh Hoà", "Đồng Nai", "Nghệ An", "Vũng Tàu",
-        "An Giang", "Bạc Liêu", "Bắc Giang", "Bắc Ninh", "Bến Tre",
-        "Bình Dương", "Bình Định", "Bình Phước", "Bình Thuận"
-    ];
+  const handleLocateMe = () => {
+    if (navigator.geolocation) {
+      setLocation("Đang định vị...");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // In a real app, reverse geocode here
+          setLocation(
+            `Vĩ độ: ${position.coords.latitude.toFixed(
+              2
+            )}, Kinh độ: ${position.coords.longitude.toFixed(2)}`
+          );
+        },
+        () => {
+          setLocation("Bị từ chối quyền");
+        }
+      );
+    }
+  };
 
-    const filteredCities = cities.filter(c =>
-        c.toLowerCase().includes(search.toLowerCase())
-    );
+  return (
+    <div
+      className="flex items-center space-x-2 text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full cursor-pointer hover:bg-gray-200 transition"
+      onClick={handleLocateMe}
+    >
+      <MapPin size={14} className="text-orange-500" />
+      <span className="truncate max-w-[150px]">{location}</span>
+    </div>
+  );
+};
 
-    // ✅ Đóng dropdown khi click ra ngoài
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    return (
-        <div className="location-selector" ref={wrapperRef}>
-            <button
-                className="location-btn"
-                onClick={() => setIsOpen(!isOpen)}
-            >
-                <span role="img" aria-label="pin">📍</span> {selected}{" "}
-                <span className="arrow">{isOpen ? "▲" : "▼"}</span>
-            </button>
-
-            {isOpen && (
-                <div className="dropdown">
-                    <input
-                        type="text"
-                        placeholder="Tìm tỉnh/thành..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="search-input"
-                    />
-                    <ul className="city-list">
-                        {filteredCities.map((city) => (
-                            <li
-                                key={city}
-                                className={city === selected ? "active" : ""}
-                                onClick={() => {
-                                    setSelected(city);
-                                    setIsOpen(false);
-                                    setSearch("");
-                                }}
-                            >
-                                {city}
-                            </li>
-
-                        ))}
-                    </ul>
-                </div>
-            )}
-        </div>
-    );
-}
+export default LocationSelector;

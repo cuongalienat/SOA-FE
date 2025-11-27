@@ -1,42 +1,161 @@
-import { Routes, Route } from "react-router-dom";
-import Layout from "./components/layout/Navbar/Layout";
+import React from "react";
+import { HashRouter, Routes, Route } from "react-router-dom";
+import Layout from "./components/layout/Layout.jsx";
+import RestaurantLayout from "./components/layout/RestaurantLayout.jsx";
+import Home from "./pages/Home/Home.jsx";
+import FoodDetail from "./pages/FoodDetail/FoodDetail.jsx";
+import Cart from "./pages/Cart/Cart.jsx";
+import Order from "./pages/Order/Order.jsx";
+import Deals from "./pages/Deals/Deals.jsx";
+import Contact from "./pages/Contact/Contact.jsx";
+import SignIn from "./pages/SignIn/SignIn.jsx";
+import SignUp from "./pages/SignUp/SignUp.jsx";
+import ForgotPassword from "./pages/ForgotPassword/ForgotPassword.jsx";
+import VerifyCode from "./pages/VerifyCode/VerifyCode.jsx";
 
-import Home from "./pages/Home/Home";
-import Contact from "./pages/Contact/Contact";
-import Deals from "./pages/Deals/Deals";
-import FoodDetail from "./pages/FoodDetail/FoodDetail";
-import Category from "./pages/Category/Category";
-import Order from "./pages/Order/Order";
-import Cart from "./pages/Cart/Cart";
+// Restaurant Pages
+import Dashboard from "./pages/Restaurant/Dashboard.jsx";
+import Menu from "./pages/Restaurant/Menu.jsx";
+import Orders from "./pages/Restaurant/Orders.jsx";
+import Settings from "./pages/Restaurant/Settings.jsx";
 
-import SignIn from "./pages/SignIn";
-import SignUp from "./pages/SignUp";
-import ForgotPassword from "./pages/ForgotPassword";
-import SetPassword from "./pages/SetPassword";
-import VerifyCode from "./pages/VerifyCode";
+import { CartProvider } from "./context/CartContext.jsx";
+import { RestaurantProvider } from "./context/RestaurantContext.jsx";
 
-export default function App() {
+const App = () => {
   return (
-    <Routes>
-      {/* Các trang có Navbar + Footer */}
-      <Route element={<Layout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/food/:id" element={<FoodDetail />} /> {/* 👈 */}
-        <Route path="/category/:type" element={<Category />} />
-        <Route path="/order/:id" element={<Order />} /> {/* 👈 */}
-        <Route path="/cart" element={<Cart />} />
-      </Route>
+    <CartProvider>
+      <RestaurantProvider>
+        <HashRouter>
+          <Routes>
+            {/* Client Routes */}
+            <Route
+              path="/"
+              element={
+                <Layout>
+                  <Home />
+                </Layout>
+              }
+            />
+            <Route
+              path="/food/:id"
+              element={
+                <Layout>
+                  <FoodDetail />
+                </Layout>
+              }
+            />
+            <Route
+              path="/cart"
+              element={
+                <Layout>
+                  <Cart />
+                </Layout>
+              }
+            />
+            <Route
+              path="/order"
+              element={
+                <Layout>
+                  <Order />
+                </Layout>
+              }
+            />
+            <Route
+              path="/deals"
+              element={
+                <Layout>
+                  <Deals />
+                </Layout>
+              }
+            />
+            <Route
+              path="/contact"
+              element={
+                <Layout>
+                  <Contact />
+                </Layout>
+              }
+            />
+            <Route
+              path="/signin"
+              element={
+                <Layout>
+                  <SignIn />
+                </Layout>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <Layout>
+                  <SignUp />
+                </Layout>
+              }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <Layout>
+                  <ForgotPassword />
+                </Layout>
+              }
+            />
+            <Route
+              path="/verify-code"
+              element={
+                <Layout>
+                  <VerifyCode />
+                </Layout>
+              }
+            />
 
-      {/* Trang auth không có Layout */}
-      <Route path="/signin" element={<SignIn />} />
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/set-password" element={<SetPassword />} />
-      <Route path="/verify-code" element={<VerifyCode />} />
-
-      {/* Fallback */}
-      <Route path="*" element={<h1>404 - Trang không tồn tại</h1>} />
-    </Routes>
+            {/* Restaurant/Admin Routes */}
+            <Route
+              path="/restaurant"
+              element={
+                <RestaurantLayout>
+                  <Dashboard />
+                </RestaurantLayout>
+              }
+            />
+            <Route
+              path="/restaurant/dashboard"
+              element={
+                <RestaurantLayout>
+                  <Dashboard />
+                </RestaurantLayout>
+              }
+            />
+            <Route
+              path="/restaurant/menu"
+              element={
+                <RestaurantLayout>
+                  <Menu />
+                </RestaurantLayout>
+              }
+            />
+            <Route
+              path="/restaurant/orders"
+              element={
+                <RestaurantLayout>
+                  <Orders />
+                </RestaurantLayout>
+              }
+            />
+            <Route
+              path="/restaurant/settings"
+              element={
+                <RestaurantLayout>
+                  <Settings />
+                </RestaurantLayout>
+              }
+            />
+          </Routes>
+        </HashRouter>
+      </RestaurantProvider>
+    </CartProvider>
   );
-}
+};
+
+export default App;

@@ -1,122 +1,144 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useCart } from "../../context/CartContext";
-import "./FoodDetail.css";
-import "../Deals/Deals.css"; // Dùng lại CSS của voucher để giữ nguyên style
+import {
+  Star,
+  Minus,
+  Plus,
+  ShoppingBag,
+  Sparkles,
+  ChefHat,
+} from "lucide-react";
+import { FOOD_DATA } from "../../constants.js";
+import { useCart } from "../../context/CartContext.jsx";
+import {
+  generateFoodDescription,
+  askChefAI,
+} from "../../services/geminiService.js";
 
-export default function FoodDetail() {
+const FoodDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const food = FOOD_DATA.find((f) => f.id === Number(id));
 
-  // Fake data món ăn (sau này gọi API)
-  const food = {
-    id,
-    name: `Món ăn #${id}`,
-    restaurant: `Quán Ăn Ngon #${id}`,
-    price: 50000,
-    priceText: "50.000đ",
-    location: "Hà Nội",
-    image: `https://source.unsplash.com/800x600/?food,${id}`,
-    desc: "Món ăn được chế biến từ nguyên liệu tươi ngon, hương vị đậm đà.",
+  const [aiDescription, setAiDescription] = useState("");
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [chefQuery, setChefQuery] = useState("");
+  const [chefAnswer, setChefAnswer] = useState("");
+  const [loadingChef, setLoadingChef] = useState(false);
+
+  useEffect(() => {
+    if (!food) {
+      navigate("/");
+    }
+  }, [food, navigate]);
+
+  const handleEnhanceDescription = async () => {
+    if (!food) return;
+    setLoadingAi(true);
+    const desc = await generateFoodDescription(food.name, food.category);
+    setAiDescription(desc);
+    setLoadingAi(false);
   };
 
-  // Fake voucher theo brand
-  const vouchers = [
-    {
-      id: 1,
-      brand: food.restaurant,
-      image:
-        "https://upload.wikimedia.org/wikipedia/vi/0/09/Highlands_Coffee_Logo.png",
-      title: "Giảm 10% khi đặt Online",
-      desc: "Áp dụng cho mọi đơn hàng trong hôm nay",
-      code: "FOOD10",
-      expiry: "HSD: 31/12/2025",
-    },
-    {
-      id: 2,
-      brand: food.restaurant,
-      image: "https://upload.wikimedia.org/wikipedia/commons/6/6e/KFC_logo.svg",
-      title: "Giảm 20% cho đơn > 100K",
-      desc: "Áp dụng nội thành",
-      code: "SAVE20",
-      expiry: "HSD: 15/01/2026",
-    },
-  ];
-
-  // Copy voucher
-  const handleCopy = (code) => {
-    navigator.clipboard.writeText(code);
-    alert(`Đã sao chép mã: ${code}`);
+  const handleAskChef = async () => {
+    if (!chefQuery.trim()) return;
+    setLoadingChef(true);
+    const answer = await askChefAI(
+      `Liên quan đến món ${food?.name}: ${chefQuery}`
+    );
+    setChefAnswer(answer);
+    setLoadingChef(false);
   };
 
-  // ⚡ LOGIC ĐẶT MÓN (đã khôi phục)
-  const handleOrder = () => {
-    addToCart({
-      id: food.id,
-      name: food.name,
-      price: food.price,
-      image: food.image,
-      quantity: 1,
-    });
-
-    alert("Đã thêm món vào giỏ hàng!");
-
-    navigate("/cart");
-  };
+  if (!food) return null;
 
   return (
-    <div className="food-detail">
-      <button className="back-btn" onClick={() => navigate(-1)}>
-        ← Quay lại
-      </button>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+        {/* Image Section */}
+        <div className="relative rounded-3xl overflow-hidden h-[400px] md:h-[500px] shadow-2xl">
+          <img
+            src={food.image}
+            alt={food.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
 
-      <div className="food-detail-container">
-        <img src={food.image} alt={food.name} className="food-detail-img" />
+        {/* Info Section */}
+        <div className="flex flex-col justify-center">
+          <div className="flex items-center space-x-2 mb-2">
+            <span className="px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-bold uppercase tracking-wider">
+              {food.category}
+            </span>
+            <div className="flex items-center text-yellow-500">
+              <Star className="fill-current w-4 h-4" />
+              <span className="ml-1 text-sm font-bold text-gray-700">
+                {food.rating} (128 đánh giá)
+              </span>
+            </div>
+          </div>
 
-        <div className="food-detail-info">
-          <h1>{food.name}</h1>
-          <p className="restaurant">{food.restaurant}</p>
-          <p className="location">📍 {food.location}</p>
-          <p className="price">{food.priceText}</p>
-          <p className="desc">{food.desc}</p>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+            {food.name}
+          </h1>
 
-          <button className="order-btn" onClick={handleOrder}>
-            Đặt món ngay
-          </button>
+          <div className="text-3xl font-bold text-orange-600 mb-6">
+            {food.price} VNĐ
+          </div>
+
+          {/* AI Description Feature */}
+          <div className="bg-gray-50 p-6 rounded-2xl mb-8 border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase mb-2 flex items-center">
+              Mô tả
+            </h3>
+            <p className="text-gray-600 leading-relaxed text-lg">
+              {aiDescription || food.description}
+            </p>
+          </div>
+
+          {/* Ask Chef AI Feature */}
+          <div className="bg-blue-50 p-6 rounded-2xl mb-8 border border-blue-100">
+            <div className="flex items-center mb-3 text-blue-800 font-bold">
+              <ChefHat size={20} className="mr-2" />
+              Hỏi Đầu bếp AI
+            </div>
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={chefQuery}
+                onChange={(e) => setChefQuery(e.target.value)}
+                placeholder="Món này có chứa gluten không?"
+                className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm outline-none focus:border-blue-400"
+              />
+              <button
+                onClick={handleAskChef}
+                disabled={loadingChef}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+              >
+                Hỏi
+              </button>
+            </div>
+            {chefAnswer && (
+              <p className="text-sm text-blue-900 bg-blue-100 p-3 rounded-lg italic">
+                "{chefAnswer}"
+              </p>
+            )}
+          </div>
+
+          <div className="flex space-x-4">
+            <button
+              onClick={() => addToCart(food)}
+              className="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+            >
+              <ShoppingBag size={20} />
+              <span>Thêm vào đơn hàng</span>
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Voucher Section */}
-      <section className="food-voucher-section">
-        <h2>Voucher dành riêng cho món này</h2>
-
-        <div className="voucher-grid">
-          {vouchers.map((v) => (
-            <div className="voucher-card" key={v.id}>
-              <div className="voucher-left">
-                <img src={v.image} alt={v.brand} />
-              </div>
-
-              <div className="voucher-right">
-                <h3>{v.title}</h3>
-                <p className="desc">{v.desc}</p>
-                <p className="expiry">{v.expiry}</p>
-
-                <div className="voucher-actions">
-                  <span className="voucher-code">{v.code}</span>
-                  <button
-                    className="copy-btn"
-                    onClick={() => handleCopy(v.code)}
-                  >
-                    Lưu mã
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
     </div>
   );
-}
+};
+
+export default FoodDetail;

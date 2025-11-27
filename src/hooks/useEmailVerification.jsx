@@ -17,17 +17,28 @@ export const useEmailVerification = () => {
     setLoading(true);
     setError(null);
     setSuccess(false);
+<<<<<<< HEAD
+
+=======
     
+>>>>>>> 5f0339b404f1292619b3460a7f429de6683a4a1a
     try {
       await verifyEmail(email, otpCode);
       setSuccess(true);
       // Tự động đăng nhập sau khi hiển thị thông báo thành công
       setTimeout(() => {
         navigate("/signin", {
+<<<<<<< HEAD
+          state: {
+            message: "Xác thực email thành công! Vui lòng đăng nhập.",
+            type: "success",
+          },
+=======
           state: { 
             message: "Xác thực email thành công! Vui lòng đăng nhập.",
             type: "success"
           } 
+>>>>>>> 5f0339b404f1292619b3460a7f429de6683a4a1a
         });
       }, 1500);
     } catch (err) {
@@ -42,7 +53,11 @@ export const useEmailVerification = () => {
     setLoading(true);
     setError(null);
     setSuccess(false);
+<<<<<<< HEAD
+
+=======
     
+>>>>>>> 5f0339b404f1292619b3460a7f429de6683a4a1a
     try {
       await resendVerificationEmail(email);
       return { success: true };
@@ -66,4 +81,8 @@ export const useEmailVerification = () => {
     verify,
     resendVerification,
   };
+<<<<<<< HEAD
 };
+=======
+};
+>>>>>>> 5f0339b404f1292619b3460a7f429de6683a4a1a

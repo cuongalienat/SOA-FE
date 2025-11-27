@@ -24,9 +24,9 @@ export const signUpUser = async (userData) => {
 // Xác thực email với OTP
 export const verifyEmail = async (email, otpCode) => {
   try {
-    const response = await api.patch(ENDPOINTS.AUTH.VERIFY, { 
+    const response = await api.patch(ENDPOINTS.AUTH.VERIFY, {
       email,
-      otpCode 
+      otpCode,
     });
     return response.data;
   } catch (error) {
@@ -37,7 +37,9 @@ export const verifyEmail = async (email, otpCode) => {
 // Gửi lại mã OTP xác thực
 export const resendVerificationEmail = async (email) => {
   try {
-    const response = await api.patch(ENDPOINTS.AUTH.RESEND_VERIFICATION, { email });
+    const response = await api.patch(ENDPOINTS.AUTH.RESEND_VERIFICATION, {
+      email,
+    });
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: "Lỗi gửi lại mã xác thực " };
