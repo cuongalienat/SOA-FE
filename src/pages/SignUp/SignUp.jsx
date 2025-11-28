@@ -1,57 +1,57 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuths.jsx";
-import { validateSignupData } from "../../utils/validationUtils.js";
-import Logo from "../../components/common/Logo.jsx";
-import Input from "../../components/common/Input.jsx";
-import PasswordInput from "../../components/common/PasswordInput.jsx";
-import NotificationPopup from "../../components/common/NotificationPopup.jsx";
-import "./styles.css";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuths';
+import { validateSignupData } from '../../utils/validationUtils.js';
+import Logo from '../../components/common/Logo';
+import Input from '../../components/common/Input';
+import PasswordInput from '../../components/common/PasswordInput';
+import NotificationPopup from '../../components/common/NotificationPopup';
+import './styles.css';
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { signup, loading, error } = useAuth();
 
   const [formData, setFormData] = useState({
-    username: "",
-    fullName: "",
-    age: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
+    username: '',
+    fullName: '',
+    age: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
   });
 
   const [notification, setNotification] = useState({
     isVisible: false,
-    message: "",
-    type: "info",
+    message: '',
+    type: 'info'
   });
 
   const handleLoginRedirect = () => {
-    navigate("/signin");
+    navigate('/signin');
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: value
     }));
   };
 
-  const showNotification = (message, type = "info") => {
+  const showNotification = (message, type = 'info') => {
     setNotification({
       isVisible: true,
       message,
-      type,
+      type
     });
   };
 
   const hideNotification = () => {
-    setNotification((prev) => ({
+    setNotification(prev => ({
       ...prev,
-      isVisible: false,
+      isVisible: false
     }));
   };
 
@@ -60,7 +60,7 @@ const SignUp = () => {
 
     // Kiểm tra mật khẩu xác nhận trước
     if (formData.password !== formData.confirmPassword) {
-      showNotification("Mật khẩu xác nhận không khớp", "error");
+      showNotification('Mật khẩu xác nhận không khớp', 'error');
       return;
     }
 
@@ -71,41 +71,35 @@ const SignUp = () => {
       age: formData.age,
       email: formData.email,
       phone: formData.phone,
-      password: formData.password,
+      password: formData.password
     });
 
     if (validationErrors.length > 0) {
-      showNotification(validationErrors.join(", "), "error");
+      showNotification(validationErrors.join(', '), 'error');
       return;
     }
 
     // Hiển thị thông báo đang xử lý
-    showNotification("Đang xử lý đăng ký...", "info");
+    showNotification('Đang xử lý đăng ký...', 'info');
 
     try {
       // Gọi API đăng ký (bỏ qua validation ở hook vì đã validate ở component)
-      const result = await signup(
-        {
-          username: formData.username,
-          fullName: formData.fullName,
-          age: parseInt(formData.age),
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password,
-        },
-        true
-      ); // skipValidation = true
+      const result = await signup({
+        username: formData.username,
+        fullName: formData.fullName,
+        age: parseInt(formData.age),
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password
+      }, true);
 
-      if (result) {
+      if (result.success === true) {
         // Đăng ký thành công
-        showNotification(
-          "Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.",
-          "success"
-        );
+        showNotification(result.data.message, 'success');
 
         // Chuyển hướng sau 2 giây
         setTimeout(() => {
-          navigate("/verify-code", {
+          navigate('/verify-code', {
             state: {
               email: formData.email,
             },
@@ -113,14 +107,11 @@ const SignUp = () => {
         }, 2000);
       } else {
         // Đăng ký thất bại - hiển thị lỗi từ API
-        showNotification(
-          error || "Đăng ký thất bại. Vui lòng thử lại.",
-          "error"
-        );
+        showNotification(result.error, 'error');
       }
     } catch (err) {
-      console.error("Signup error:", err);
-      showNotification("Có lỗi xảy ra. Vui lòng thử lại.", "error");
+      console.error('Signup error:', err);
+      showNotification('Có lỗi xảy ra. Vui lòng thử lại.', 'error');
     }
   };
 
@@ -133,9 +124,7 @@ const SignUp = () => {
 
         <div className="form-container">
           <h1 className="signup-title">Sign up</h1>
-          <p className="signup-subtitle">
-            Let's get you all set up so you can access your personal account.
-          </p>
+          <p className="signup-subtitle">Let's get you all set up so you can access your personal account.</p>
 
           <form className="signup-form" onSubmit={handleSignUp}>
             <div className="form-row">
@@ -218,34 +207,21 @@ const SignUp = () => {
             />
 
             <div className="terms-group">
-              <input
-                type="checkbox"
-                id="terms"
-                name="terms"
-                className="terms-checkbox"
-                required
-              />
+              <input type="checkbox" id="terms" name="terms" className="terms-checkbox" required />
               <label htmlFor="terms" className="terms-label">
-                I agree to all the{" "}
-                <a href="#" className="terms-link">
-                  Terms
-                </a>{" "}
-                and{" "}
-                <a href="#" className="terms-link">
-                  Privacy Policies
-                </a>
+                I agree to all the <a href="#" className="terms-link">Terms</a> and <a href="#" className="terms-link">Privacy Policies</a>
               </label>
             </div>
 
             <button type="submit" className="signup-btn" disabled={loading}>
-              {loading ? "Đang đăng ký..." : "Create account"}
+              {loading ? 'Đang đăng ký...' : 'Create account'}
             </button>
           </form>
 
           <p className="login-link">
-            Already have an account?{" "}
-            <span onClick={handleLoginRedirect}>Sign in</span>
+            Already have an account? <span onClick={handleLoginRedirect}>Sign in</span>
           </p>
+
         </div>
       </section>
 
@@ -255,7 +231,7 @@ const SignUp = () => {
         type={notification.type}
         isVisible={notification.isVisible}
         onClose={hideNotification}
-        position={{ vertical: "top", horizontal: "right" }}
+        position={{ vertical: 'top', horizontal: 'right' }}
         autoClose={true}
         duration={4000}
       />

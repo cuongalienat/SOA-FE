@@ -10,10 +10,10 @@ import {
 } from "lucide-react";
 import { FOOD_DATA } from "../../constants.js";
 import { useCart } from "../../context/CartContext.jsx";
-import {
-  generateFoodDescription,
-  askChefAI,
-} from "../../services/geminiService.js";
+// import {
+//   generateFoodDescription,
+//   askChefAI,
+// } from "../../services/geminiService.js";
 
 const FoodDetail = () => {
   const { id } = useParams();
@@ -41,15 +41,15 @@ const FoodDetail = () => {
     setLoadingAi(false);
   };
 
-  const handleAskChef = async () => {
-    if (!chefQuery.trim()) return;
-    setLoadingChef(true);
-    const answer = await askChefAI(
-      `Liên quan đến món ${food?.name}: ${chefQuery}`
-    );
-    setChefAnswer(answer);
-    setLoadingChef(false);
-  };
+  // const handleAskChef = async () => {
+  //   if (!chefQuery.trim()) return;
+  //   setLoadingChef(true);
+  //   const answer = await askChefAI(
+  //     `Liên quan đến món ${food?.name}: ${chefQuery}`
+  //   );
+  //   setChefAnswer(answer);
+  //   setLoadingChef(false);
+  // };
 
   if (!food) return null;
 

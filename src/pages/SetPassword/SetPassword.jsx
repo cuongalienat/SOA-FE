@@ -1,21 +1,21 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import Logo from "../../components/common/Logo";
-import PasswordInput from "../../components/common/PasswordInput";
-import BackLink from "../../components/common/BackLink";
-import "./styles.css";
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import Logo from '../../components/common/Logo';
+import PasswordInput from '../../components/common/PasswordInput';
+import BackLink from '../../components/common/BackLink';
+import './styles.css';
 
 const SetPassword = () => {
   const navigate = useNavigate();
 
   const handleBackToForgotPassword = () => {
-    navigate("/forgot-password");
+    navigate('/forgot-password');
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
     console.log("Password updated successfully!");
-    navigate("/signin");
+    navigate('/signin');
   };
 
   return (
@@ -23,15 +23,11 @@ const SetPassword = () => {
       <main className="setPassword-container">
         <section className="setPassword-section">
           <Logo />
-          <BackLink
-            text="Back to forgot password"
-            onClick={handleBackToForgotPassword}
-          />
+          <BackLink text="Back to forgot password" onClick={handleBackToForgotPassword} />
 
           <h1 className="setPassword-title">Set a password</h1>
           <p className="setPassword-subtitle">
-            Your previous password has been reset. Please set a new password for
-            your account.
+            Your previous password has been reset. Please set a new password for your account.
           </p>
 
           <form className="setPassword-form" onSubmit={handleSubmit}>
@@ -51,9 +47,7 @@ const SetPassword = () => {
               required
             />
 
-            <button type="submit" className="setPassword-btn">
-              Set password
-            </button>
+            <button type="submit" className="setPassword-btn">Set password</button>
           </form>
         </section>
       </main>
