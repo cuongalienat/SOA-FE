@@ -27,27 +27,22 @@ const SignIn = () => {
     const handleSignUpRedirect = () => {
         navigate('/signup');
     };
-
+    const showNotification = (message, type = 'info') => {
+        setNotification({
+            isVisible: true,
+            message,
+            type
+        });
+    }
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Hiển thị thông báo đang đăng nhập
-        setNotification({
-            isVisible: true,
-            message: 'Đang đăng nhập...',
-            type: 'info'
-        });
-
         const result = await signin(username, password);
-        console.log("isverified:", result?.user?.isVerified);
+        console.log("isverified:", result?.data?.user);
 
-        if (result?.user?.isVerified === 'no' || result?.user?.isVerified === false) {
-            const emailToVerify = result?.user?.email || username;
-            setNotification({
-                isVisible: true,
-                message: 'Tài khoản của bạn chưa xác thực. Vui lòng nhập mã OTP để kích hoạt.',
-                type: 'warning'
-            });
+        if (result.success === true && result.data?.user?.isVerified === "no") {
+            const emailToVerify = result?.data?.user?.email || username;
+            showNotification('Tài khoản chưa được xác thực. Đang gửi lại mã xác thực...', 'warning');
             resendVerification(emailToVerify);
             setTimeout(() => {
                 navigate('/verify-code', {
@@ -59,13 +54,9 @@ const SignIn = () => {
             return;
         }
 
-        if (result) {
+        if (result.success === true) {
             // Đăng nhập thành công
-            setNotification({
-                isVisible: true,
-                message: 'Đăng nhập thành công! Chào mừng bạn trở lại.',
-                type: 'success'
-            });
+            showNotification(result.data.message, 'success');
 
             // Chuyển hướng sau 1.5 giây
             setTimeout(() => {
@@ -73,11 +64,7 @@ const SignIn = () => {
             }, 1500);
         } else {
             // Đăng nhập thất bại
-            setNotification({
-                isVisible: true,
-                message: error || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.',
-                type: 'error'
-            });
+            showNotification(result.error, 'error');
         }
     };
 
@@ -122,8 +109,6 @@ const SignIn = () => {
                             {loading ? "Logging in..." : "Login"}
                         </button>
                     </form>
-
-                    {error && <p className="error-message">{error}</p>}
 
                     <p className="signup-link">
                         Don't have an account?{" "}

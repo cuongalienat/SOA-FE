@@ -91,11 +91,11 @@ const SignUp = () => {
                 email: formData.email,
                 phone: formData.phone,
                 password: formData.password
-            }, true); // skipValidation = true
+            }, true);
 
-            if (result) {
+            if (result.success === true) {
                 // Đăng ký thành công
-                showNotification('Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.', 'success');
+                showNotification(result.data.message, 'success');
 
                 // Chuyển hướng sau 2 giây
                 setTimeout(() => {
@@ -107,7 +107,7 @@ const SignUp = () => {
                 }, 2000);
             } else {
                 // Đăng ký thất bại - hiển thị lỗi từ API
-                showNotification(error || 'Đăng ký thất bại. Vui lòng thử lại.', 'error');
+                showNotification(result.error, 'error');
             }
         } catch (err) {
             console.error('Signup error:', err);

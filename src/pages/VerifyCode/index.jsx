@@ -35,8 +35,8 @@ const VerifyCode = () => {
         }
     }, [location.state, navigate, setEmail]);
 
-    const handleBackToSignup = () => {
-        navigate('/signup');
+    const handleBack = () => {
+        navigate(-1);
     };
 
     const showNotification = (message, type = 'info') => {
@@ -86,7 +86,7 @@ const VerifyCode = () => {
             <main className="verifyCode-container">
                 <section className="verifyCode-section">
                     <Logo />
-                    <BackLink text="Back to signup" onClick={handleBackToSignup} />
+                    <BackLink text="Back" onClick={handleBack} />
 
                     <h1 className="verifyCode-title">Verify code</h1>
                     <p className="verifyCode-subtitle">
