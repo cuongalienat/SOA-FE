@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import Separator from '../../components/common/Separator';
+import GoogleSignIn from '../../components/common/GoogleSignIn';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuths';
 import { useEmailVerification } from '../../hooks/useEmailVerification';
@@ -10,7 +12,8 @@ import './styles.css';
 
 const SignIn = () => {
     const navigate = useNavigate();
-    const { signin, loading, error } = useAuth();
+    const { signin, signInGoogle, loading, error } = useAuth();
+
     const { resendVerification } = useEmailVerification();
     const [username, setUsername] = useState("john.doe@gmail.com");
     const [password, setPassword] = useState("12345678");
@@ -68,6 +71,18 @@ const SignIn = () => {
         }
     };
 
+    const handleGoogleSignIn = async (tokenId) => {
+        const result = await signInGoogle(tokenId);
+        if (result.success === true) {
+            showNotification('Đăng nhập Google thành công!', 'success');
+            setTimeout(() => {
+                navigate('/dashboard');
+            }, 1500);
+        } else {
+            showNotification(result.error, 'error');
+        }
+    };
+
     return (
         <div className="signIn-body">
             <main className="signIn-container">
@@ -108,6 +123,9 @@ const SignIn = () => {
                         <button type="submit" className="signIn-btn" disabled={loading}>
                             {loading ? "Logging in..." : "Login"}
                         </button>
+
+                        <Separator text="Or Sign in with" />
+                        <GoogleSignIn onClick={handleGoogleSignIn} />
                     </form>
 
                     <p className="signup-link">

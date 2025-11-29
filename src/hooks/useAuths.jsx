@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { signInUser, signUpUser } from "../services/authServices.jsx";
+import { signInUser, signUpUser, signInWithGoogle } from "../services/authServices.jsx";
 import { validateSignupData, validateSigninData } from "../utils/validationUtils.js";
 import { saveAuthData, clearAuthData } from "../utils/authUtils.js";
 
@@ -28,13 +28,33 @@ export const useAuth = () => {
                 setUser(data.user);
             }
 
-            console.log("✅ Đăng nhập thành công:", data); // <-- confirm login
+            console.log("✅ Đăng nhập thành công:"); // <-- confirm login
 
             return { success: true, data: data };
         } catch (err) {
             console.error("❌ Đăng nhập thất bại:", err);
             setError(err.message || "Sai username hoặc mật khẩu");
             return { success: false, error: error.message };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const signInGoogle = async (tokenId) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await signInWithGoogle(tokenId);
+            saveAuthData(data);
+            if (data.user) {
+                setUser(data.user);
+            }
+            console.log("✅ Đăng nhập Google thành công:");
+            return { success: true, data: data };
+        } catch (err) {
+            console.error("❌ Đăng nhập Google thất bại:", err);
+            setError(err.message || "Đăng nhập Google thất bại");
+            return { success: false, error: err.message };
         } finally {
             setLoading(false);
         }
@@ -82,5 +102,5 @@ export const useAuth = () => {
         setError(null);
     };
 
-    return { signin, signup, logout, loading, error, user };
+    return { signin, signup, logout, signInGoogle, loading, error, user };
 };
