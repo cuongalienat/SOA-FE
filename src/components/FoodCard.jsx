@@ -10,13 +10,13 @@ const FoodCard = ({ food }) => {
     <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-100">
       <div className="relative h-48 overflow-hidden">
         <img
-          src={food.image}
+          src={food.imageUrl}
           alt={food.name}
           className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
         />
         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center shadow-sm">
           <Star className="w-3 h-3 text-yellow-500 mr-1 fill-yellow-500" />
-          <span className="text-xs font-bold text-gray-800">{food.rating}</span>
+          {/* <span className="text-xs font-bold text-gray-800">{food.rating}</span> */}
         </div>
       </div>
 
@@ -26,7 +26,7 @@ const FoodCard = ({ food }) => {
             <span className="text-xs font-medium text-orange-500 uppercase tracking-wide">
               {food.category}
             </span>
-            <Link to={`/food/${food.id}`}>
+            <Link to={`/food/${food._id}`}>
               <h3 className="text-lg font-bold text-gray-800 leading-tight mb-1 hover:text-orange-600 transition">
                 {food.name}
               </h3>

@@ -7,6 +7,9 @@ const ENDPOINTS = {
     RESEND_VERIFICATION: "/auths/resend-verification",
     SIGNIN_GOOGLE: "/auths/google",
   },
+  ITEM: {
+    GET_ALL_ITEMS: "/items",
+  }
 };
 
 export default ENDPOINTS;

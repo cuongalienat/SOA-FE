@@ -1,24 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Filter } from "lucide-react";
 import FoodCard from "../../components/FoodCard.jsx";
-import { FOOD_DATA, CATEGORIES } from "../../constants.js";
+import { CATEGORIES } from "../../constants.js"; // Bỏ FOOD_DATA
+import { useItems } from "../../hooks/useItems.jsx";
 
 const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredFood = FOOD_DATA.filter((food) => {
+  // Lấy items và hàm loadItems từ hook
+  const { items, loadItems, loading } = useItems();
+
+  useEffect(() => {
+    loadItems();
+  }, []);
+
+  const realItems = items?.data || (Array.isArray(items) ? items : []);
+
+  // Logic lọc dữ liệu dựa trên items thực tế
+  const filteredFood = realItems.filter((item) => {
+    // 1. Lọc theo category
+    // Lưu ý: Đảm bảo field 'category' trong DB khớp với tên trong CATEGORIES
     const matchesCategory =
-      selectedCategory === "Tất cả" || food.category === selectedCategory;
-    const matchesSearch = food.name
-      .toLowerCase()
+      selectedCategory === "Tất cả" || item.category === selectedCategory;
+
+    // 2. Lọc theo tên tìm kiếm
+    const matchesSearch = item.name
+      ?.toLowerCase()
       .includes(searchTerm.toLowerCase());
+
     return matchesCategory && matchesSearch;
   });
 
   return (
     <div className="pb-12">
-      {/* Hero Section */}
+      {/* Hero Section - Giữ nguyên */}
       <section className="relative bg-orange-50 h-[500px] flex items-center overflow-hidden">
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-orange-200 rounded-full blur-3xl opacity-50"></div>
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-yellow-200 rounded-full blur-3xl opacity-50"></div>
@@ -64,7 +80,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Categories */}
+      {/* Categories - Giữ nguyên */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-gray-900">Danh mục</h2>
@@ -80,11 +96,10 @@ const Home = () => {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-6 py-3 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
-                selectedCategory === cat
-                  ? "bg-orange-500 text-white shadow-md transform scale-105"
-                  : "bg-white text-gray-600 border border-gray-200 hover:border-orange-200 hover:text-orange-500"
-              }`}
+              className={`px-6 py-3 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${selectedCategory === cat
+                ? "bg-orange-500 text-white shadow-md transform scale-105"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-orange-200 hover:text-orange-500"
+                }`}
             >
               {cat}
             </button>
@@ -92,17 +107,23 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Food Grid */}
+      {/* Food Grid - Sử dụng dữ liệu thật */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Phổ biến gần bạn
         </h2>
+
+        {/* Loading State (Tuỳ chọn) */}
+        {loading && <p className="text-center text-gray-500">Đang tải món ăn...</p>}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {filteredFood.map((food) => (
-            <FoodCard key={food.id} food={food} />
+          {filteredFood.map((item) => (
+            // Sử dụng item._id vì MongoDB trả về _id
+            <FoodCard key={item._id || item.id} food={item} />
           ))}
         </div>
-        {filteredFood.length === 0 && (
+
+        {!loading && filteredFood.length === 0 && (
           <div className="text-center py-20">
             <p className="text-gray-500 text-lg">
               Không tìm thấy món nào. Hãy thử danh mục hoặc từ khóa khác.
@@ -111,17 +132,18 @@ const Home = () => {
         )}
       </section>
 
+      {/* Section Ưu đãi - (Lưu ý: Bạn đang hiển thị cùng 1 list với section trên) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Ưu đãi</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {filteredFood.map((food) => (
-            <FoodCard key={food.id} food={food} />
+          {filteredFood.map((items) => (
+            <FoodCard key={items._id || items.id} food={items} />
           ))}
         </div>
-        {filteredFood.length === 0 && (
+        {!loading && filteredFood.length === 0 && (
           <div className="text-center py-20">
             <p className="text-gray-500 text-lg">
-              Không tìm thấy món nào. Hãy thử danh mục hoặc từ khóa khác.
+              Không tìm thấy món nào.
             </p>
           </div>
         )}

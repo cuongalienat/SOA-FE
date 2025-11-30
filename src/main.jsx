@@ -17,4 +17,3 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </GoogleOAuthProvider>
   </React.StrictMode>,
 );
-933115856641 - kj0f8jgumdc135putln66r082ok1kvs2.apps.googleusercontent.com
