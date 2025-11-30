@@ -45,3 +45,13 @@ export const resendVerificationEmail = async (email) => {
     throw error.response?.data || { message: "Lỗi gửi lại mã xác thực " };
   }
 };
+
+// Đăng nhập với Google
+export const signInWithGoogle = async (token) => {
+  try {
+    const response = await api.post(ENDPOINTS.AUTH.SIGNIN_GOOGLE, { token });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Lỗi đăng nhập Google" };
+  }
+};

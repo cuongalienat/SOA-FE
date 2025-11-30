@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -10,13 +9,11 @@ import {
   LogOut,
 } from "lucide-react";
 import { useCart } from "../../../context/CartContext.jsx";
-import { useAuths } from "../../../hooks/useAuths.js";
 import LocationSelector from "../LocationSelector/LocationSelector.jsx";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { itemCount } = useCart();
-  const { user, isAuthenticated, logout } = useAuths();
   const location = useLocation();
 
   const navLinks = [
@@ -67,7 +64,7 @@ const Navbar = () => {
           {/* Icons & Auth */}
           <div className="flex items-center space-x-4">
             <div className="hidden md:flex items-center ml-2 border-l pl-4 border-gray-200">
-              {isAuthenticated && user ? (
+              {/* {isAuthenticated && user ? (
                 <div className="flex items-center space-x-3 group relative cursor-pointer">
                   <span className="text-sm font-semibold text-gray-700">
                     {user.name}
@@ -76,7 +73,7 @@ const Navbar = () => {
                     <UserIcon size={18} />
                   </div>
                   {/* Dropdown for logout */}
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50">
+              {/* <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50">
                     <button
                       onClick={logout}
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
@@ -85,22 +82,22 @@ const Navbar = () => {
                     </button>
                   </div>
                 </div>
-              ) : (
-                <div className="flex space-x-2">
-                  <Link
-                    to="/signin"
-                    className="text-sm font-semibold text-gray-600 hover:text-orange-500 px-3 py-2"
-                  >
-                    Đăng nhập
-                  </Link>
-                  <Link
-                    to="/signup"
-                    className="text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-full hover:bg-orange-600 transition shadow-md"
-                  >
-                    Đăng ký
-                  </Link>
-                </div>
-              )}
+              ) : ( */}
+              <div className="flex space-x-2">
+                <Link
+                  to="/signin"
+                  className="text-sm font-semibold text-gray-600 hover:text-orange-500 px-3 py-2"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  to="/signup"
+                  className="text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-full hover:bg-orange-600 transition shadow-md"
+                >
+                  Đăng ký
+                </Link>
+              </div>
+              {/* )} */}
             </div>
 
             <button
@@ -132,44 +129,44 @@ const Navbar = () => {
               </Link>
             ))}
             <div className="border-t border-gray-100 my-2 pt-2">
-              {isAuthenticated && user ? (
-                <>
-                  <div className="px-3 py-2 flex items-center space-x-3">
-                    <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
-                      <UserIcon size={18} />
+              {/* {isAuthenticated && user ? (
+                  <>
+                    <div className="px-3 py-2 flex items-center space-x-3">
+                      <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
+                        <UserIcon size={18} />
+                      </div>
+                      <span className="font-semibold text-gray-700">
+                        {user.name}
+                      </span>
                     </div>
-                    <span className="font-semibold text-gray-700">
-                      {user.name}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      logout();
-                      setIsOpen(false);
-                    }}
-                    className="block w-full text-left px-3 py-2 text-red-500 font-medium"
-                  >
-                    Đăng xuất
-                  </button>
-                </>
-              ) : (
-                <div className="px-3 py-2 space-y-2">
-                  <Link
-                    to="/signin"
-                    onClick={() => setIsOpen(false)}
-                    className="block text-center w-full border border-gray-300 rounded-lg py-2 text-gray-700 font-semibold"
-                  >
-                    Đăng nhập
-                  </Link>
-                  <Link
-                    to="/signup"
-                    onClick={() => setIsOpen(false)}
-                    className="block text-center w-full bg-orange-500 rounded-lg py-2 text-white font-semibold"
-                  >
-                    Đăng ký
-                  </Link>
-                </div>
-              )}
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsOpen(false);
+                      }}
+                      className="block w-full text-left px-3 py-2 text-red-500 font-medium"
+                    >
+                      Đăng xuất
+                    </button>
+                  </>
+                ) : ( */}
+              <div className="px-3 py-2 space-y-2">
+                <Link
+                  to="/signin"
+                  onClick={() => setIsOpen(false)}
+                  className="block text-center w-full border border-gray-300 rounded-lg py-2 text-gray-700 font-semibold"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  to="/signup"
+                  onClick={() => setIsOpen(false)}
+                  className="block text-center w-full bg-orange-500 rounded-lg py-2 text-white font-semibold"
+                >
+                  Đăng ký
+                </Link>
+              </div>
+              {/* )} */}
             </div>
             <div className="px-3 py-2">
               <LocationSelector />
@@ -182,31 +179,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-=======
-import React from "react";
-import "./Navbar.css";
-import { Link } from "react-router-dom";
-import LocationSelector from "../LocationSelector/LocationSelector";
-
-export default function Navbar() {
-    return (
-        <nav className="navbar">
-            <div className="navbar-container">
-                {/* Bên trái */}
-                <div className="navbar-left">
-                    <LocationSelector />
-                    <Link to="/" className="logo-link">🍜 Foodie</Link>
-                </div>
-
-                {/* Bên phải */}
-                <ul className="nav-links">
-                    <li><Link to="/">Trang chủ</Link></li>
-                    <li><Link to="/contact">Liên hệ</Link></li>
-                    <li><Link to="/cart">🛒 Giỏ hàng</Link></li>
-                    <li className="login-btn"><Link to="/signin">Đăng nhập</Link></li>
-                </ul>
-            </div>
-        </nav>
-    );
-}
->>>>>>> 5f0339b404f1292619b3460a7f429de6683a4a1a

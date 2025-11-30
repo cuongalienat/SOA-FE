@@ -10,10 +10,10 @@ import {
 } from "lucide-react";
 import { FOOD_DATA } from "../../constants.js";
 import { useCart } from "../../context/CartContext.jsx";
-import {
-  generateFoodDescription,
-  askChefAI,
-} from "../../services/geminiService.js";
+// import {
+//   generateFoodDescription,
+//   askChefAI,
+// } from "../../services/geminiService.js";
 
 const FoodDetail = () => {
   const { id } = useParams();
@@ -41,15 +41,15 @@ const FoodDetail = () => {
     setLoadingAi(false);
   };
 
-  const handleAskChef = async () => {
-    if (!chefQuery.trim()) return;
-    setLoadingChef(true);
-    const answer = await askChefAI(
-      `Liên quan đến món ${food?.name}: ${chefQuery}`
-    );
-    setChefAnswer(answer);
-    setLoadingChef(false);
-  };
+  // const handleAskChef = async () => {
+  //   if (!chefQuery.trim()) return;
+  //   setLoadingChef(true);
+  //   const answer = await askChefAI(
+  //     `Liên quan đến món ${food?.name}: ${chefQuery}`
+  //   );
+  //   setChefAnswer(answer);
+  //   setLoadingChef(false);
+  // };
 
   if (!food) return null;
 
@@ -111,13 +111,13 @@ const FoodDetail = () => {
                 placeholder="Món này có chứa gluten không?"
                 className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm outline-none focus:border-blue-400"
               />
-              <button
+              {/* <button
                 onClick={handleAskChef}
                 disabled={loadingChef}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
               >
                 Hỏi
-              </button>
+              </button> */}
             </div>
             {chefAnswer && (
               <p className="text-sm text-blue-900 bg-blue-100 p-3 rounded-lg italic">
