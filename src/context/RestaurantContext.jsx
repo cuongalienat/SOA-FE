@@ -6,7 +6,7 @@ const RestaurantContext = createContext();
 export const RestaurantProvider = ({ children }) => {
   // Restaurant Info State
   const [info, setInfo] = useState({
-    name: "FlavorDash HQ",
+    name: "MónViệt HQ",
     address: "123 Ẩm Thực, Hà Nội",
     phone: "0901234567",
     isOpen: true,
@@ -23,7 +23,7 @@ export const RestaurantProvider = ({ children }) => {
     {
       id: 101,
       customer: "Nguyễn Văn A",
-      total: 29.98,
+      total: 30000,
       status: "Đang chờ",
       items: "2x Burger",
       date: "2023-10-25",
@@ -31,7 +31,7 @@ export const RestaurantProvider = ({ children }) => {
     {
       id: 102,
       customer: "Trần Thị B",
-      total: 12.5,
+      total: 12500,
       status: "Đang nấu",
       items: "1x Pizza",
       date: "2023-10-25",
@@ -39,7 +39,7 @@ export const RestaurantProvider = ({ children }) => {
     {
       id: 103,
       customer: "Lê Văn C",
-      total: 45.0,
+      total: 45000,
       status: "Hoàn thành",
       items: "3x Mì Ramen",
       date: "2023-10-24",
@@ -47,7 +47,7 @@ export const RestaurantProvider = ({ children }) => {
     {
       id: 104,
       customer: "Phạm Thị D",
-      total: 15.5,
+      total: 15000,
       status: "Hoàn thành",
       items: "1x Burger",
       date: "2023-10-24",

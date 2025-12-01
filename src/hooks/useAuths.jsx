@@ -1,106 +1,158 @@
-import { useState } from "react";
-import { signInUser, signUpUser, signInWithGoogle } from "../services/authServices.jsx";
-import { validateSignupData, validateSigninData } from "../utils/validationUtils.js";
-import { saveAuthData, clearAuthData } from "../utils/authUtils.js";
+import { useState, useEffect } from "react";
+import {
+  signInUser,
+  signUpUser,
+  signInWithGoogle,
+} from "../services/authServices.jsx";
+import {
+  validateSignupData,
+  validateSigninData,
+} from "../utils/validationUtils.js";
+import {
+  saveAuthData,
+  clearAuthData,
+  getCurrentUser,
+} from "../utils/authUtils.js";
 
 export const useAuth = () => {
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
 
-    const signin = async (username, password) => {
-        setLoading(true);
-        setError(null);
+  // Persistence: Load user from local storage on mount
+  useEffect(() => {
+    const storedUser = getCurrentUser();
+    if (storedUser) {
+      if (storedUser.balance === undefined) {
+        storedUser.balance = 0;
+      }
+      setUser(storedUser);
+    }
+  }, []);
 
-        try {
-            // Validate dữ liệu đăng nhập
-            const validationErrors = validateSigninData({ username, password });
-            if (validationErrors.length > 0) {
-                setError(validationErrors.join(', '));
-                return null;
-            }
+  const signin = async (username, password) => {
+    setLoading(true);
+    setError(null);
 
-            const data = await signInUser({ username, password });
+    try {
+      // Validate dữ liệu đăng nhập
+      const validationErrors = validateSigninData({ username, password });
+      if (validationErrors.length > 0) {
+        setError(validationErrors.join(", "));
+        return null;
+      }
 
-            // Lưu token & user sử dụng authUtils
-            saveAuthData(data);
-            if (data.user) {
-                setUser(data.user);
-            }
+      const data = await signInUser({ username, password });
 
-            console.log("✅ Đăng nhập thành công:"); // <-- confirm login
+      // Lưu token & user sử dụng authUtils
+      saveAuthData(data);
+      if (data.user) {
+        setUser(data.user);
+      }
 
-            return { success: true, data: data };
-        } catch (err) {
-            console.error("❌ Đăng nhập thất bại:", err);
-            setError(err.message || "Sai username hoặc mật khẩu");
-            return { success: false, error: error.message };
-        } finally {
-            setLoading(false);
+      console.log("✅ Đăng nhập thành công:"); // <-- confirm login
+
+      return { success: true, data: data };
+    } catch (err) {
+      console.error("❌ Đăng nhập thất bại:", err);
+      setError(err.message || "Sai username hoặc mật khẩu");
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signInGoogle = async (tokenId) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await signInWithGoogle(tokenId);
+      if (data.user && data.user.balance === undefined) {
+        data.user.balance = 80000;
+      }
+      saveAuthData(data);
+      if (data.user) {
+        setUser(data.user);
+      }
+      console.log("✅ Đăng nhập Google thành công:");
+      return { success: true, data: data };
+    } catch (err) {
+      console.error("❌ Đăng nhập Google thất bại:", err);
+      setError(err.message || "Đăng nhập Google thất bại");
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signup = async (userData, skipValidation = false) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Chỉ validate nếu không bỏ qua
+      if (!skipValidation) {
+        const validationErrors = validateSignupData(userData);
+        if (validationErrors.length > 0) {
+          setError(validationErrors.join(", "));
+          return null;
         }
-    };
+      }
 
-    const signInGoogle = async (tokenId) => {
-        setLoading(true);
-        setError(null);
-        try {
-            const data = await signInWithGoogle(tokenId);
-            saveAuthData(data);
-            if (data.user) {
-                setUser(data.user);
-            }
-            console.log("✅ Đăng nhập Google thành công:");
-            return { success: true, data: data };
-        } catch (err) {
-            console.error("❌ Đăng nhập Google thất bại:", err);
-            setError(err.message || "Đăng nhập Google thất bại");
-            return { success: false, error: err.message };
-        } finally {
-            setLoading(false);
-        }
-    };
+      // Gọi API đăng ký
+      const data = await signUpUser(userData);
 
-    const signup = async (userData, skipValidation = false) => {
-        setLoading(true);
-        setError(null);
+      // Lưu token & user sử dụng authUtils (nếu backend trả về)
+      saveAuthData(data);
+      if (data.user) {
+        setUser(data.user);
+      }
 
-        try {
-            // Chỉ validate nếu không bỏ qua
-            if (!skipValidation) {
-                const validationErrors = validateSignupData(userData);
-                if (validationErrors.length > 0) {
-                    setError(validationErrors.join(', '));
-                    return null;
-                }
-            }
+      console.log("✅ Đăng ký thành công:", data);
 
-            // Gọi API đăng ký
-            const data = await signUpUser(userData);
+      return { success: true, data: data };
+    } catch (err) {
+      console.error("❌ Đăng ký thất bại:", err);
+      setError(err.message || "Đăng ký thất bại. Vui lòng thử lại.");
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            // Lưu token & user sử dụng authUtils (nếu backend trả về)
-            saveAuthData(data);
-            if (data.user) {
-                setUser(data.user);
-            }
+  // Hàm logout
+  const logout = () => {
+    clearAuthData();
+    setUser(null);
+    setError(null);
+  };
 
-            console.log("✅ Đăng ký thành công:", data);
+  const updateUser = (updatedData) => {
+    if (!user) return;
+    const newUser = { ...user, ...updatedData };
+    setUser(newUser);
+    saveAuthData({ user: newUser });
+    return newUser;
+  };
 
-            return { success: true, data: data };
-        } catch (err) {
-            console.error("❌ Đăng ký thất bại:", err);
-            setError(err.message || "Đăng ký thất bại. Vui lòng thử lại.");
-            return { success: false, error: err.message };
-        } finally {
-            setLoading(false);
-        }
-    };
+  const topUpWallet = (amount) => {
+    if (!user) return;
+    const newBalance = (user.balance || 0) + Number(amount);
+    const newUser = { ...user, balance: newBalance };
+    setUser(newUser);
+    saveAuthData({ user: newUser });
+    return newBalance;
+  };
 
-    // Hàm logout
-    const logout = () => {
-        clearAuthData();
-        setUser(null);
-        setError(null);
-    };
-
-    return { signin, signup, logout, signInGoogle, loading, error, user };
+  return {
+    signin,
+    signup,
+    logout,
+    signInGoogle,
+    updateUser,
+    topUpWallet,
+    loading,
+    error,
+    user,
+  };
 };

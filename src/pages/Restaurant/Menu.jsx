@@ -115,7 +115,9 @@ const Menu = () => {
             <div className="p-4">
               <div className="flex justify-between items-start">
                 <h3 className="font-bold text-gray-900 text-lg">{item.name}</h3>
-                <span className="text-orange-600 font-bold">${item.price}</span>
+                <span className="text-orange-600 font-bold">
+                  {item.price} VNĐ
+                </span>
               </div>
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">
                 {item.description}
@@ -161,7 +163,7 @@ const Menu = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Giá ($)
+                    Giá (VNĐ)
                   </label>
                   <input
                     type="number"

@@ -4,6 +4,7 @@ import Logo from "../../components/common/Logo";
 import Input from "../../components/common/Input";
 import BackLink from "../../components/common/BackLink";
 import "./styles.css";
+import { ChefHat } from "lucide-react";
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -21,13 +22,22 @@ const ForgotPassword = () => {
     <div className="forgotPassword-body">
       <main className="forgotPassword-container">
         <section className="forgotPassword-section">
-          <Logo />
-          <BackLink text="Back to login" onClick={handleBackToLogin} />
+          <div className="flex items-center gap-2 mb-6 justify-center">
+            {/* Phần Icon */}
+            <div className="bg-orange-500 p-1.5 rounded-lg flex items-center justify-center">
+              <ChefHat className="text-white h-6 w-6" />
+            </div>
 
-          <h1 className="forgotPassword-title">Forgot your password?</h1>
+            {/* Phần Chữ */}
+            <span className="font-bold text-xl tracking-tight text-gray-800">
+              Món<span className="text-orange-500">Việt</span>
+            </span>
+          </div>
+          <BackLink text="Trở về đăng nhập" onClick={handleBackToLogin} />
+
+          <h1 className="forgotPassword-title">Quên mật khẩu?</h1>
           <p className="forgotPassword-subtitle">
-            Don't worry, happens to all of us. Enter your email below to recover
-            your password.
+            Đừng lo lắng, nhập email bạn ở dưới để lấy lại mật khẩu.
           </p>
 
           <form className="forgotPassword-form" onSubmit={handleSubmit}>
@@ -40,7 +50,7 @@ const ForgotPassword = () => {
               required
             />
             <button type="submit" className="submit-btn">
-              Submit
+              Xác nhận
             </button>
           </form>
         </section>

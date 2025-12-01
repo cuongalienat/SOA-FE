@@ -49,7 +49,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Tổng doanh thu"
-          value={`$${stats.revenue.toFixed(2)}`}
+          value={`${stats.revenue} VNĐ`}
           icon={DollarSign}
           color="bg-green-500"
         />
@@ -61,7 +61,7 @@ const Dashboard = () => {
         />
         <StatCard
           title="Trung bình đơn"
-          value={`$${stats.avgOrderValue.toFixed(2)}`}
+          value={`${stats.avgOrderValue} VNĐ`}
           icon={TrendingUp}
           color="bg-purple-500"
         />
@@ -122,9 +122,7 @@ const Dashboard = () => {
                     <td className="py-3 text-gray-900 font-medium">
                       {order.customer}
                     </td>
-                    <td className="py-3 text-gray-600">
-                      ${order.total.toFixed(2)}
-                    </td>
+                    <td className="py-3 text-gray-600">{order.total} VNĐ</td>
                     <td className="py-3">
                       <span
                         className={`px-2 py-1 rounded-md text-xs font-bold
