@@ -26,8 +26,8 @@ export const useEmailVerification = () => {
         navigate("/signin", {
           state: {
             message: result.message,
-            type: "success"
-          }
+            type: "success",
+          },
         });
       }, 1500);
     } catch (err) {

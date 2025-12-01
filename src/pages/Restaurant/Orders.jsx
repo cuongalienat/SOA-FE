@@ -44,7 +44,7 @@ const Orders = () => {
               </h3>
               <p className="text-gray-600 text-sm">{order.items}</p>
               <p className="text-orange-600 font-bold mt-2">
-                ${order.total.toFixed(2)}
+                {order.total} VNĐ
               </p>
             </div>
 

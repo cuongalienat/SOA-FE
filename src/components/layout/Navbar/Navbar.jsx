@@ -7,13 +7,16 @@ import {
   ChefHat,
   User as UserIcon,
   LogOut,
+  Settings,
 } from "lucide-react";
 import { useCart } from "../../../context/CartContext.jsx";
+import { useAuth } from "../../../context/AuthContext.jsx";
 import LocationSelector from "../LocationSelector/LocationSelector.jsx";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { itemCount } = useCart();
+  const { user, logout } = useAuth();
   const location = useLocation();
 
   const navLinks = [
@@ -64,40 +67,52 @@ const Navbar = () => {
           {/* Icons & Auth */}
           <div className="flex items-center space-x-4">
             <div className="hidden md:flex items-center ml-2 border-l pl-4 border-gray-200">
-              {/* {isAuthenticated && user ? (
+              {user ? (
                 <div className="flex items-center space-x-3 group relative cursor-pointer">
-                  <span className="text-sm font-semibold text-gray-700">
-                    {user.name}
-                  </span>
+                  <div className="text-right hidden lg:block">
+                    <span className="text-sm font-semibold text-gray-700 block">
+                      {user.name}
+                    </span>
+                    <span className="text-xs text-orange-600 font-bold block">
+                      {(user.balance || 0).toLocaleString()}đ
+                    </span>
+                  </div>
                   <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
                     <UserIcon size={18} />
                   </div>
                   {/* Dropdown for logout */}
-              {/* <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50">
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform origin-top-right z-50">
+                    <Link
+                      to="/profile"
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                    >
+                      <Settings size={16} className="mr-2" /> Tài khoản
+                    </Link>
+                    <div className="h-px bg-gray-100 my-1"></div>
                     <button
                       onClick={logout}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 flex items-center"
                     >
                       <LogOut size={16} className="mr-2" /> Đăng xuất
                     </button>
                   </div>
                 </div>
-              ) : ( */}
-              <div className="flex space-x-2">
-                <Link
-                  to="/signin"
-                  className="text-sm font-semibold text-gray-600 hover:text-orange-500 px-3 py-2"
-                >
-                  Đăng nhập
-                </Link>
-                <Link
-                  to="/signup"
-                  className="text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-full hover:bg-orange-600 transition shadow-md"
-                >
-                  Đăng ký
-                </Link>
-              </div>
-              {/* )} */}
+              ) : (
+                <div className="flex space-x-2">
+                  <Link
+                    to="/signin"
+                    className="text-sm font-semibold text-gray-600 hover:text-orange-500 px-3 py-2"
+                  >
+                    Đăng nhập
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-full hover:bg-orange-600 transition shadow-md"
+                  >
+                    Đăng ký
+                  </Link>
+                </div>
+              )}
             </div>
 
             <button
