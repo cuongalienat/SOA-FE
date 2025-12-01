@@ -128,7 +128,10 @@ const FoodDetail = () => {
 
           <div className="flex space-x-4">
             <button
-              onClick={() => addToCart(food)}
+              onClick={() => {
+                addToCart(food);
+                alert("Đã thêm món vào giỏ hàng thành công!");
+              }}
               className="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
             >
               <ShoppingBag size={20} />

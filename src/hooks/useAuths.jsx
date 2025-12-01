@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   signInUser,
   signUpUser,
@@ -8,12 +8,27 @@ import {
   validateSignupData,
   validateSigninData,
 } from "../utils/validationUtils.js";
-import { saveAuthData, clearAuthData } from "../utils/authUtils.js";
+import {
+  saveAuthData,
+  clearAuthData,
+  getCurrentUser,
+} from "../utils/authUtils.js";
 
 export const useAuth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+
+  // Persistence: Load user from local storage on mount
+  useEffect(() => {
+    const storedUser = getCurrentUser();
+    if (storedUser) {
+      if (storedUser.balance === undefined) {
+        storedUser.balance = 0;
+      }
+      setUser(storedUser);
+    }
+  }, []);
 
   const signin = async (username, password) => {
     setLoading(true);
@@ -52,6 +67,9 @@ export const useAuth = () => {
     setError(null);
     try {
       const data = await signInWithGoogle(tokenId);
+      if (data.user && data.user.balance === undefined) {
+        data.user.balance = 80000;
+      }
       saveAuthData(data);
       if (data.user) {
         setUser(data.user);
@@ -109,5 +127,32 @@ export const useAuth = () => {
     setError(null);
   };
 
-  return { signin, signup, logout, signInGoogle, loading, error, user };
+  const updateUser = (updatedData) => {
+    if (!user) return;
+    const newUser = { ...user, ...updatedData };
+    setUser(newUser);
+    saveAuthData({ user: newUser });
+    return newUser;
+  };
+
+  const topUpWallet = (amount) => {
+    if (!user) return;
+    const newBalance = (user.balance || 0) + Number(amount);
+    const newUser = { ...user, balance: newBalance };
+    setUser(newUser);
+    saveAuthData({ user: newUser });
+    return newBalance;
+  };
+
+  return {
+    signin,
+    signup,
+    logout,
+    signInGoogle,
+    updateUser,
+    topUpWallet,
+    loading,
+    error,
+    user,
+  };
 };

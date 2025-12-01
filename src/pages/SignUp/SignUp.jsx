@@ -1,57 +1,58 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuths';
-import { validateSignupData } from '../../utils/validationUtils.js';
-import Logo from '../../components/common/Logo';
-import Input from '../../components/common/Input';
-import PasswordInput from '../../components/common/PasswordInput';
-import NotificationPopup from '../../components/common/NotificationPopup';
-import './styles.css';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuths";
+import { validateSignupData } from "../../utils/validationUtils.js";
+import Logo from "../../components/common/Logo";
+import Input from "../../components/common/Input";
+import PasswordInput from "../../components/common/PasswordInput";
+import NotificationPopup from "../../components/common/NotificationPopup";
+import "./styles.css";
+import { ChefHat } from "lucide-react";
 
 const SignUp = () => {
   const navigate = useNavigate();
   const { signup, loading, error } = useAuth();
 
   const [formData, setFormData] = useState({
-    username: '',
-    fullName: '',
-    age: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: ''
+    username: "",
+    fullName: "",
+    age: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const [notification, setNotification] = useState({
     isVisible: false,
-    message: '',
-    type: 'info'
+    message: "",
+    type: "info",
   });
 
   const handleLoginRedirect = () => {
-    navigate('/signin');
+    navigate("/signin");
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  const showNotification = (message, type = 'info') => {
+  const showNotification = (message, type = "info") => {
     setNotification({
       isVisible: true,
       message,
-      type
+      type,
     });
   };
 
   const hideNotification = () => {
-    setNotification(prev => ({
+    setNotification((prev) => ({
       ...prev,
-      isVisible: false
+      isVisible: false,
     }));
   };
 
@@ -60,7 +61,7 @@ const SignUp = () => {
 
     // Kiểm tra mật khẩu xác nhận trước
     if (formData.password !== formData.confirmPassword) {
-      showNotification('Mật khẩu xác nhận không khớp', 'error');
+      showNotification("Mật khẩu xác nhận không khớp", "error");
       return;
     }
 
@@ -71,35 +72,38 @@ const SignUp = () => {
       age: formData.age,
       email: formData.email,
       phone: formData.phone,
-      password: formData.password
+      password: formData.password,
     });
 
     if (validationErrors.length > 0) {
-      showNotification(validationErrors.join(', '), 'error');
+      showNotification(validationErrors.join(", "), "error");
       return;
     }
 
     // Hiển thị thông báo đang xử lý
-    showNotification('Đang xử lý đăng ký...', 'info');
+    showNotification("Đang xử lý đăng ký...", "info");
 
     try {
       // Gọi API đăng ký (bỏ qua validation ở hook vì đã validate ở component)
-      const result = await signup({
-        username: formData.username,
-        fullName: formData.fullName,
-        age: parseInt(formData.age),
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password
-      }, true);
+      const result = await signup(
+        {
+          username: formData.username,
+          fullName: formData.fullName,
+          age: parseInt(formData.age),
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+        },
+        true
+      );
 
       if (result.success === true) {
         // Đăng ký thành công
-        showNotification(result.data.message, 'success');
+        showNotification(result.data.message, "success");
 
         // Chuyển hướng sau 2 giây
         setTimeout(() => {
-          navigate('/verify-code', {
+          navigate("/verify-code", {
             state: {
               email: formData.email,
             },
@@ -107,11 +111,11 @@ const SignUp = () => {
         }, 2000);
       } else {
         // Đăng ký thất bại - hiển thị lỗi từ API
-        showNotification(result.error, 'error');
+        showNotification(result.error, "error");
       }
     } catch (err) {
-      console.error('Signup error:', err);
-      showNotification('Có lỗi xảy ra. Vui lòng thử lại.', 'error');
+      console.error("Signup error:", err);
+      showNotification("Có lỗi xảy ra. Vui lòng thử lại.", "error");
     }
   };
 
@@ -119,17 +123,29 @@ const SignUp = () => {
     <div className="signup-body">
       <section className="form-column">
         <header className="form-header">
-          <Logo />
+          <div className="flex items-center gap-2 mb-6 justify-center">
+            {/* Phần Icon */}
+            <div className="bg-orange-500 p-1.5 rounded-lg flex items-center justify-center">
+              <ChefHat className="text-white h-6 w-6" />
+            </div>
+
+            {/* Phần Chữ */}
+            <span className="font-bold text-xl tracking-tight text-gray-800">
+              Món<span className="text-orange-500">Việt</span>
+            </span>
+          </div>
         </header>
 
         <div className="form-container">
-          <h1 className="signup-title">Sign up</h1>
-          <p className="signup-subtitle">Let's get you all set up so you can access your personal account.</p>
+          <h1 className="signup-title">Đăng ký</h1>
+          <p className="signup-subtitle">
+            Tạo tài khoản cá nhân để tận hưởng trọn vẹn mọi tiện ích.
+          </p>
 
           <form className="signup-form" onSubmit={handleSignUp}>
             <div className="form-row">
               <Input
-                label="Username"
+                label="Tên đăng nhập"
                 type="text"
                 id="username"
                 name="username"
@@ -139,7 +155,7 @@ const SignUp = () => {
                 required
               />
               <Input
-                label="Full Name"
+                label="Họ và tên"
                 type="text"
                 id="fullName"
                 name="fullName"
@@ -152,7 +168,7 @@ const SignUp = () => {
 
             <div className="form-row">
               <Input
-                label="Age"
+                label="Tuổi"
                 type="number"
                 id="age"
                 name="age"
@@ -164,7 +180,7 @@ const SignUp = () => {
                 required
               />
               <Input
-                label="Phone Number"
+                label="Số điện thoại"
                 type="tel"
                 id="phone"
                 name="phone"
@@ -187,7 +203,7 @@ const SignUp = () => {
             />
 
             <PasswordInput
-              label="Password"
+              label="Mật khẩu"
               id="password"
               name="password"
               value={formData.password}
@@ -197,7 +213,7 @@ const SignUp = () => {
             />
 
             <PasswordInput
-              label="Confirm Password"
+              label="Xác nhận mật khẩu"
               id="confirmPassword"
               name="confirmPassword"
               value={formData.confirmPassword}
@@ -207,21 +223,34 @@ const SignUp = () => {
             />
 
             <div className="terms-group">
-              <input type="checkbox" id="terms" name="terms" className="terms-checkbox" required />
+              <input
+                type="checkbox"
+                id="terms"
+                name="terms"
+                className="terms-checkbox"
+                required
+              />
               <label htmlFor="terms" className="terms-label">
-                I agree to all the <a href="#" className="terms-link">Terms</a> and <a href="#" className="terms-link">Privacy Policies</a>
+                Tôi đồng ý với mọi{" "}
+                <a href="#" className="terms-link">
+                  Điều khoản
+                </a>{" "}
+                và{" "}
+                <a href="#" className="terms-link">
+                  Chính sách bảo mật
+                </a>
               </label>
             </div>
 
             <button type="submit" className="signup-btn" disabled={loading}>
-              {loading ? 'Đang đăng ký...' : 'Create account'}
+              {loading ? "Đang đăng ký..." : "Đăng ký"}
             </button>
           </form>
 
           <p className="login-link">
-            Already have an account? <span onClick={handleLoginRedirect}>Sign in</span>
+            Đã có tài khoản?{" "}
+            <span onClick={handleLoginRedirect}>Đăng nhập</span>
           </p>
-
         </div>
       </section>
 
@@ -231,7 +260,7 @@ const SignUp = () => {
         type={notification.type}
         isVisible={notification.isVisible}
         onClose={hideNotification}
-        position={{ vertical: 'top', horizontal: 'right' }}
+        position={{ vertical: "top", horizontal: "right" }}
         autoClose={true}
         duration={4000}
       />
