@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { FOOD_DATA } from "../../constants.js";
 import { useCart } from "../../context/CartContext.jsx";
+import { useItems } from "../../hooks/useItems.jsx";
 // import {
 //   generateFoodDescription,
 //   askChefAI,
@@ -19,7 +20,10 @@ const FoodDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const food = FOOD_DATA.find((f) => f.id === Number(id));
+  const { items, loadItems, loading } = useItems();
+  useEffect(() => {
+    loadItems();
+  }, []);
 
   const [aiDescription, setAiDescription] = useState("");
   const [loadingAi, setLoadingAi] = useState(false);
@@ -28,10 +32,22 @@ const FoodDetail = () => {
   const [loadingChef, setLoadingChef] = useState(false);
 
   useEffect(() => {
-    if (!food) {
+    // Chỉ load nếu items chưa có (tối ưu hạn chế gọi API thừa)
+    if (items.length === 0) {
+      loadItems();
+    }
+  }, []);
+
+  // Tìm món ăn trong danh sách items đã tải
+  const food = items.find((f) => f._id === id || f.id === id);
+
+  // 2. Xử lý Redirect an toàn
+  useEffect(() => {
+    // Chỉ redirect khi ĐÃ tải xong (loading = false) mà vẫn không thấy food
+    if (!loading && items.length > 0 && !food) {
       navigate("/");
     }
-  }, [food, navigate]);
+  }, [food, loading, items, navigate]);
 
   const handleEnhanceDescription = async () => {
     if (!food) return;
@@ -59,7 +75,7 @@ const FoodDetail = () => {
         {/* Image Section */}
         <div className="relative rounded-3xl overflow-hidden h-[400px] md:h-[500px] shadow-2xl">
           <img
-            src={food.image}
+            src={food.imageUrl}
             alt={food.name}
             className="w-full h-full object-cover"
           />
