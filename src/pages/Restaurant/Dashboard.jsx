@@ -1,17 +1,11 @@
 import React from "react";
 import { DollarSign, ShoppingBag, Star, TrendingUp } from "lucide-react";
-import { useRestaurant } from "../../context/RestaurantContext.jsx";
 
 const Dashboard = () => {
-  const { stats, orders, info } = useRestaurant();
-
-  // Simple mock data for chart
-  const chartData = [
-    { label: "Burger", value: 80 },
-    { label: "Pizza", value: 65 },
-    { label: "Mì", value: 45 },
-    { label: "Đồ uống", value: 90 },
-  ];
+  const info = [];
+  const stats = [];
+  const chartData = [];
+  const orders = [];
 
   const StatCard = ({ title, value, icon: Icon, color }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
@@ -35,11 +29,10 @@ const Dashboard = () => {
           <p className="text-gray-500">Đây là tình hình kinh doanh hôm nay.</p>
         </div>
         <div
-          className={`px-4 py-2 rounded-full text-sm font-bold ${
-            info.isOpen
-              ? "bg-green-100 text-green-600"
-              : "bg-red-100 text-red-600"
-          }`}
+          className={`px-4 py-2 rounded-full text-sm font-bold ${info.isOpen
+            ? "bg-green-100 text-green-600"
+            : "bg-red-100 text-red-600"
+            }`}
         >
           {info.isOpen ? "Đang Mở Cửa" : "Đang Đóng Cửa"}
         </div>
@@ -126,13 +119,12 @@ const Dashboard = () => {
                     <td className="py-3">
                       <span
                         className={`px-2 py-1 rounded-md text-xs font-bold
-                        ${
-                          order.status === "Hoàn thành"
+                        ${order.status === "Hoàn thành"
                             ? "bg-green-100 text-green-600"
                             : order.status === "Đang chờ"
-                            ? "bg-yellow-100 text-yellow-600"
-                            : "bg-blue-100 text-blue-600"
-                        }`}
+                              ? "bg-yellow-100 text-yellow-600"
+                              : "bg-blue-100 text-blue-600"
+                          }`}
                       >
                         {order.status}
                       </span>

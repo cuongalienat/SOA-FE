@@ -43,7 +43,6 @@ const SignIn = () => {
     e.preventDefault();
 
     const result = await signin(username, password);
-    console.log("isverified:", result?.data?.user);
 
     if (result.success === true && result.data?.user?.isVerified === "no") {
       const emailToVerify = result?.data?.user?.email || username;
@@ -64,12 +63,25 @@ const SignIn = () => {
 
     if (result.success === true) {
       // Đăng nhập thành công
+      const role = result.data.user.role;
       showNotification(result.data.message, "success");
 
-      // Chuyển hướng sau 1.5 giây
-      setTimeout(() => {
-        navigate("/"); // hoặc trang chính của app
-      }, 1500);
+      switch (role) {
+        case "restaurant_manager":
+          setTimeout(() => {
+            navigate("/restaurant");
+          }, 1500);
+          break;
+        case "shipper":
+          setTimeout(() => {
+            navigate("/shipper");
+          }, 1500);
+          break;
+        default:
+          setTimeout(() => {
+            navigate("/");
+          }, 1500);
+      }
     } else {
       // Đăng nhập thất bại
       showNotification(result.error, "error");

@@ -1,59 +1,8 @@
 import React, { useState } from "react";
 import { Plus, Edit2, Trash2, X, Image as ImageIcon } from "lucide-react";
-import { useRestaurant } from "../../context/RestaurantContext.jsx";
 import { CATEGORIES } from "../../constants.js";
 
 const Menu = () => {
-  const { menu, addMenuItem, updateMenuItem, deleteMenuItem } = useRestaurant();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [filterCategory, setFilterCategory] = useState("Tất cả");
-
-  // Form State
-  const [formData, setFormData] = useState({
-    name: "",
-    price: "",
-    category: "Burger",
-    description: "",
-    image: "",
-  });
-
-  const openAddModal = () => {
-    setEditingItem(null);
-    setFormData({
-      name: "",
-      price: "",
-      category: "Burger",
-      description: "",
-      image: "",
-    });
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (item) => {
-    setEditingItem(item);
-    setFormData({ ...item });
-    setIsModalOpen(true);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const itemData = {
-      ...formData,
-      price: parseFloat(formData.price),
-    };
-
-    if (editingItem) {
-      updateMenuItem(editingItem.id, itemData);
-    } else {
-      addMenuItem(itemData);
-    }
-    setIsModalOpen(false);
-  };
-
-  const filteredMenu = menu.filter(
-    (item) => filterCategory === "Tất cả" || item.category === filterCategory
-  );
 
   return (
     <div>
@@ -73,11 +22,10 @@ const Menu = () => {
           <button
             key={cat}
             onClick={() => setFilterCategory(cat)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
-              filterCategory === cat
-                ? "bg-gray-900 text-white"
-                : "bg-white text-gray-600 border"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${filterCategory === cat
+              ? "bg-gray-900 text-white"
+              : "bg-white text-gray-600 border"
+              }`}
           >
             {cat}
           </button>

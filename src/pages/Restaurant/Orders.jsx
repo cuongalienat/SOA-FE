@@ -1,9 +1,12 @@
 import React from "react";
 import { Clock, CheckCircle, Truck, ChefHat } from "lucide-react";
-import { useRestaurant } from "../../context/RestaurantContext.jsx";
 
 const Orders = () => {
-  const { orders, updateOrderStatus } = useRestaurant();
+  const orders = [];
+  const updateOrderStatus = (orderId, newStatus) => {
+    // Cập nhật trạng thái đơn hàng (giả lập)
+    console.log(`Cập nhật đơn hàng ${orderId} thành trạng thái: ${newStatus}`);
+  }
 
   const getStatusColor = (status) => {
     switch (status) {

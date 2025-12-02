@@ -41,20 +41,18 @@ const ShipperDashboard = () => {
               Trạng thái nhận đơn
             </p>
             <p
-              className={`text-sm font-bold ${
-                isOnline ? "text-green-600" : "text-red-500"
-              }`}
+              className={`text-sm font-bold ${isOnline ? "text-green-600" : "text-red-500"
+                }`}
             >
               {isOnline ? "Tự động nhận đơn tiếp" : "Nghỉ sau đơn này"}
             </p>
           </div>
           <button
             onClick={toggleOnline}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors ${
-              isOnline
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors ${isOnline
                 ? "bg-green-100 text-green-700 hover:bg-green-200"
                 : "bg-red-100 text-red-700 hover:bg-red-200"
-            }`}
+              }`}
           >
             <span className="text-xs font-bold">
               {isOnline ? "Bật" : "Tắt"}
@@ -174,25 +172,22 @@ const ShipperDashboard = () => {
         {isOnline && (
           <>
             <div
-              className={`absolute inset-0 rounded-full bg-green-400 opacity-20 ${
-                scanRipple ? "scale-150" : "scale-100"
-              } transition-transform duration-1000`}
+              className={`absolute inset-0 rounded-full bg-green-400 opacity-20 ${scanRipple ? "scale-150" : "scale-100"
+                } transition-transform duration-1000`}
             ></div>
             <div
-              className={`absolute inset-0 rounded-full bg-green-400 opacity-20 ${
-                !scanRipple ? "scale-150" : "scale-100"
-              } transition-transform duration-1000 delay-500`}
+              className={`absolute inset-0 rounded-full bg-green-400 opacity-20 ${!scanRipple ? "scale-150" : "scale-100"
+                } transition-transform duration-1000 delay-500`}
             ></div>
           </>
         )}
 
         <button
           onClick={toggleOnline}
-          className={`relative w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-2xl border-8 transition-all duration-300 transform active:scale-95 ${
-            isOnline
+          className={`relative w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-2xl border-8 transition-all duration-300 transform active:scale-95 ${isOnline
               ? "bg-green-500 border-green-200 text-white"
               : "bg-white border-gray-200 text-gray-400 hover:border-gray-300"
-          }`}
+            }`}
         >
           <Power size={48} className={isOnline ? "mb-2" : "mb-2 opacity-50"} />
           <span className="font-bold text-lg">

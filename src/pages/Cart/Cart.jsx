@@ -19,18 +19,18 @@ import {
 import { useCart } from "../../context/CartContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useForm } from "../../hooks/useForm.jsx";
+import { useOrders } from "../../hooks/useOrders.jsx";
 
 const Cart = () => {
-  const { items, removeFromCart, updateQuantity, cartTotal, clearCart } =
-    useCart();
-  const { myOrders, user, placeOrder, updateUser } = useAuth();
+  const { items, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
+  const { user, updateUser } = useAuth();
+
   const navigate = useNavigate();
 
-  // State quản lý tab và tracking
-  const [activeTab, setActiveTab] = useState("cart"); // 'cart' | 'orders'
-  const [trackingOrder, setTrackingOrder] = useState(null);
+  const { createOrder, loading: creatingOrder, loadUserOrders } = useOrders();
 
-  // State quản lý thanh toán
+  const [activeTab, setActiveTab] = useState("cart");
+  const [trackingOrder, setTrackingOrder] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
 
@@ -47,6 +47,7 @@ const Cart = () => {
   const deliveryFee = 3000;
   const finalTotal = cartTotal + tax + deliveryFee;
 
+
   // Xử lý khi bấm nút "Đặt hàng"
   const handlePreCheckout = (e) => {
     e.preventDefault();
@@ -60,43 +61,68 @@ const Cart = () => {
     setShowInvoiceModal(true);
   };
 
-  // Xử lý xác nhận thanh toán
   const confirmPayment = async () => {
-    setProcessingPayment(true);
+    if (!user) return;
 
-    // Giả lập API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // 1. Trừ tiền (nếu đủ)
-    // Lưu ý: Logic này giả định đơn vị tiền tệ tương thích.
-    // Trong thực tế cần xử lý quy đổi tỷ giá nếu price là USD và balance là VND.
-    // Ở đây mình giả định hệ thống dùng chung 1 đơn vị số học để trừ.
-    if (user && user.balance >= finalTotal) {
-      const newBalance = user.balance - finalTotal;
-      updateUser({ balance: newBalance });
+    // 1. Kiểm tra số dư ví (Nếu dùng ví)
+    if (user.walletBalance < finalTotal) {
+      console.log("Số dư ví không đủ!", "error");
+      return;
     }
 
-    // 2. Tạo đơn hàng
-    placeOrder({
-      customer: values.fullName,
-      phone: values.phone,
-      address: values.address,
-      note: values.note,
-      total: finalTotal,
-      items: items,
-      paymentMethod: "Ví FlavorDash",
-    });
+    try {
+      // 2. Chuẩn bị dữ liệu
+      // Lấy ID nhà hàng từ món đầu tiên (Giả sử giỏ hàng chỉ chứa món của 1 quán)
+      console.log("item 0:", items[0]);
+      const restaurantId = items[0]?.shopId;
 
-    // 3. Cleanup & Chuyển tab
-    setProcessingPayment(false);
-    setShowInvoiceModal(false);
-    clearCart();
-    setActiveTab("orders");
+      if (!restaurantId) {
+        console.log("Lỗi dữ liệu món ăn (thiếu ID quán)", "error");
+        return;
+      }
 
-    // Scroll lên đầu
-    window.scrollTo(0, 0);
+      // Map items sang format backend cần: { item: itemID, quantity: N }
+      const orderItems = items.map(i => ({
+        item: i._id || i.id, // ID món ăn
+        quantity: i.quantity,
+        price: i.price, // Giá tại thời điểm mua (quan trọng)
+        options: [] // Nếu có topping
+      }));
+
+      // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
+      const newBalance = user.walletBalance - finalTotal;
+      updateUser({ ...user, walletBalance: newBalance });
+
+      // 5. GỌI API TẠO ĐƠN HÀNG (Dùng hook useOrders)
+      const result = await createOrder({
+        customerId: user._id,
+        restaurantId: restaurantId,
+        items: orderItems,
+        shippingFee: deliveryFee,
+        paymentMethod: "Wallet",
+        totalAmount: finalTotal,
+      });
+
+      if (result.success) {
+        console.log("Đặt hàng thành công!", "success");
+
+        // Cleanup
+        setShowInvoiceModal(false);
+        clearCart();
+        setActiveTab("orders"); // Chuyển sang tab đơn hàng
+        window.scrollTo(0, 0);
+      } else {
+        // Nếu lỗi API -> Hoàn tiền ảo lại (Rollback UI)
+        updateUser({ ...user, walletBalance: user.walletBalance });
+        console.log(result.error, "error");
+      }
+
+    } catch (error) {
+      console.error(error);
+      console.log("Có lỗi xảy ra khi thanh toán", "error");
+    }
   };
-
+  const myOrders = []
   // Render Tab Giỏ hàng + Form Thanh toán
   const renderCartAndCheckout = () => {
     if (items.length === 0) {
@@ -137,7 +163,7 @@ const Cart = () => {
                   className="flex items-center space-x-4 border-b border-gray-50 pb-4 last:border-0 last:pb-0"
                 >
                   <img
-                    src={item.image}
+                    src={item.imageUrl}
                     alt={item.name}
                     className="w-20 h-20 rounded-xl object-cover"
                   />
@@ -360,13 +386,12 @@ const Cart = () => {
                     {order.id}
                   </span>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      order.status === "Hoàn thành"
-                        ? "bg-green-100 text-green-700"
-                        : order.status === "Đang nấu"
+                    className={`px-3 py-1 rounded-full text-xs font-bold ${order.status === "Hoàn thành"
+                      ? "bg-green-100 text-green-700"
+                      : order.status === "Đang nấu"
                         ? "bg-blue-100 text-blue-700"
                         : "bg-yellow-100 text-yellow-700"
-                    }`}
+                      }`}
                   >
                     {order.status}
                   </span>
@@ -420,21 +445,19 @@ const Cart = () => {
         <div className="bg-gray-100 p-1 rounded-xl inline-flex shadow-inner">
           <button
             onClick={() => setActiveTab("cart")}
-            className={`px-8 py-3 rounded-lg text-sm font-bold transition-all ${
-              activeTab === "cart"
-                ? "bg-white text-orange-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-800"
-            }`}
+            className={`px-8 py-3 rounded-lg text-sm font-bold transition-all ${activeTab === "cart"
+              ? "bg-white text-orange-600 shadow-sm"
+              : "text-gray-500 hover:text-gray-800"
+              }`}
           >
             Giỏ hàng ({items.length})
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`px-8 py-3 rounded-lg text-sm font-bold transition-all ${
-              activeTab === "orders"
-                ? "bg-white text-orange-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-800"
-            }`}
+            className={`px-8 py-3 rounded-lg text-sm font-bold transition-all ${activeTab === "orders"
+              ? "bg-white text-orange-600 shadow-sm"
+              : "text-gray-500 hover:text-gray-800"
+              }`}
           >
             Đơn hàng ({myOrders.length})
           </button>
@@ -482,11 +505,10 @@ const Cart = () => {
                     Số dư còn lại (ước tính)
                   </span>
                   <span
-                    className={`font-bold text-lg ${
-                      user.balance - finalTotal < 0
-                        ? "text-red-500"
-                        : "text-green-600"
-                    }`}
+                    className={`font-bold text-lg ${user.balance - finalTotal < 0
+                      ? "text-red-500"
+                      : "text-green-600"
+                      }`}
                   >
                     {(user.balance - finalTotal).toLocaleString()}đ
                   </span>
@@ -514,11 +536,10 @@ const Cart = () => {
                   onClick={confirmPayment}
                   disabled={processingPayment || user.balance - finalTotal < 0}
                   className={`flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center transition shadow-lg
-                                ${
-                                  user.balance - finalTotal < 0
-                                    ? "bg-gray-400 cursor-not-allowed"
-                                    : "bg-green-600 hover:bg-green-700"
-                                }
+                                ${user.balance - finalTotal < 0
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700"
+                    }
                             `}
                 >
                   {processingPayment ? "Đang xử lý..." : "Xác nhận"}
@@ -636,5 +657,4 @@ const Cart = () => {
     </div>
   );
 };
-
 export default Cart;

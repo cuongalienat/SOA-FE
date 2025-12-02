@@ -1,14 +1,6 @@
 import React, { useState } from "react";
-import {
-  User,
-  Wallet,
-  CreditCard,
-  Clock,
-  Save,
-  Plus,
-  History,
-} from "lucide-react";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { User, Wallet, CreditCard, Clock, Save, Plus, History } from "lucide-react";
+import { useAuth } from "../../hooks/useAuths.jsx";
 import { useForm } from "../../hooks/useForm.jsx";
 
 const UserProfile = () => {
@@ -92,21 +84,19 @@ const UserProfile = () => {
           <div className="flex p-6 pb-0 space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab("info")}
-              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${
-                activeTab === "info"
-                  ? "border-orange-500 text-orange-600"
-                  : "border-transparent text-gray-500 hover:text-gray-800"
-              }`}
+              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${activeTab === "info"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+                }`}
             >
               <User size={18} className="mr-2" /> Thông tin cá nhân
             </button>
             <button
               onClick={() => setActiveTab("wallet")}
-              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${
-                activeTab === "wallet"
-                  ? "border-orange-500 text-orange-600"
-                  : "border-transparent text-gray-500 hover:text-gray-800"
-              }`}
+              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${activeTab === "wallet"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+                }`}
             >
               <Wallet size={18} className="mr-2" /> Ví của tôi
             </button>
@@ -243,11 +233,10 @@ const UserProfile = () => {
                     >
                       <div className="flex items-center">
                         <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${
-                            t.type === "topup"
-                              ? "bg-green-100 text-green-600"
-                              : "bg-red-100 text-red-600"
-                          }`}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${t.type === "topup"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-red-100 text-red-600"
+                            }`}
                         >
                           {t.type === "topup" ? (
                             <Plus size={20} />
@@ -265,9 +254,8 @@ const UserProfile = () => {
                         </div>
                       </div>
                       <span
-                        className={`font-bold ${
-                          t.amount > 0 ? "text-green-600" : "text-gray-900"
-                        }`}
+                        className={`font-bold ${t.amount > 0 ? "text-green-600" : "text-gray-900"
+                          }`}
                       >
                         {t.amount > 0 ? "+" : ""}
                         {t.amount.toLocaleString()}đ

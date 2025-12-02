@@ -6,23 +6,8 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const auth = useAuthHook();
 
-  // Manage User Orders locally in Context for this demo
-  // In a real app, this would be fetched from an API in useAuth or a separate hook
-  const [myOrders, setMyOrders] = useState([]);
-
-  const placeOrder = (orderData) => {
-    const newOrder = {
-      id: `ORD-${Math.floor(Math.random() * 10000)}`,
-      date: new Date().toLocaleString("vi-VN"),
-      status: "Đang nấu", // Initial status
-      ...orderData,
-    };
-    setMyOrders((prev) => [newOrder, ...prev]);
-    return newOrder;
-  };
-
   return (
-    <AuthContext.Provider value={{ ...auth, myOrders, placeOrder }}>
+    <AuthContext.Provider value={{ ...auth }}>
       {children}
     </AuthContext.Provider>
   );
