@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Trash2,
@@ -14,25 +14,34 @@ import {
   Bike,
   Wallet,
   AlertTriangle,
-  CheckCircle,
+  Loader,
 } from "lucide-react";
 import { useCart } from "../../context/CartContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useForm } from "../../hooks/useForm.jsx";
 import { useOrders } from "../../hooks/useOrders.jsx";
+import { useToast } from "../../context/ToastContext.jsx";
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
   const { user, updateUser } = useAuth();
 
   const navigate = useNavigate();
-
-  const { createOrder, loading: creatingOrder, loadUserOrders } = useOrders();
+  const { showToast } = useToast();
+  const { orders, createOrder, loadMyOrders } = useOrders();
 
   const [activeTab, setActiveTab] = useState("cart");
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+
+  const userId = user?._id;
+
+  useEffect(() => {
+    if (activeTab === "orders" && userId) {
+      loadMyOrders({ userID: userId }); // Gọi API lấy danh sách mới nhất
+    }
+  }, [activeTab, userId, loadMyOrders]);
 
   // Form thông tin giao hàng
   const { values, handleChange, handleSubmit } = useForm({
@@ -66,18 +75,18 @@ const Cart = () => {
 
     // 1. Kiểm tra số dư ví (Nếu dùng ví)
     if (user.walletBalance < finalTotal) {
-      console.log("Số dư ví không đủ!", "error");
+      showToast("Số dư ví không đủ!", "error");
       return;
     }
 
     try {
       // 2. Chuẩn bị dữ liệu
       // Lấy ID nhà hàng từ món đầu tiên (Giả sử giỏ hàng chỉ chứa món của 1 quán)
-      console.log("item 0:", items[0]);
+      showToast("item 0:", items[0]);
       const restaurantId = items[0]?.shopId;
 
       if (!restaurantId) {
-        console.log("Lỗi dữ liệu món ăn (thiếu ID quán)", "error");
+        showToast("Lỗi dữ liệu món ăn (thiếu ID quán)", "error");
         return;
       }
 
@@ -104,7 +113,7 @@ const Cart = () => {
       });
 
       if (result.success) {
-        console.log("Đặt hàng thành công!", "success");
+        showToast("Đặt hàng thành công!", "success");
 
         // Cleanup
         setShowInvoiceModal(false);
@@ -114,15 +123,15 @@ const Cart = () => {
       } else {
         // Nếu lỗi API -> Hoàn tiền ảo lại (Rollback UI)
         updateUser({ ...user, walletBalance: user.walletBalance });
-        console.log(result.error, "error");
+        showToast(result.error, "error");
       }
 
     } catch (error) {
       console.error(error);
-      console.log("Có lỗi xảy ra khi thanh toán", "error");
+      showToast("Có lỗi xảy ra khi thanh toán", "error");
     }
   };
-  const myOrders = []
+  const orderHistory = Array.isArray(orders) ? orders : [];
   // Render Tab Giỏ hàng + Form Thanh toán
   const renderCartAndCheckout = () => {
     if (items.length === 0) {
@@ -354,7 +363,8 @@ const Cart = () => {
 
   // Render Tab Đơn hàng
   const renderOrders = () => {
-    if (myOrders.length === 0) {
+
+    if (orderHistory.length === 0) {
       return (
         <div className="min-h-[50vh] flex flex-col items-center justify-center p-4">
           <Clock className="w-16 h-16 text-gray-300 mb-4" />
@@ -374,7 +384,7 @@ const Cart = () => {
 
     return (
       <div className="space-y-6 max-w-4xl mx-auto animate-fadeIn">
-        {myOrders.map((order) => (
+        {orderHistory.map((order) => (
           <div
             key={order.id}
             className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md"
@@ -459,7 +469,7 @@ const Cart = () => {
               : "text-gray-500 hover:text-gray-800"
               }`}
           >
-            Đơn hàng ({myOrders.length})
+            Đơn hàng ({orderHistory.length})
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fetchAllItems } from "../services/itemServices.jsx";
+import { fetchAllItemsServices } from "../services/itemServices.jsx";
 
 export const useItems = () => {
     const [items, setItems] = useState([]);
@@ -8,7 +8,7 @@ export const useItems = () => {
     const loadItems = async () => {
         setLoading(true);
         try {
-            const response = await fetchAllItems(); // Gọi API
+            const response = await fetchAllItemsServices(); // Gọi API
 
             if (response && response.data) {
                 setItems(response.data);

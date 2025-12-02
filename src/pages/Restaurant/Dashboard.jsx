@@ -2,8 +2,8 @@ import React from "react";
 import { DollarSign, ShoppingBag, Star, TrendingUp } from "lucide-react";
 
 const Dashboard = () => {
-  const info = [];
-  const stats = [];
+  const info = [isOpen = true];
+  const stats = [revenue = 12500000, totalOrders = 320, avgOrderValue = 39000];
   const chartData = [];
   const orders = [];
 

@@ -5,7 +5,7 @@ import Dashboard from "../pages/Restaurant/Dashboard.jsx";
 import Menu from "../pages/Restaurant/Menu.jsx";
 import Orders from "../pages/Restaurant/Orders.jsx";
 import Settings from "../pages/Restaurant/Settings.jsx";
-// ... import khác
+
 
 const RestaurantRoutes = () => {
     return (
