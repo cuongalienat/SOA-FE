@@ -1,24 +1,30 @@
-// src/components/common/RoleBasedRoute.jsx
+// components/common/RoleBasedRoute.jsx
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext'; // Hook lấy user hiện tại
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuths';
 
-const RoleBasedRoute = ({ allowedRoles }) => {
-    const { user } = useAuth();
+const RoleBasedRoute = ({ allowedRoles, children }) => {
+    const { user, loading } = useAuth();
+    const location = useLocation();
+
+    console.log("--> RoleBasedRoute đang chạy kiểm tra cho:", location.pathname);
+
+    if (loading) {
+        return <div className="flex h-screen items-center justify-center">Đang tải quyền...</div>;
+    }
 
     if (!user) {
-        return <Navigate to="/signin" replace />;
+        return <Navigate to="/signin" state={{ from: location }} replace />;
     }
-    console.log("Current User Role:", user.role);
 
-    // 1. Chưa đăng nhập -> Đá về trang đăng nhập
-    // 2. Sai quyền -> Đá về trang chủ hoặc trang 403
+    // Database bạn lưu là 'restaurant_manager' hay 'restaurant'? Check kỹ log
     if (!allowedRoles.includes(user.role)) {
-        return <Navigate to="/unauthorized" replace />; // Hoặc to="/"
+        console.warn(`Bị chặn! User role: ${user.role}. Yêu cầu: ${allowedRoles}`);
+        return <Navigate to="/" replace />;
     }
 
-    // 3. Đúng quyền -> Cho phép hiển thị các Route con
-    return <Outlet />;
+    // ✅ SỬA Ở ĐÂY: Nếu có children thì render children, không thì render Outlet
+    return children ? children : <Outlet />;
 };
 
 export default RoleBasedRoute;

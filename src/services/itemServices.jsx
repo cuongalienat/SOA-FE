@@ -10,3 +10,12 @@ export const fetchAllItemsServices = async () => {
         throw error.response?.data || { message: "Lỗi không xác định" };
     }
 };
+
+export const fetchItemsByShopService = async (shopId) => {
+    try {
+        const response = await api.get(ENDPOINTS.ITEM.GET_ITEMS_BY_SHOP, { shopId });
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { message: "Lỗi không xác định" };
+    }
+};

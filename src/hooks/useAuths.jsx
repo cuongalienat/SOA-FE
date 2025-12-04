@@ -15,9 +15,12 @@ import {
 } from "../utils/authUtils.js";
 
 export const useAuth = () => {
+  const [user, setUser] = useState(() => {
+    return getCurrentUser(); // Hàm này lấy từ localStorage
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
 
   // Persistence: Load user from local storage on mount
   useEffect(() => {
@@ -62,11 +65,11 @@ export const useAuth = () => {
     }
   };
 
-  const signInGoogle = async (tokenId) => {
+  const signInGoogle = async (googleToken) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await signInWithGoogle(tokenId);
+      const data = await signInWithGoogle(googleToken);
       if (data.user && data.user.balance === undefined) {
         data.user.balance = 80000;
       }
@@ -74,7 +77,7 @@ export const useAuth = () => {
       if (data.user) {
         setUser(data.user);
       }
-      console.log("✅ Đăng nhập Google thành công:");
+      console.log("✅ Đăng nhập Google thành công", data);
       return { success: true, data: data };
     } catch (err) {
       console.error("❌ Đăng nhập Google thất bại:", err);

@@ -1,9 +1,108 @@
 import React, { useState } from "react";
 import { Plus, Edit2, Trash2, X, Image as ImageIcon } from "lucide-react";
 import { CATEGORIES } from "../../constants.js";
+import { useItems } from "../../hooks/useItems.jsx";
+import { useEffect } from "react";
+import { useToast } from "../../context/ToastContext.jsx";
+import { useShop } from "../../hooks/useShop.jsx";
 
 const Menu = () => {
+  const {
+    items,
+    loadItemsShop,
+    createShopItem, // Cần bổ sung vào hook useItems
+    updateShopItem, // Cần bổ sung vào hook useItems
+    deleteShopItem, // Cần bổ sung vào hook useItems
+    loading
+  } = useItems();
 
+  const { showToast } = useToast();
+  const [filterCategory, setFilterCategory] = useState("Tất cả");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    name: "",
+    price: "",
+    category: CATEGORIES[1] || "Món ăn", // Default category
+    imageUrl: "", // Đổi image -> imageUrl cho khớp với DB
+    description: "",
+  });
+
+  // Load dữ liệu khi vào trang
+  useEffect(() => {
+    loadItemsShop();
+  }, []);
+
+  // Xử lý data an toàn
+  const realItems = items?.data || (Array.isArray(items) ? items : []);
+
+  // Filter logic
+  const filteredMenu = realItems.filter((item) => {
+    return filterCategory === "Tất cả" || item.category === filterCategory;
+  });
+
+  // --- HANDLERS ---
+
+  const openAddModal = () => {
+    setEditingItem(null);
+    setFormData({
+      name: "",
+      price: "",
+      category: CATEGORIES[1] || "Món ăn",
+      imageUrl: "",
+      description: "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      price: item.price,
+      category: item.category,
+      imageUrl: item.imageUrl,
+      description: item.description || "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa món này không?")) {
+      const result = await deleteShopItem(id);
+      if (result.success) {
+        // loadItemsShop(); // Hook thường tự update state, nếu không thì gọi lại
+      }
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      let result;
+      if (editingItem) {
+        // --- CẬP NHẬT ---
+        result = await updateShopItem(editingItem._id || editingItem.id, formData);
+      } else {
+        // --- THÊM MỚI ---
+        result = await createShopItem(formData);
+      }
+
+      if (result.success) {
+        setIsModalOpen(false);
+        // loadItemsShop(); // Gọi lại nếu cần refresh
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
@@ -41,7 +140,7 @@ const Menu = () => {
           >
             <div className="h-48 overflow-hidden relative">
               <img
-                src={item.image || "https://via.placeholder.com/400"}
+                src={item.imageUrl || "https://via.placeholder.com/400"}
                 alt={item.name}
                 className="w-full h-full object-cover"
               />
@@ -149,7 +248,7 @@ const Menu = () => {
                 </label>
                 <div className="flex items-center">
                   <input
-                    value={formData.image}
+                    value={formData.imageUrl}
                     onChange={(e) =>
                       setFormData({ ...formData, image: e.target.value })
                     }

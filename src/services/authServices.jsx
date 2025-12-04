@@ -47,9 +47,9 @@ export const resendVerificationEmail = async (email) => {
 };
 
 // Đăng nhập với Google
-export const signInWithGoogle = async (token) => {
+export const signInWithGoogle = async (googleToken) => {
   try {
-    const response = await api.post(ENDPOINTS.AUTH.SIGNIN_GOOGLE, { token });
+    const response = await api.post(ENDPOINTS.AUTH.SIGNIN_GOOGLE, { googleToken });
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: "Lỗi đăng nhập Google" };

@@ -34,9 +34,9 @@ export const cancelOrderService = async (orderId) => {
 };
 
 // Lấy danh sách đơn hàng của cửa hàng
-export const getShopOrdersService = async () => {
+export const getShopOrdersService = async (shopId) => {
     try {
-        const response = await api.get(ENDPOINTS.ORDER.GET_SHOP_ORDERS);
+        const response = await api.get(ENDPOINTS.ORDER.GET_SHOP_ORDERS, { shopId });
         return response.data;
     } catch (error) {
         throw error.response?.data || { message: "Lỗi lấy danh sách đơn hàng cửa hàng" };

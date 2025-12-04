@@ -9,6 +9,7 @@ const ENDPOINTS = {
   },
   ITEM: {
     GET_ALL_ITEMS: "/items",
+    GET_ITEMS_BY_SHOP: "/items",
   },
   ORDER: {
     CREATE_ORDER: "/orders",
@@ -17,7 +18,12 @@ const ENDPOINTS = {
     GET_SHOP_ORDERS: "/orders/manage",
     UPDATE_STATUS: "/orders/:id/status",
     GET_ORDER_DETAILS: "/orders/:id",
-  }
+  },
+  SHOP: {
+    GET_MY_SHOP: "/shops/my-shop",
+    UPDATE_SHOP_INFO: "/shops/my-shop",
+    TOGGLE_SHOP_STATUS: "/shops/my-shop/status",
+  },
 };
 
 export default ENDPOINTS;

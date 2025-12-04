@@ -16,9 +16,11 @@ const SignIn = () => {
   const navigate = useNavigate();
   const { signin, signInGoogle, loading, error } = useAuth();
 
+
   const { resendVerification } = useEmailVerification();
   const [username, setUsername] = useState("john.doe@gmail.com");
   const [password, setPassword] = useState("12345678");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({
     isVisible: false,
     message: "",
@@ -69,17 +71,17 @@ const SignIn = () => {
       switch (role) {
         case "restaurant_manager":
           setTimeout(() => {
-            navigate("/restaurant");
+            navigate("/restaurant", { replace: true });
           }, 1500);
           break;
         case "shipper":
           setTimeout(() => {
-            navigate("/shipper");
+            navigate("/shipper", { replace: true });
           }, 1500);
           break;
         default:
           setTimeout(() => {
-            navigate("/");
+            navigate("/", { replace: true });
           }, 1500);
       }
     } else {
@@ -150,9 +152,9 @@ const SignIn = () => {
             <button
               type="submit"
               className="bg-orange-500 signIn-btn"
-              disabled={loading}
+              disabled={isSubmitting}
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {isSubmitting ? "... Đang đăng nhập" : "Đăng nhập"}
             </button>
 
             <Separator text="Hoặc đăng nhập với" />

@@ -1,13 +1,17 @@
 import React from "react";
 import { Clock, CheckCircle, Truck, ChefHat } from "lucide-react";
+import { useOrders } from "../../hooks/useOrders";
+import { useEffect } from "react";
 
 const Orders = () => {
-  const orders = [];
+  const { orders, loadShopOrders } = useOrders();
   const updateOrderStatus = (orderId, newStatus) => {
     // Cập nhật trạng thái đơn hàng (giả lập)
     console.log(`Cập nhật đơn hàng ${orderId} thành trạng thái: ${newStatus}`);
   }
-
+  useEffect(() => {
+    loadShopOrders()
+  }, []);
   const getStatusColor = (status) => {
     switch (status) {
       case "Đang chờ":

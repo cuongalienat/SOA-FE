@@ -28,7 +28,7 @@ const App = () => {
                 </Route>
 
                 {/* 2. KHU VỰC SHIPPER (Được bảo vệ) */}
-                <Route element={<RoleBasedRoute allowedRoles={['shipper']} />}>
+                <Route element={<RoleBasedRoute allowedRoles={['driver']} />}>
                   <Route path="/shipper/*" element={<ShipperRoutes />} />
                 </Route>
 

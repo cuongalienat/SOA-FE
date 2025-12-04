@@ -12,8 +12,9 @@ const UserProfile = () => {
   // Form for Personal Info
   const { values, handleChange, handleSubmit, isSubmitting } = useForm(
     {
-      fullName: user?.name || "",
+      fullName: user?.fullName || "",
       phone: user?.phone || "",
+      email: user?.email || "",
       address: user?.address || "",
     },
     async (formData) => {
@@ -129,7 +130,7 @@ const UserProfile = () => {
                     </label>
                     <input
                       disabled
-                      value={user.email}
+                      value={values.email}
                       className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>

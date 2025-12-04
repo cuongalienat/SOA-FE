@@ -1,11 +1,40 @@
 import React from "react";
 import { DollarSign, ShoppingBag, Star, TrendingUp } from "lucide-react";
+import { useEffect } from "react";
+import { useShop } from "../../hooks/useShop.jsx";
+
 
 const Dashboard = () => {
-  const info = [isOpen = true];
-  const stats = [revenue = 12500000, totalOrders = 320, avgOrderValue = 39000];
-  const chartData = [];
-  const orders = [];
+  const { shop, loading, loadMyShop, toggleShopStatus } = useShop();
+  const info = shop || {
+    isOpen: false,
+    name: "Quán Ăn Mặc Định",
+    phone: "0123456789",
+    address: "123 Đường ABC, Quận 1, TP.HCM",
+  };
+  const stats = {
+    revenue: 1250000,
+    totalOrders: 75,
+    avgOrderValue: 16666,
+  };
+
+  const chartData = [
+    { label: "Phở Bò", value: 40 },
+    { label: "Bún Chả", value: 25 },
+    { label: "Cơm Tấm", value: 20 },
+    { label: "Gỏi Cuốn", value: 15 },
+  ];
+  const orders = [
+    { id: 1, customer: "Nguyễn Văn A", total: 50000, status: "Hoàn thành" },
+    { id: 2, customer: "Trần Thị B  ", total: 75000, status: "Đang chờ" },
+    { id: 3, customer: "Lê Văn C", total: 60000, status: "Đang giao" },
+    { id: 4, customer: "Phạm Thị D", total: 85000, status: "Hoàn thành" },
+    { id: 5, customer: "Hoàng Văn E", total: 90000, status: "Đang chờ" },
+  ];
+
+  useEffect(() => {
+    loadMyShop();
+  }, [loadMyShop]);
 
   const StatCard = ({ title, value, icon: Icon, color }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">

@@ -45,7 +45,7 @@ const Cart = () => {
 
   // Form thông tin giao hàng
   const { values, handleChange, handleSubmit } = useForm({
-    fullName: user?.name || "",
+    fullName: user?.fullName || "",
     phone: user?.phone || "",
     address: user?.address || "",
     note: "",
@@ -82,8 +82,8 @@ const Cart = () => {
     try {
       // 2. Chuẩn bị dữ liệu
       // Lấy ID nhà hàng từ món đầu tiên (Giả sử giỏ hàng chỉ chứa món của 1 quán)
-      showToast("item 0:", items[0]);
-      const restaurantId = items[0]?.shopId;
+      console.log("item 0:", items[0]);
+      const restaurantId = items[0]?.shopId._id;
 
       if (!restaurantId) {
         showToast("Lỗi dữ liệu món ăn (thiếu ID quán)", "error");
@@ -272,7 +272,7 @@ const Cart = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ghi chú cho tài xế
+                  Ghi chú cho quán
                 </label>
                 <input
                   name="note"
@@ -407,12 +407,12 @@ const Cart = () => {
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  {order.date} • {order.items.length} món
+                  {order.createdAt} • {order.items.length} món
                 </p>
               </div>
               <div className="mt-2 md:mt-0 text-right">
                 <p className="font-bold text-lg text-orange-600">
-                  {order.total} VNĐ
+                  {order.totalAmount} VNĐ
                 </p>
               </div>
             </div>
