@@ -4,6 +4,7 @@ import Layout from "../components/layout/Layout.jsx";
 import Home from "../pages/Home/Home.jsx";
 import FoodDetail from "../pages/FoodDetail/FoodDetail.jsx";
 import Cart from "../pages/Cart/Cart.jsx";
+import Category from "../pages/Category/Category.jsx";
 import Contact from "../pages/Contact/Contact.jsx";
 import SignIn from "../pages/SignIn/SignIn.jsx";
 import SignUp from "../pages/SignUp/SignUp.jsx";
@@ -20,6 +21,7 @@ const CustomerRoutes = () => {
                 <Route path="/" element={<Home />} />
                 <Route path="/food/:id" element={<FoodDetail />} />
                 <Route path="/cart" element={<Cart />} />
+                <Route path="/category" element={<Category />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/signin" element={<SignIn />} />
                 <Route path="/signup" element={<SignUp />} />

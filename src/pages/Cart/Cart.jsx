@@ -422,7 +422,7 @@ const Cart = () => {
                     #{order._id ? order._id.slice(-6).toUpperCase() : order.id}
                   </span>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold ${order.status === "Completed"
+                    className={`px-3 py-1 rounded-full text-xs font-bold ${order.status === "Delivered"
                       ? "bg-green-100 text-green-700"
                       : order.status === "Pending"
                         ? "bg-blue-100 text-blue-700"
@@ -432,7 +432,7 @@ const Cart = () => {
                     {order.status === 'Pending' ? 'Chờ xác nhận' :
                       order.status === 'Confirmed' ? 'Đã xác nhận' :
                         order.status === 'Shipping' ? 'Đang giao' :
-                          order.status === 'Completed' ? 'Hoàn thành' :
+                          order.status === 'Delivered' ? 'Hoàn thành' :
                             order.status === 'Cancelled' ? 'Đã hủy' : order.status}
                   </span>
                 </div>
