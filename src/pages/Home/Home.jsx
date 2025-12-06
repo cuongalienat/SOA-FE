@@ -1,40 +1,48 @@
 import React, { useState, useEffect } from "react";
 import { Search, Filter } from "lucide-react";
 import FoodCard from "../../components/FoodCard.jsx";
-import { CATEGORIES } from "../../constants.js"; // Bỏ FOOD_DATA
+import { CATEGORIES } from "../../constants.js";
 import { useItems } from "../../hooks/useItems.jsx";
 
+import { usePagination } from "../../hooks/usePagination.jsx";
+
 const Home = () => {
+  const { items, loadItems, loading, pagination: backendPagination } = useItems();
+
+  // Use custom pagination hook
+  const { currentPage, limit, goToPage } = usePagination(1, 8);
+
   const [selectedCategory, setSelectedCategory] = useState("Tất cả");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Lấy items và hàm loadItems từ hook
-  const { items, loadItems, loading } = useItems();
-
   useEffect(() => {
-    loadItems();
-  }, []);
+    // Gọi API với phân trang
+    loadItems({ page: currentPage, limit: limit });
+  }, [currentPage, limit]);
 
-  const realItems = items?.data || (Array.isArray(items) ? items : []);
+  // Reset page when filter changes (Only applicable if we had server-side filtering)
+  useEffect(() => {
+    // For now, client-side filtering happens on the current page's data, which is suboptimal.
+    // Ideally we pass these params to loadItems too.
+    // setCurrentPage(1); 
+  }, [selectedCategory, searchTerm]);
 
-  // Logic lọc dữ liệu dựa trên items thực tế
-  const filteredFood = realItems.filter((item) => {
-    // 1. Lọc theo category
-    // Lưu ý: Đảm bảo field 'category' trong DB khớp với tên trong CATEGORIES
-    const matchesCategory =
-      selectedCategory === "Tất cả" || item.category === selectedCategory;
 
-    // 2. Lọc theo tên tìm kiếm
-    const matchesSearch = item.name
-      ?.toLowerCase()
-      .includes(searchTerm.toLowerCase());
+  // Sử dụng items trực tiếp từ API (đã được phân trang)
+  const currentItems = Array.isArray(items) ? items : [];
 
+  // Logic lọc dữ liệu client-side (Tạm thời - chỉ lọc trên trang hiện tại)
+  const filteredFood = currentItems.filter((item) => {
+    const matchesCategory = selectedCategory === "Tất cả" || item.category === selectedCategory;
+    const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
+  const paginate = (pageNumber) => goToPage(pageNumber);
+
   return (
     <div className="pb-12">
-      {/* Hero Section - Giữ nguyên */}
+      {/* Hero Section */}
       <section className="relative bg-orange-50 h-[500px] flex items-center overflow-hidden">
         <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 bg-orange-200 rounded-full blur-3xl opacity-50"></div>
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-yellow-200 rounded-full blur-3xl opacity-50"></div>
@@ -80,7 +88,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Categories - Giữ nguyên */}
+      {/* Categories */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-gray-900">Danh mục</h2>
@@ -107,21 +115,52 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Food Grid - Sử dụng dữ liệu thật */}
+      {/* Food Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">
           Phổ biến gần bạn
         </h2>
 
-        {/* Loading State (Tuỳ chọn) */}
+        {/* Loading State */}
         {loading && <p className="text-center text-gray-500">Đang tải món ăn...</p>}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        {/* Items Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-8">
           {filteredFood.map((item) => (
-            // Sử dụng item._id vì MongoDB trả về _id
             <FoodCard key={item._id || item.id} food={item} />
           ))}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && backendPagination && backendPagination.totalPages > 1 && (
+          <div className="flex justify-center space-x-2 mt-8">
+            <button
+              onClick={() => paginate(backendPagination.page - 1)}
+              disabled={!backendPagination.hasPrevPage}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trước
+            </button>
+            {Array.from({ length: backendPagination.totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => paginate(i + 1)}
+                className={`px-4 py-2 border rounded-lg ${backendPagination.page === i + 1
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "hover:bg-gray-100"}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => paginate(backendPagination.page + 1)}
+              disabled={!backendPagination.hasNextPage}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sau
+            </button>
+          </div>
+        )}
 
         {!loading && filteredFood.length === 0 && (
           <div className="text-center py-20">
@@ -132,7 +171,7 @@ const Home = () => {
         )}
       </section>
 
-      {/* Section Ưu đãi - (Lưu ý: Bạn đang hiển thị cùng 1 list với section trên) */}
+      {/* Section Ưu đãi */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Ưu đãi</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
@@ -140,6 +179,38 @@ const Home = () => {
             <FoodCard key={items._id || items.id} food={items} />
           ))}
         </div>
+
+        {/* Pagination Controls for Promotions */}
+        {!loading && backendPagination && backendPagination.totalPages > 1 && (
+          <div className="flex justify-center space-x-2 mt-8">
+            <button
+              onClick={() => paginate(backendPagination.page - 1)}
+              disabled={!backendPagination.hasPrevPage}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Trước
+            </button>
+            {Array.from({ length: backendPagination.totalPages }, (_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => paginate(i + 1)}
+                className={`px-4 py-2 border rounded-lg ${backendPagination.page === i + 1
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "hover:bg-gray-100"}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+            <button
+              onClick={() => paginate(backendPagination.page + 1)}
+              disabled={!backendPagination.hasNextPage}
+              className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sau
+            </button>
+          </div>
+        )}
+
         {!loading && filteredFood.length === 0 && (
           <div className="text-center py-20">
             <p className="text-gray-500 text-lg">

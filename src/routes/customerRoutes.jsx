@@ -11,6 +11,7 @@ import ForgotPassword from "../pages/ForgotPassword/ForgotPassword.jsx";
 import VerifyCode from "../pages/VerifyCode/VerifyCode.jsx";
 import SetPassword from "../pages/SetPassword/SetPassword.jsx";
 import UserProfile from "../pages/Profile/UserProfile.jsx";
+import OrderDetail from "../pages/OrderDetail/OrderDetail.jsx";
 
 const CustomerRoutes = () => {
     return (
@@ -26,6 +27,7 @@ const CustomerRoutes = () => {
                 <Route path="/set-password" element={<SetPassword />} />
                 <Route path="/verify-code" element={<VerifyCode />} />
                 <Route path="/profile" element={<UserProfile />} />
+                <Route path="/order/:id" element={<OrderDetail />} />
             </Routes>
         </Layout>
     );

@@ -87,7 +87,8 @@ export const useOrders = () => {
         setError(null);
         try {
             const data = await getOrderDetailsService(orderId);
-            setOrderDetail(data);
+            setOrderDetail(data.data);
+            console.log(data.data);
             return data;
         } catch (err) {
             const msg = err.response?.data?.message || "Không tìm thấy đơn hàng";

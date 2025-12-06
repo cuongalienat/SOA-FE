@@ -33,6 +33,14 @@ export const CartProvider = ({ children }) => {
     );
   };
 
+  const updateItemNote = (id, note) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, note } : item
+      )
+    );
+  };
+
   const clearCart = () => setItems([]);
 
   const cartTotal = items.reduce(
@@ -48,6 +56,7 @@ export const CartProvider = ({ children }) => {
         addToCart,
         removeFromCart,
         updateQuantity,
+        updateItemNote,
         clearCart,
         cartTotal,
         itemCount,

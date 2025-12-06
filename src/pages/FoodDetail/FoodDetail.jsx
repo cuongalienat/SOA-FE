@@ -11,6 +11,7 @@ import {
 import { FOOD_DATA } from "../../constants.js";
 import { useCart } from "../../context/CartContext.jsx";
 import { useItems } from "../../hooks/useItems.jsx";
+import { useToast } from "../../context/ToastContext.jsx";
 // import {
 //   generateFoodDescription,
 //   askChefAI,
@@ -19,6 +20,7 @@ import { useItems } from "../../hooks/useItems.jsx";
 const FoodDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const { addToCart } = useCart();
   const { items, loadItems, loading } = useItems();
   useEffect(() => {
@@ -30,6 +32,13 @@ const FoodDetail = () => {
   const [chefQuery, setChefQuery] = useState("");
   const [chefAnswer, setChefAnswer] = useState("");
   const [loadingChef, setLoadingChef] = useState(false);
+
+  // Review State
+  const [reviews, setReviews] = useState([
+    { id: 1, user: "Nguyễn Văn A", rating: 5, comment: "Món ăn rất ngon, đậm đà hương vị!", date: "2024-03-15" },
+    { id: 2, user: "Trần Thị B", rating: 4, comment: "Giao hàng nhanh, đóng gói cẩn thận.", date: "2024-03-14" },
+  ]);
+
 
   useEffect(() => {
     // Chỉ load nếu items chưa có (tối ưu hạn chế gọi API thừa)
@@ -57,15 +66,6 @@ const FoodDetail = () => {
     setLoadingAi(false);
   };
 
-  // const handleAskChef = async () => {
-  //   if (!chefQuery.trim()) return;
-  //   setLoadingChef(true);
-  //   const answer = await askChefAI(
-  //     `Liên quan đến món ${food?.name}: ${chefQuery}`
-  //   );
-  //   setChefAnswer(answer);
-  //   setLoadingChef(false);
-  // };
 
   if (!food) return null;
 
@@ -113,46 +113,56 @@ const FoodDetail = () => {
             </p>
           </div>
 
-          {/* Ask Chef AI Feature */}
-          <div className="bg-blue-50 p-6 rounded-2xl mb-8 border border-blue-100">
-            <div className="flex items-center mb-3 text-blue-800 font-bold">
-              <ChefHat size={20} className="mr-2" />
-              Hỏi Đầu bếp AI
-            </div>
-            <div className="flex gap-2 mb-3">
-              <input
-                type="text"
-                value={chefQuery}
-                onChange={(e) => setChefQuery(e.target.value)}
-                placeholder="Món này có chứa gluten không?"
-                className="flex-1 px-3 py-2 border border-blue-200 rounded-lg text-sm outline-none focus:border-blue-400"
-              />
-              {/* <button
-                onClick={handleAskChef}
-                disabled={loadingChef}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-              >
-                Hỏi
-              </button> */}
-            </div>
-            {chefAnswer && (
-              <p className="text-sm text-blue-900 bg-blue-100 p-3 rounded-lg italic">
-                "{chefAnswer}"
-              </p>
-            )}
-          </div>
-
           <div className="flex space-x-4">
             <button
               onClick={() => {
                 addToCart(food);
-                alert("Đã thêm món vào giỏ hàng thành công!");
+                showToast("Đã thêm món vào giỏ hàng thành công!", "success");
               }}
               className="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
             >
               <ShoppingBag size={20} />
               <span>Thêm vào đơn hàng</span>
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Reviews Section */}
+      <div className="mt-16">
+        <h2 className="text-3xl font-bold text-gray-900 mb-8">Đánh giá & Nhận xét</h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          {/* Reviews List */}
+          <div className="lg:col-span-3 space-y-6">
+            <h3 className="text-xl font-bold mb-4">Đánh giá từ khách hàng</h3>
+            {reviews.map((review) => (
+              <div key={review.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold mr-3">
+                      {review.user.charAt(0)}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900">{review.user}</h4>
+                      <div className="flex text-yellow-500 text-xs">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} className={`w-3 h-3 ${i < review.rating ? "fill-current" : "text-gray-300"}`} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-sm text-gray-400">{review.date}</span>
+                </div>
+                <p className="text-gray-600 ml-13 pl-13 mt-2">
+                  {review.comment}
+                </p>
+              </div>
+            ))}
+
+            {reviews.length === 0 && (
+              <p className="text-center text-gray-500 py-10">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+            )}
           </div>
         </div>
       </div>

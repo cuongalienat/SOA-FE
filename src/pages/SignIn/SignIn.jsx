@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Separator from "../../components/common/Separator";
 import GoogleSignIn from "../../components/common/GoogleSignIn";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuths";
+import { useAuth } from "../../context/AuthContext";
 import { useEmailVerification } from "../../hooks/useEmailVerification";
 import Logo from "../../components/common/Logo";
 import Input from "../../components/common/Input";
@@ -70,19 +70,13 @@ const SignIn = () => {
 
       switch (role) {
         case "restaurant_manager":
-          setTimeout(() => {
-            navigate("/restaurant", { replace: true });
-          }, 1500);
+          navigate("/restaurant", { replace: true });
           break;
         case "shipper":
-          setTimeout(() => {
-            navigate("/shipper", { replace: true });
-          }, 1500);
+          navigate("/shipper", { replace: true });
           break;
         default:
-          setTimeout(() => {
-            navigate("/", { replace: true });
-          }, 1500);
+          navigate("/", { replace: true });
       }
     } else {
       // Đăng nhập thất bại
