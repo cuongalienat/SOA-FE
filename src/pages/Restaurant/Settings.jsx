@@ -1,9 +1,26 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Upload, Save, Power, QrCode, Image as ImageIcon } from "lucide-react";
-import { useRestaurant } from "../../context/RestaurantContext.jsx";
 
 const Settings = () => {
-  const { info, toggleStatus, updateInfo } = useRestaurant();
+  const info = {
+    isOpen: true,
+    name: "Quán Ăn Ngon",
+    phone: "0123456789",
+    address: "123 Đường ABC, Quận 1, TP.HCM",
+    coverImage: null,
+    qrCode: null,
+  };
+  const toggleStatus = () => {
+    // Logic để đổi trạng thái mở/đóng cửa quán
+    info.isOpen = !info.isOpen;
+    console.log("Toggled status:", info.isOpen ? "Open" : "Closed");
+  };
+  const updateInfo = (updatedFields) => {
+    // Cập nhật thông tin quán (giả lập)
+    Object.assign(info, updatedFields);
+    console.log("Updated info:", info);
+  };
+
   const coverInputRef = useRef(null);
   const qrInputRef = useRef(null);
 
@@ -24,11 +41,10 @@ const Settings = () => {
         <h1 className="text-2xl font-bold text-gray-900">Cài đặt quán</h1>
         <button
           onClick={toggleStatus}
-          className={`px-6 py-3 rounded-xl font-bold flex items-center shadow-sm transition ${
-            info.isOpen
-              ? "bg-green-500 text-white hover:bg-green-600"
-              : "bg-red-500 text-white hover:bg-red-600"
-          }`}
+          className={`px-6 py-3 rounded-xl font-bold flex items-center shadow-sm transition ${info.isOpen
+            ? "bg-green-500 text-white hover:bg-green-600"
+            : "bg-red-500 text-white hover:bg-red-600"
+            }`}
         >
           <Power size={20} className="mr-2" />
           {info.isOpen ? "Đang Mở Cửa" : "Đang Đóng Cửa"}

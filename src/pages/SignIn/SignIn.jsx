@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Separator from "../../components/common/Separator";
 import GoogleSignIn from "../../components/common/GoogleSignIn";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuths";
+import { useAuth } from "../../context/AuthContext";
 import { useEmailVerification } from "../../hooks/useEmailVerification";
 import Logo from "../../components/common/Logo";
 import Input from "../../components/common/Input";
@@ -16,9 +16,11 @@ const SignIn = () => {
   const navigate = useNavigate();
   const { signin, signInGoogle, loading, error } = useAuth();
 
+
   const { resendVerification } = useEmailVerification();
   const [username, setUsername] = useState("john.doe@gmail.com");
   const [password, setPassword] = useState("12345678");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({
     isVisible: false,
     message: "",
@@ -43,7 +45,6 @@ const SignIn = () => {
     e.preventDefault();
 
     const result = await signin(username, password);
-    console.log("isverified:", result?.data?.user);
 
     if (result.success === true && result.data?.user?.isVerified === "no") {
       const emailToVerify = result?.data?.user?.email || username;
@@ -64,12 +65,19 @@ const SignIn = () => {
 
     if (result.success === true) {
       // Đăng nhập thành công
+      const role = result.data.user.role;
       showNotification(result.data.message, "success");
 
-      // Chuyển hướng sau 1.5 giây
-      setTimeout(() => {
-        navigate("/"); // hoặc trang chính của app
-      }, 1500);
+      switch (role) {
+        case "restaurant_manager":
+          navigate("/restaurant", { replace: true });
+          break;
+        case "shipper":
+          navigate("/shipper", { replace: true });
+          break;
+        default:
+          navigate("/", { replace: true });
+      }
     } else {
       // Đăng nhập thất bại
       showNotification(result.error, "error");
@@ -138,9 +146,9 @@ const SignIn = () => {
             <button
               type="submit"
               className="bg-orange-500 signIn-btn"
-              disabled={loading}
+              disabled={isSubmitting}
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {isSubmitting ? "... Đang đăng nhập" : "Đăng nhập"}
             </button>
 
             <Separator text="Hoặc đăng nhập với" />

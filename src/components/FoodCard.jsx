@@ -33,9 +33,14 @@ const FoodCard = ({ food }) => {
             </Link>
           </div>
         </div>
-        <p className="text-gray-500 text-sm line-clamp-2 mb-4 h-10">
-          {food.description}
-        </p>
+        <div className="text-sm text-gray-500 mb-4 h-10">
+          <p className="font-semibold text-gray-700 truncate">
+            {food.shopId?.name || "Homeless"}
+          </p>
+          <p className="text-xs truncate">
+            {food.shopId?.address || "Unknown Address"}
+          </p>
+        </div>
 
         <div className="flex items-center justify-between mt-2">
           <span className="text-xl font-bold text-gray-900">
