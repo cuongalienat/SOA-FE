@@ -12,15 +12,25 @@ import {
   Bell,
 } from "lucide-react";
 import { useShipper } from "../../context/ShipperContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { useNavigate } from "react-router-dom";
 
 const ShipperProfile = () => {
-  const { driverProfile, toggleOnline, isOnline } = useShipper();
+  const { profile: driverProfile, isOnline, toggleOnline } = useShipper();
+  const { logout } = useAuth(); // <-- dùng AuthContext chuẩn
   const navigate = useNavigate();
 
+  if (!driverProfile) {
+    return (
+      <div className="p-8 text-center text-gray-500">
+        Đang tải hồ sơ tài xế...
+      </div>
+    );
+  }
+
   const handleLogout = () => {
-    // Force offline before "logout"
-    if (isOnline) toggleOnline();
+    if (isOnline) toggleOnline(); // auto OFFLINE trước khi logout
+    logout(); // context logout → clear token + state
     navigate("/");
   };
 
@@ -41,11 +51,11 @@ const ShipperProfile = () => {
 
   return (
     <div className="bg-gray-100 min-h-full pb-20">
-      {/* Header Profile */}
+      {/* TOP CARD */}
       <div className="bg-white p-6 pb-8 rounded-b-3xl shadow-sm">
         <div className="flex items-center space-x-4">
           <img
-            src={driverProfile.avatar}
+            src={driverProfile.avatar || "/default-avatar.png"}
             alt="Driver"
             className="w-20 h-20 rounded-full object-cover border-4 border-gray-50"
           />
@@ -53,11 +63,22 @@ const ShipperProfile = () => {
             <h2 className="text-xl font-bold text-gray-900">
               {driverProfile.name}
             </h2>
+
             <div className="flex items-center text-sm text-gray-500 mb-1">
               <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono mr-2">
-                {driverProfile.id}
+                #{driverProfile.id}
+              </span>
+              <span
+                className={`px-2 py-0.5 rounded text-xs font-bold ${
+                  isOnline
+                    ? "bg-green-100 text-green-600"
+                    : "bg-gray-200 text-gray-600"
+                }`}
+              >
+                {isOnline ? "Đang hoạt động" : "Ngoại tuyến"}
               </span>
             </div>
+
             <div className="flex items-center space-x-1 bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded-full inline-flex">
               <Star size={12} fill="currentColor" />
               <span className="text-xs font-bold">{driverProfile.rating}</span>
@@ -65,7 +86,7 @@ const ShipperProfile = () => {
           </div>
         </div>
 
-        {/* Quick Stats */}
+        {/* QUICK STATS */}
         <div className="grid grid-cols-3 gap-4 mt-8">
           <div className="text-center">
             <p className="text-lg font-bold text-gray-900">
@@ -75,14 +96,20 @@ const ShipperProfile = () => {
               Chuyến xe
             </p>
           </div>
+
           <div className="text-center border-l border-r border-gray-100">
-            <p className="text-lg font-bold text-green-600">98%</p>
+            <p className="text-lg font-bold text-green-600">
+              {driverProfile.acceptanceRate || 98}%
+            </p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">
               Nhận đơn
             </p>
           </div>
+
           <div className="text-center">
-            <p className="text-lg font-bold text-blue-600">100%</p>
+            <p className="text-lg font-bold text-blue-600">
+              {driverProfile.completedRate || 100}%
+            </p>
             <p className="text-xs text-gray-500 uppercase tracking-wide">
               Hoàn thành
             </p>
@@ -90,7 +117,7 @@ const ShipperProfile = () => {
         </div>
       </div>
 
-      {/* Wallet Card */}
+      {/* WALLET */}
       <div className="px-4 -mt-4 mb-6">
         <div className="bg-gray-900 text-white p-5 rounded-2xl shadow-lg flex justify-between items-center">
           <div>
@@ -105,7 +132,7 @@ const ShipperProfile = () => {
         </div>
       </div>
 
-      {/* Menu Groups */}
+      {/* MENU */}
       <div className="px-4 space-y-6">
         <div>
           <h3 className="text-xs font-bold text-gray-500 uppercase mb-2 ml-2">
@@ -137,6 +164,7 @@ const ShipperProfile = () => {
           </div>
         </div>
 
+        {/* LOGOUT BUTTON */}
         <button
           onClick={handleLogout}
           className="w-full bg-red-50 text-red-600 p-4 rounded-2xl font-bold flex items-center justify-center hover:bg-red-100 transition"
