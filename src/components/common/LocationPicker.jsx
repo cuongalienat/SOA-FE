@@ -157,7 +157,7 @@ const LocationPicker = ({ onClose, onConfirm }) => {
                         </div>
 
                         <button
-                            onClick={() => onConfirm(address)}
+                            onClick={() => onConfirm({ address, lat: position.lat, lng: position.lng })}
                             className="bg-gray-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-orange-600 transition flex items-center justify-center whitespace-nowrap shadow-md"
                         >
                             <Check size={18} className="mr-2" /> Xác nhận

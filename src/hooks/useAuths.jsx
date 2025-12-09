@@ -41,8 +41,9 @@ export const useAuth = () => {
       // Validate dữ liệu đăng nhập
       const validationErrors = validateSigninData({ username, password });
       if (validationErrors.length > 0) {
-        setError(validationErrors.join(", "));
-        return null;
+        const errorMsg = validationErrors.join(", ");
+        setError(errorMsg);
+        return { success: false, error: errorMsg };
       }
 
       const data = await signInUser({ username, password });
@@ -53,13 +54,14 @@ export const useAuth = () => {
         setUser(data.user);
       }
 
-      console.log("✅ Đăng nhập thành công:"); // <-- confirm login
+      console.log(" Đăng nhập thành công:"); // <-- confirm login
 
       return { success: true, data: data };
     } catch (err) {
-      console.error("❌ Đăng nhập thất bại:", err);
-      setError(err.message || "Sai username hoặc mật khẩu");
-      return { success: false, error: error.message };
+      console.error(" Đăng nhập thất bại:", err);
+      const errorMessage = err.message || "Sai username hoặc mật khẩu";
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -77,10 +79,10 @@ export const useAuth = () => {
       if (data.user) {
         setUser(data.user);
       }
-      console.log("✅ Đăng nhập Google thành công", data);
+      console.log(" Đăng nhập Google thành công", data);
       return { success: true, data: data };
     } catch (err) {
-      console.error("❌ Đăng nhập Google thất bại:", err);
+      console.error(" Đăng nhập Google thất bại:", err);
       setError(err.message || "Đăng nhập Google thất bại");
       return { success: false, error: err.message };
     } finally {
@@ -111,11 +113,11 @@ export const useAuth = () => {
         setUser(data.user);
       }
 
-      console.log("✅ Đăng ký thành công:", data);
+      console.log(" Đăng ký thành công:", data);
 
       return { success: true, data: data };
     } catch (err) {
-      console.error("❌ Đăng ký thất bại:", err);
+      console.error(" Đăng ký thất bại:", err);
       setError(err.message || "Đăng ký thất bại. Vui lòng thử lại.");
       return { success: false, error: err.message };
     } finally {
@@ -130,30 +132,11 @@ export const useAuth = () => {
     setError(null);
   };
 
-  const updateUser = (updatedData) => {
-    if (!user) return;
-    const newUser = { ...user, ...updatedData };
-    setUser(newUser);
-    saveAuthData({ user: newUser });
-    return newUser;
-  };
-
-  const topUpWallet = (amount) => {
-    if (!user) return;
-    const newBalance = (user.balance || 0) + Number(amount);
-    const newUser = { ...user, balance: newBalance };
-    setUser(newUser);
-    saveAuthData({ user: newUser });
-    return newBalance;
-  };
-
   return {
     signin,
     signup,
     logout,
     signInGoogle,
-    updateUser,
-    topUpWallet,
     loading,
     error,
     user,

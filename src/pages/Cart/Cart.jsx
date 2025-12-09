@@ -36,7 +36,7 @@ const Cart = () => {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showMap, setShowMap] = useState(false);
-
+  const { showToast } = useToast();
   const userId = user?._id;
 
   useEffect(() => {
@@ -78,14 +78,17 @@ const Cart = () => {
     note: "",
   });
 
-  const handleAddressConfirm = (newAddress) => {
+  const [userLocation, setUserLocation] = useState({ lat: null, lng: null });
+
+  const handleAddressConfirm = ({ address, lat, lng }) => {
     const event = {
       target: {
         name: "address",
-        value: newAddress
+        value: address
       }
     };
     handleChange(event);
+    setUserLocation({ lat, lng });
     setShowMap(false);
   };
   // Tính toán chi phí
@@ -121,9 +124,14 @@ const Cart = () => {
       // 2. Chuẩn bị dữ liệu
       // Lấy ID nhà hàng từ món đầu tiên (Giả sử giỏ hàng chỉ chứa món của 1 quán)
       console.log("item 0:", items[0]);
-      const restaurantId = items[0]?.shopId._id;
+      let shopId = items[0]?.shopId;
+      // Ensure restaurantId is a string ID
+      if (shopId && typeof shopId === 'object') {
+        shopId = shopId._id || shopId.id;
+      }
+      console.log("Restaurant ID to send:", shopId);
 
-      if (!restaurantId) {
+      if (!shopId) {
         showToast("Lỗi dữ liệu món ăn (thiếu ID quán)", "error");
         return;
       }
@@ -138,18 +146,20 @@ const Cart = () => {
       }));
 
       // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
-      const newBalance = user.balance - finalTotal;
+      const newBalance = user.balance;
       updateUser({ ...user, balance: newBalance });
 
       // 5. GỌI API TẠO ĐƠN HÀNG (Dùng hook useOrders)
       const result = await createOrder({
-        customerId: user._id,
-        restaurantId: restaurantId,
+        userId: user._id,
+        shopId: shopId,
         items: orderItems,
-        shippingFee: deliveryFee,
-        address: values.address,
         paymentMethod: "Wallet",
-        totalAmount: finalTotal,
+        userLocation: {
+          address: values.address,
+          lat: userLocation.lat,
+          lng: userLocation.lng
+        },
       });
 
       if (result.success) {
@@ -162,7 +172,7 @@ const Cart = () => {
         window.scrollTo(0, 0);
       } else {
         // Nếu lỗi API -> Hoàn tiền ảo lại (Rollback UI)
-        updateUser({ ...user, walletBalance: user.walletBalance });
+        updateUser({ ...user, balance: user.balance });
         showToast(result.error, "error");
       }
 

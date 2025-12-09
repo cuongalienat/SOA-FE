@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { User, Wallet, CreditCard, Clock, Save, Plus, History, Package, ChevronRight } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useUser } from "../../hooks/useUser.jsx"; // Import useUser
 import { useForm } from "../../hooks/useForm.jsx";
 import { useOrders } from "../../hooks/useOrders.jsx";
 import { useNavigate } from "react-router-dom";
 
 const UserProfile = () => {
-  const { user, updateUser, topUpWallet } = useAuth();
+  const { user } = useAuth();
+  const { updateUser, topUpWallet } = useUser(); // Use methods from useUser
   const { loadMyOrders, orders, loading: loadingOrders } = useOrders();
   const navigate = useNavigate();
 
@@ -30,33 +32,36 @@ const UserProfile = () => {
       address: user?.address || "",
     },
     async (formData) => {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      updateUser({
-        name: formData.fullName,
-        phone: formData.phone,
-        address: formData.address,
-      });
-      alert("Cập nhật thông tin thành công!");
+      try {
+        await updateUser({
+          name: formData.fullName,
+          phone: formData.phone,
+          address: formData.address,
+        });
+        alert("Cập nhật thông tin thành công!");
+      } catch (error) {
+        alert("Cập nhật thất bại: " + (error.message || "Lỗi không xác định"));
+      }
     }
   );
 
-  const handleTopUp = (e) => {
+  const handleTopUp = async (e) => {
     e.preventDefault();
     if (!topUpAmount || isNaN(topUpAmount) || Number(topUpAmount) <= 0) {
       alert("Vui lòng nhập số tiền hợp lệ");
       return;
     }
 
-    // Simulate Payment Processing
-    setTimeout(() => {
-      topUpWallet(Number(topUpAmount));
+    try {
+      await topUpWallet(Number(topUpAmount));
       setTopUpAmount("");
       setShowTopUp(false);
       alert(
         `Đã nạp thành công ${Number(topUpAmount).toLocaleString()}đ vào ví!`
       );
-    }, 1500);
+    } catch (error) {
+      alert("Nạp tiền thất bại: " + (error.message || "Lỗi không xác định"));
+    }
   };
 
   // Mock Transaction History

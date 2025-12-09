@@ -38,6 +38,11 @@ const ENDPOINTS = {
     UPDATE_SHOP_INFO: "/shops/my-shop",
     TOGGLE_SHOP_STATUS: "/shops/my-shop/status",
   },
+  USER: {
+    GET_USER_INFO: "/users",
+    UPDATE_USER_INFO: "/users",
+    DELETE_USER: "/users",
+  },
 };
 
 export default ENDPOINTS;
