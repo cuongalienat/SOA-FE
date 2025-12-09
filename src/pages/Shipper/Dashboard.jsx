@@ -1,236 +1,195 @@
-import React, { useEffect, useState } from "react";
-import {
-  Power,
-  Navigation,
-  DollarSign,
-  ChevronRight,
-  Clock,
-  ToggleLeft,
-  ToggleRight,
-} from "lucide-react";
-import { useShipper } from "../../context/ShipperContext.jsx";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from 'react';
+import { useSocket } from '../../context/SocketContext';
+import { useAuth } from '../../hooks/useAuths'; // Sửa lại đúng tên hook
+// 👇 THÊM: import hàm acceptDelivery
+import { getCurrentJob, acceptDelivery } from '../../services/deliveryServices';
+import RealtimeMap from '../../components/common/Map/RealtimeMap';
 
 const ShipperDashboard = () => {
-  const { isOnline, toggleOnline, currentOrder } = useShipper();
-  const navigate = useNavigate();
-  const [scanRipple, setScanRipple] = useState(false);
+    const { token, user } = useAuth(); 
+    const socket = useSocket();
+    
+    const [currentOrder, setCurrentOrder] = useState(null);
+    const [shipperLoc, setShipperLoc] = useState(null);
 
-  // Hiệu ứng ripple khi online mà chưa có đơn
-  useEffect(() => {
-    let interval;
-    if (isOnline && !currentOrder) {
-      interval = setInterval(() => {
-        setScanRipple((prev) => !prev);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isOnline, currentOrder]);
+    // 👇 THÊM: State quản lý đơn hàng mới đến (để hiện Popup)
+    const [incomingJob, setIncomingJob] = useState(null);
 
-  // =========================
-  //     KHI ĐANG CÓ ĐƠN
-  // =========================
-  if (currentOrder) {
+    // 1. Hàm load đơn hàng hiện tại (Tách ra để tái sử dụng)
+    const fetchJob = async () => {
+        if (!token) return;
+        try {
+            const res = await getCurrentJob(token);
+            if (res.data) {
+                setCurrentOrder(res.data);
+                // Join room đơn hàng hiện tại
+                if(socket) {
+                // Lưu ý: res.data.orderId có thể là object hoặc string tùy populate
+                    const roomId = res.data.orderId._id || res.data.orderId;
+                    socket.emit('JOIN_ORDER_ROOM', roomId);
+                }
+                
+                // Nếu đã có đơn thì tắt popup đơn mới (nếu đang hiện)
+                setIncomingJob(null);
+            }
+        } catch (error) {
+            console.error("Lỗi lấy đơn:", error);
+        }
+    };
+
+    // Load lần đầu
+    useEffect(() => {
+        fetchJob();
+    }, [token, socket]);
+
+    // 2. Lắng nghe Socket
+    useEffect(() => {
+        if (!socket) return;
+
+        // --- Logic cũ: Tracking ---
+        socket.on('SHIPPER_MOVED', (data) => setShipperLoc(data));
+
+        socket.on('ORDER_STATUS_UPDATE', (data) => {
+            console.log("🔔 Status Update:", data); 
+            // data trả về thường là: { status: 'PICKING_UP', message: '...' }
+
+            if (data.status === 'COMPLETED') {
+                // 1. Nếu xong rồi -> Reset về giao diện rảnh tay
+                alert("🎉 Đơn hàng hoàn tất! Đã cộng tiền.");
+                setCurrentOrder(null); 
+                setShipperLoc(null);
+            } else {
+                // 2. Nếu đang chạy (PICKING_UP, DELIVERING) -> Cập nhật chữ Status
+                // Dùng callback trong setState để đảm bảo lấy được state cũ nhất
+                setCurrentOrder(prevOrder => {
+                    if (!prevOrder) return null;
+                    // Giữ nguyên các thông tin cũ (pickup, dropoff...), chỉ thay status
+                    return { ...prevOrder, status: data.status };
+                });
+            }
+        });
+
+        // 👇 THÊM: Lắng nghe đơn hàng mới (Từ logic tìm shipper quanh đây)
+        socket.on('NEW_JOB', (data) => {
+            console.log("🔔 CÓ ĐƠN HÀNG MỚI:", data);
+            // data: { deliveryId, pickup, dropoff, fee, distance }
+            
+            // Chỉ hiện nếu đang rảnh (chưa có currentOrder)
+            if (!currentOrder) {
+                setIncomingJob(data);
+                
+                // Phát âm thanh thông báo nếu muốn (Optional)
+                // new Audio('/path/to/sound.mp3').play();
+            }
+        });
+
+        return () => {
+            socket.off('SHIPPER_MOVED');
+            socket.off('ORDER_STATUS_UPDATE');
+            socket.off('NEW_JOB'); // Dọn dẹp
+        };
+    }, [socket, currentOrder]); // Thêm dependency currentOrder
+
+    // 👇 THÊM: Xử lý chấp nhận đơn
+    const handleAcceptJob = async () => {
+        if (!incomingJob || !token) return;
+        try {
+            await acceptDelivery(incomingJob.deliveryId, token);
+            alert("Đã nhận đơn thành công! 🚀");
+            
+            // Ẩn popup & Load lại dashboard để vào giao diện Map
+            setIncomingJob(null);
+            fetchJob(); 
+
+        } catch (error) {
+            console.error("Lỗi nhận đơn:", error);
+            alert("Lỗi: Có thể đơn đã bị người khác nhận mất!");
+            setIncomingJob(null);
+        }
+    };
+
+    // 👇 THÊM: Xử lý từ chối
+    const handleRejectJob = () => {
+        setIncomingJob(null);
+    };
+
+    // --- RENDER ---
+
     return (
-      <div className="p-4 space-y-4 h-full flex flex-col bg-gray-50">
-        {/* Thanh điều khiển trạng thái */}
-        <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-200 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-500 font-medium">
-              Trạng thái nhận đơn
-            </p>
-            <p
-              className={`text-sm font-bold ${
-                isOnline ? "text-green-600" : "text-red-500"
-              }`}
-            >
-              {isOnline ? "Tự động nhận đơn tiếp" : "Nghỉ sau đơn này"}
-            </p>
-          </div>
-
-          <button
-            onClick={toggleOnline}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors ${
-              isOnline
-                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                : "bg-red-100 text-red-700 hover:bg-red-200"
-            }`}
-          >
-            <span className="text-xs font-bold">
-              {isOnline ? "Bật" : "Tắt"}
-            </span>
-            {isOnline ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
-          </button>
-        </div>
-
-        {/* Thông báo có đơn */}
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
-          <div className="flex items-center text-green-700">
-            <div className="animate-pulse w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-            <span className="font-bold">Bạn đang có đơn hàng!</span>
-          </div>
-          <span className="text-xs bg-white px-2 py-1 rounded border border-green-200 text-green-800 font-mono">
-            {currentOrder._id}
-          </span>
-        </div>
-
-        {/* Thẻ hiển thị đơn */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden flex-1 flex flex-col">
-          <div className="h-32 bg-gray-200 relative">
-            <img
-              src="https://media.wired.com/photos/59269cd37034dc5f91bec0f1/master/pass/GoogleMapTA.jpg"
-              alt="Map"
-              className="w-full h-full object-cover opacity-70"
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center hover:bg-blue-700 transition-colors">
-                <Navigation size={16} className="mr-1" /> Mở bản đồ
-              </button>
-            </div>
-          </div>
-
-          <div className="p-5 flex-1 flex flex-col">
-            {/* Info */}
-            <div className="mb-6">
-              <div className="flex items-start mb-4 relative">
-                <div className="flex flex-col items-center mr-3 mt-1">
-                  <div className="w-4 h-4 rounded-full border-4 border-green-500 bg-white z-10"></div>
-                  <div className="w-0.5 h-10 bg-gray-300 -my-1"></div>
-                  <div className="w-4 h-4 rounded-full border-4 border-red-500 bg-white z-10"></div>
+        <div className="shipper-dashboard" style={{ position: 'relative' }}>
+            
+            {/* 👇 1. POPUP NHẬN ĐƠN (Modal) */}
+            {incomingJob && !currentOrder && (
+                <div style={styles.modalOverlay}>
+                    <div style={styles.modalContent}>
+                        <h2 style={{ color: '#d32f2f' }}>🔔 Đơn hàng mới!</h2>
+                        <div style={{ textAlign: 'left', margin: '15px 0' }}>
+                            <p><strong>📍 Lấy:</strong> {incomingJob.pickup}</p>
+                            <p><strong>📍 Giao:</strong> {incomingJob.dropoff}</p>
+                            <p><strong>📏 Khoảng cách:</strong> {incomingJob.distance ? (incomingJob.distance/1000).toFixed(1) : 0} km</p>
+                            <p><strong>💰 Thu nhập:</strong> {incomingJob.fee?.toLocaleString()} đ</p>
+                        </div>
+                        <div style={styles.buttonGroup}>
+                            <button onClick={handleRejectJob} style={styles.btnReject}>Bỏ qua</button>
+                            <button onClick={handleAcceptJob} style={styles.btnAccept}>NHẬN ĐƠN</button>
+                        </div>
+                    </div>
                 </div>
+            )}
 
-                <div className="flex-1 space-y-4">
-                  {/* Lấy hàng */}
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-bold">
-                      Lấy hàng
-                    </p>
-                    <h3 className="font-bold text-gray-900 text-lg leading-tight">
-                      {currentOrder.restaurant_name}
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      {currentOrder.restaurant_address}
-                    </p>
-                  </div>
-
-                  {/* Giao đến */}
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase font-bold">
-                      Giao đến
-                    </p>
-                    <h3 className="font-bold text-gray-900 text-lg leading-tight">
-                      {currentOrder.customer_name}
-                    </h3>
-                    <p className="text-gray-600 text-sm">
-                      {currentOrder.customer_address}
-                    </p>
-                  </div>
+            {/* 👇 2. GIAO DIỆN CHÍNH (Map hoặc Rảnh) */}
+            {!currentOrder ? (
+                <div className="p-4" style={{ textAlign: 'center', marginTop: '50px' }}>
+                    <h2>💤 Bạn đang rảnh (Online)</h2>
+                    <p>Đang tìm đơn hàng quanh đây...</p>
+                    {/* Icon loading quay quay cho đẹp */}
+                    <div className="loader">Searching...</div>
                 </div>
-              </div>
-            </div>
-
-            {/* COD + distance */}
-            <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl mb-4">
-              <div>
-                <p className="text-xs text-gray-500">Thu hộ (COD)</p>
-                <p className="text-xl font-bold text-green-600">
-                  {currentOrder.total_price.toLocaleString()}đ
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Khoảng cách</p>
-                <p className="font-bold text-gray-800">
-                  {currentOrder.distance || "2.4"} km
-                </p>
-              </div>
-            </div>
-
-            {/* Button */}
-            <div className="mt-auto">
-              <button
-                onClick={() => navigate(`/shipper/order/${currentOrder._id}`)}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-200 flex items-center justify-center animate-bounce-small transition-all"
-              >
-                Xem chi tiết & Xử lý <ChevronRight size={20} className="ml-1" />
-              </button>
-            </div>
-          </div>
+            ) : (
+                // Giao diện có đơn (Giữ nguyên code cũ của bạn)
+                <div>
+                     <h1>📦 Đơn hàng hiện tại: {currentOrder.status}</h1>
+                     <div className="map-container" style={{ marginTop: '20px' }}>
+                        <RealtimeMap 
+                            pickup={currentOrder.pickup.location.coordinates} 
+                            dropoff={currentOrder.dropoff.location.coordinates}
+                            shipperLocation={shipperLoc} 
+                        />
+                    </div>
+                    <div className="info-panel" style={{ padding: '20px' }}>
+                        <p>📍 <strong>Lấy hàng:</strong> {currentOrder.pickup.address}</p>
+                        <p>📍 <strong>Giao tới:</strong> {currentOrder.dropoff.address}</p>
+                        <p>💰 <strong>Tiền thu:</strong> {currentOrder.orderId.totalAmount?.toLocaleString()} đ</p>
+                    </div>
+                </div>
+            )}
         </div>
-      </div>
     );
-  }
+};
 
-  // =========================
-  //      MÀN HÌNH CHỜ
-  // =========================
-  return (
-    <div className="h-full flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-green-50 to-transparent -z-10"></div>
-
-      {/* Title */}
-      <div className="mb-10">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Xin chào, Tài xế!
-        </h1>
-        <p className="text-gray-500">
-          {isOnline
-            ? "Hệ thống đang tự động tìm đơn hàng phù hợp cho bạn..."
-            : "Bật trạng thái trực tuyến để bắt đầu nhận đơn tự động."}
-        </p>
-      </div>
-
-      {/* Button Online / Offline */}
-      <div className="relative mb-12">
-        {isOnline && (
-          <>
-            <div
-              className={`absolute inset-0 rounded-full bg-green-400 opacity-20 ${
-                scanRipple ? "scale-150" : "scale-100"
-              } transition-transform duration-1000`}
-            ></div>
-            <div
-              className={`absolute inset-0 rounded-full bg-green-400 opacity-20 ${
-                !scanRipple ? "scale-150" : "scale-100"
-              } transition-transform duration-1000 delay-500`}
-            ></div>
-          </>
-        )}
-
-        <button
-          onClick={toggleOnline}
-          className={`relative w-40 h-40 rounded-full flex flex-col items-center justify-center shadow-2xl border-8 transition-all duration-300 transform active:scale-95 ${
-            isOnline
-              ? "bg-green-500 border-green-200 text-white"
-              : "bg-white border-gray-200 text-gray-400 hover:border-gray-300"
-          }`}
-        >
-          <Power size={48} className="mb-2" />
-          <span className="font-bold text-lg">
-            {isOnline ? "ONLINE" : "OFFLINE"}
-          </span>
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 w-full">
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="text-gray-400 mb-1">
-            <Clock size={20} className="mx-auto" />
-          </div>
-          <div className="text-2xl font-bold text-gray-800">4.5h</div>
-          <div className="text-xs text-gray-500">Thời gian chạy</div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-          <div className="text-green-500 mb-1">
-            <DollarSign size={20} className="mx-auto" />
-          </div>
-          <div className="text-2xl font-bold text-gray-800">520k</div>
-          <div className="text-xs text-gray-500">Tổng thu hôm nay</div>
-        </div>
-      </div>
-    </div>
-  );
+// CSS inline đơn giản cho Modal (Bạn có thể chuyển sang file CSS riêng)
+const styles = {
+    modalOverlay: {
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000,
+        display: 'flex', justifyContent: 'center', alignItems: 'center'
+    },
+    modalContent: {
+        backgroundColor: 'white', padding: '30px', borderRadius: '15px',
+        width: '90%', maxWidth: '400px', textAlign: 'center',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+    },
+    buttonGroup: {
+        display: 'flex', justifyContent: 'space-between', marginTop: '20px'
+    },
+    btnReject: {
+        padding: '10px 20px', backgroundColor: '#e0e0e0', border: 'none',
+        borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
+    },
+    btnAccept: {
+        padding: '10px 20px', backgroundColor: '#2e7d32', color: 'white',
+        border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold'
+    }
 };
 
 export default ShipperDashboard;

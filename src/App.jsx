@@ -1,5 +1,6 @@
 import React, { Suspense } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
+import { SocketProvider } from "./context/SocketContext.jsx";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 
@@ -13,6 +14,7 @@ const ShipperRoutes = React.lazy(() => import("./routes/shipperRoutes.jsx"));
 const App = () => {
   return (
     <AuthProvider>
+      <SocketProvider>
       <ToastProvider>
         <CartProvider>
           <HashRouter>
@@ -53,6 +55,7 @@ const App = () => {
           </HashRouter>
         </CartProvider>
       </ToastProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 };
