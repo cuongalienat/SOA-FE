@@ -22,6 +22,9 @@ import { useForm } from "../../hooks/useForm.jsx";
 import { useOrders } from "../../hooks/useOrders.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import LocationPicker from "../../components/common/LocationPicker.jsx";
+import { getDistance, getCoordinates } from "../../services/goongServices";
+import { calculateShippingFee } from "../../utils/shippingUtils";
+import { useShop } from "../../hooks/useShop";
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, updateItemNote, cartTotal, clearCart } = useCart();
@@ -37,13 +40,65 @@ const Cart = () => {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const { showToast } = useToast();
+  const { shop, loadShopById } = useShop();
+
   const userId = user?._id;
+
+  const [shopLocation, setShopLocation] = useState(null);
+  const [shippingFee, setShippingFee] = useState(0);
 
   useEffect(() => {
     if (userId) {
       loadMyOrders({ userID: userId });
     }
   }, [userId, loadMyOrders]);
+
+  // Fetch shop location
+  // Fetch shop location
+  useEffect(() => {
+    if (items.length > 0) {
+      let shopId = items[0].shopId;
+      if (shopId && typeof shopId === 'object') {
+        shopId = shopId._id || shopId.id;
+      }
+      if (shopId) {
+        loadShopById(shopId);
+      }
+    }
+  }, [items]); // Re-run if items change (different shop?)
+
+  useEffect(() => {
+    if (shop) {
+      const fetchShopCoordinates = async () => {
+        // If shop has explicit location coordinates, use them
+        if (shop.location && shop.location.coordinates) {
+          setShopLocation({
+            lat: shop.location.coordinates[1],
+            lng: shop.location.coordinates[0]
+          });
+          return;
+        }
+
+        // Otherwise, geocode the address
+        if (shop.address) {
+          try {
+            const coords = await getCoordinates(shop.address);
+            if (coords) {
+              setShopLocation(coords);
+              console.log("Geocoded Shop Location:", coords);
+            } else {
+              console.error("Could not geocode shop address:", shop.address);
+            }
+          } catch (error) {
+            console.error("Error geocoding shop address:", error);
+          }
+        }
+      };
+
+      fetchShopCoordinates();
+    }
+  }, [shop]);
+
 
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
@@ -80,7 +135,7 @@ const Cart = () => {
 
   const [userLocation, setUserLocation] = useState({ lat: null, lng: null });
 
-  const handleAddressConfirm = ({ address, lat, lng }) => {
+  const handleAddressConfirm = async ({ address, lat, lng }) => {
     const event = {
       target: {
         name: "address",
@@ -90,11 +145,34 @@ const Cart = () => {
     handleChange(event);
     setUserLocation({ lat, lng });
     setShowMap(false);
+
+    console.log("Handle Address Confirm:", { address, lat, lng, shopLocation });
+
+    // Calculate Distance and Fee
+    if (shopLocation && lat && lng) {
+      // Construct strings "lat,lng"
+      const origin = `${lat},${lng}`;
+      // Ensure shopLocation has lat/lng
+      const shopLat = shopLocation.lat || shopLocation.latitude;
+      const shopLng = shopLocation.lng || shopLocation.longitude;
+
+      if (shopLat && shopLng) {
+        const destination = `${shopLat},${shopLng}`;
+        const distanceData = await getDistance(origin, destination);
+
+        if (distanceData) {
+          const fee = calculateShippingFee(distanceData.distanceValue);
+          setShippingFee(fee);
+          // Optional: Show distance toast or info
+          // showToast(`Khoảng cách: ${distanceData.distanceText}, Phí ship: ${fee.toLocaleString()}đ`, "info");
+        }
+      }
+    }
   };
   // Tính toán chi phí
 
-  const deliveryFee = 3000;
-  const finalTotal = cartTotal + deliveryFee;
+  // const deliveryFee = 3000; // Old static fee
+  const finalTotal = cartTotal + shippingFee;
 
 
   // Xử lý khi bấm nút "Đặt hàng"
@@ -155,6 +233,7 @@ const Cart = () => {
         shopId: shopId,
         items: orderItems,
         paymentMethod: "Wallet",
+        shippingFee: shippingFee, // Send shipping fee to backend
         userLocation: {
           address: values.address,
           lat: userLocation.lat,
@@ -360,16 +439,16 @@ const Cart = () => {
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-gray-600">
                 <span>Tạm tính</span>
-                <span>{cartTotal} VNĐ</span>
+                <span>{cartTotal.toLocaleString('vi-VN')} VNĐ</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Phí giao hàng</span>
-                <span>{deliveryFee} VNĐ</span>
+                <span>{shippingFee.toLocaleString('vi-VN')} VNĐ</span>
               </div>
               <div className="h-px bg-gray-200 my-4"></div>
               <div className="flex justify-between text-xl font-bold text-gray-900">
                 <span>Tổng cộng</span>
-                <span className="text-orange-600">{finalTotal} VNĐ</span>
+                <span className="text-orange-600">{finalTotal.toLocaleString('vi-VN')} VNĐ</span>
               </div>
             </div>
 

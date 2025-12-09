@@ -1,8 +1,9 @@
 import { useState, useCallback } from "react";
 import {
   getMyShopService,
-  updateShopInfoService,
-  //   toggleShopStatusService,
+  updateShopService,
+  updateShopStatusService,
+  getShopByIdService,
 } from "../services/shopServices.jsx"; // Nhớ sửa đường dẫn đúng tới file service của bạn
 import { useToast } from "../context/ToastContext"; // Import hook thông báo
 
@@ -35,7 +36,7 @@ export const useShop = () => {
   const updateShopInfo = async (shopData) => {
     setLoading(true);
     try {
-      const data = await updateShopInfoService(shopData);
+      const data = await updateShopService(shopData);
 
       // Cập nhật lại state local ngay lập tức để UI thay đổi
       setShop((prev) => ({ ...prev, ...shopData }));
@@ -57,7 +58,7 @@ export const useShop = () => {
   const toggleShopStatus = async () => {
     setLoading(true);
     try {
-      const data = await toggleShopStatusService();
+      const data = await updateShopStatusService();
 
       // Cập nhật UI: Đảo ngược trạng thái hiện tại (Optimistic update)
       // Hoặc lấy từ data trả về
@@ -85,6 +86,18 @@ export const useShop = () => {
       setLoading(false);
     }
   };
+  const loadShopById = async (shopId) => {
+    setLoading(true);
+    try {
+      const data = await getShopByIdService(shopId);
+      setShop(data.data || data);
+    } catch (err) {
+      const msg = err.message || "Không thể tải thông tin cửa hàng";
+      showToast(msg, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return {
     shop,
@@ -93,5 +106,6 @@ export const useShop = () => {
     loadMyShop,
     updateShopInfo,
     toggleShopStatus,
+    loadShopById,
   };
 };

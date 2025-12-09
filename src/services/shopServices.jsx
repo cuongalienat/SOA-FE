@@ -11,6 +11,16 @@ export const getAllShopsService = async (params) => {
     }
 };
 
+// 1b. Lấy thông tin chi tiết một quán (Public)
+export const getShopByIdService = async (shopId) => {
+    try {
+        const response = await api.get(ENDPOINTS.SHOP.GET_BY_ID.replace(':id', shopId));
+        return response.data;
+    } catch (error) {
+        throw error.response?.data || { message: "Lỗi lấy thông tin quán" };
+    }
+};
+
 // 2. Tạo quán mới (Cần login)
 export const createShopService = async (shopData) => {
     try {
