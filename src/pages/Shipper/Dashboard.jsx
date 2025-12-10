@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../hooks/useAuths'; // Sửa lại đúng tên hook
 // 👇 THÊM: import hàm acceptDelivery
-import { getCurrentJob, acceptDelivery } from '../../services/deliveryServices';
+import { getCurrentJob, acceptDelivery, getNearbyOrders } from '../../services/deliveryServices';
 import RealtimeMap from '../../components/common/Map/RealtimeMap';
 import { updateShipperStatus, getShipperProfile } from '../../services/shipperServices.jsx';
 const ShipperDashboard = () => {
@@ -11,7 +11,7 @@ const ShipperDashboard = () => {
     
     const [currentOrder, setCurrentOrder] = useState(null);
     const [shipperLoc, setShipperLoc] = useState(null);
-
+    const [availableJobs, setAvailableJobs] = useState([]); // Danh sách đơn hàng chờ
     const [isOnline, setIsOnline] = useState(true); // Quản lý trạng thái online/offline
     const [isLoadingToggle, setIsLoadingToggle] = useState(false); // Quản lý trạng thái loading khi toggle
 
@@ -25,7 +25,21 @@ const ShipperDashboard = () => {
                 // A. Lấy thông tin Shipper để biết đang Online hay Offline
                 const profileRes = await getShipperProfile(token);
                 if (profileRes?.data) {
-                    setIsOnline(profileRes.data.status === 'ONLINE');
+                    const onlineStatus = profileRes.data.status === 'ONLINE';
+                    setIsOnline(onlineStatus);
+                    if (onlineStatus) {
+                        console.log("🔄 Đang Online sẵn, load danh sách đơn...");
+                        try {
+                            const nearbyRes = await getNearbyOrders(token);
+                            if (nearbyRes.data) {
+                                // Map dữ liệu API sang format của State (nếu cần)
+                                // Giả sử API trả về mảng khớp format rồi
+                                setAvailableJobs(nearbyRes.data);
+                            }
+                        } catch (err) {
+                            console.error("Lỗi load đơn init:", err);
+                        }
+                    }
                 }
 
                 // B. Kiểm tra xem có đơn hàng nào đang dang dở không
@@ -100,42 +114,61 @@ const ShipperDashboard = () => {
             }
         });
 
-        // 👇 THÊM: Lắng nghe đơn hàng mới (Từ logic tìm shipper quanh đây)
-        socket.on('NEW_JOB', (data) => {
-            console.log("🔔 CÓ ĐƠN HÀNG MỚI:", data);
-            // data: { deliveryId, pickup, dropoff, fee, distance }
+        socket.on('NEW_JOB', (newJobData) => {
+            // newJobData: { deliveryId, pickup, dropoff, fee, distance }
             
-            // Chỉ hiện nếu đang rảnh (chưa có currentOrder)
-            if (!currentOrder) {
-                setIncomingJob(data);
-                
-                // Phát âm thanh thông báo nếu muốn (Optional)
-                // new Audio('/path/to/sound.mp3').play();
+            if (!currentOrder && isOnline) {
+                setAvailableJobs(prev => {
+                    // 1. Chống trùng (Quan trọng vì Socket có thể bắn trùng)
+                    if (prev.find(j => j._id === newJobData.deliveryId)) return prev;
+                    
+                    // 2. Format dữ liệu để hiển thị
+                    const jobFormatted = {
+                        _id: newJobData.deliveryId,
+                        shippingFee: newJobData.fee,
+                        distance: newJobData.distance,
+                        pickup: { address: newJobData.pickup },   // ✅ Map thành object có key address
+                        dropoff: { address: newJobData.dropoff }, // Backend gửi string địa chỉ
+                        isNew: true // Cờ đánh dấu để làm hiệu ứng nhấp nháy
+                    };
+                    
+                    // 3. Chèn lên đầu
+                    return [jobFormatted, ...prev];
+                });
             }
+        });
+
+        socket.on('JOB_TAKEN', (data) => {
+            setAvailableJobs(prev => prev.filter(j => j._id !== data.deliveryId));
         });
 
         return () => {
             socket.off('SHIPPER_MOVED');
             socket.off('ORDER_STATUS_UPDATE');
             socket.off('NEW_JOB'); // Dọn dẹp
+            socket.off('JOB_TAKEN');
         };
     }, [socket, currentOrder]); // Thêm dependency currentOrder
 
     // 👇 THÊM: Xử lý chấp nhận đơn
-    const handleAcceptJob = async () => {
-        if (!incomingJob || !token) return;
+    const handleAcceptJob = async (jobId) => {
+        if (!token) return;
         try {
-            await acceptDelivery(incomingJob.deliveryId, token);
-            alert("Đã nhận đơn thành công! 🚀");
+            await acceptDelivery(jobId, token);
+            alert("Nhận đơn thành công! 🚀");
+            setAvailableJobs([]); // Clear list sau khi nhận
             
-            // Ẩn popup & Load lại dashboard để vào giao diện Map
-            setIncomingJob(null);
-            fetchJob(); 
-
+            // Load lại job để vào màn hình Map
+            const res = await getCurrentJob(token);
+            if (res?.data) {
+                setCurrentOrder(res.data);
+                if(socket) socket.emit('JOIN_ORDER_ROOM', res.data.orderId._id || res.data.orderId);
+            }
         } catch (error) {
-            console.error("Lỗi nhận đơn:", error);
-            alert("Lỗi: Có thể đơn đã bị người khác nhận mất!");
-            setIncomingJob(null);
+            console.error(error);
+            alert("Chậm tay rồi! Đơn đã bị người khác nhận.");
+            // Xóa đơn đó khỏi list hiển thị
+            setAvailableJobs(prev => prev.filter(j => j._id !== jobId));
         }
     };
 
@@ -168,109 +201,111 @@ const ShipperDashboard = () => {
     // --- RENDER ---
 
     return (
-        <div className="shipper-dashboard" style={{ position: 'relative', minHeight: '100vh', background: '#f5f5f5' }}>
+        <div className="shipper-dashboard" style={{ minHeight: '100vh', background: '#f5f5f5' }}>
             
-            {/* --- HEADER ĐIỀU KHIỂN TRẠNG THÁI --- */}
+            {/* --- HEADER --- */}
             <div style={styles.headerBar}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{
                         width: '12px', height: '12px', borderRadius: '50%',
                         backgroundColor: isOnline ? '#4caf50' : '#bdbdbd',
-                        boxShadow: isOnline ? '0 0 8px #4caf50' : 'none',
-                        transition: 'all 0.3s'
+                        boxShadow: isOnline ? '0 0 8px #4caf50' : 'none'
                     }} />
                     <span style={{ fontWeight: 'bold', color: isOnline ? '#2e7d32' : '#757575' }}>
-                        {isOnline ? 'ĐANG TRỰC TUYẾN' : 'ĐANG NGOẠI TUYẾN'}
+                        {isOnline ? 'TRỰC TUYẾN' : 'NGOẠI TUYẾN'}
                     </span>
                 </div>
-
                 <button 
                     onClick={handleToggleStatus}
                     disabled={isLoadingToggle || currentOrder} 
-                    style={{
-                        ...styles.toggleBtn,
-                        backgroundColor: isOnline ? '#4caf50' : '#e0e0e0',
-                        justifyContent: isOnline ? 'flex-end' : 'flex-start'
-                    }}
+                    style={{...styles.toggleBtn, justifyContent: isOnline ? 'flex-end' : 'flex-start', backgroundColor: isOnline ? '#4caf50' : '#e0e0e0'}}
                 >
                     <div style={styles.toggleCircle} />
                 </button>
             </div>
 
-            {/* --- LOGIC HIỂN THỊ CHÍNH --- */}
+            {/* --- BODY --- */}
             {!isOnline ? (
                 // 1. MÀN HÌNH OFFLINE
                 <div style={styles.offlineScreen}>
-                    <h1 style={{ fontSize: '60px', marginBottom: '10px' }}>😴</h1>
-                    <h2>Bạn đang ngoại tuyến</h2>
-                    <p>Bật trạng thái để bắt đầu kiếm tiền nhé!</p>
+                    <h1 style={{ fontSize: '60px', margin: 0 }}>😴</h1>
+                    <h3>Bạn đang nghỉ ngơi</h3>
                 </div>
             ) : (
                 // 2. MÀN HÌNH ONLINE
                 <>
-                    {/* A. POPUP NHẬN ĐƠN (MODAL) */}
-                    {incomingJob && !currentOrder && (
-                        <div style={styles.modalOverlay}>
-                            <div style={styles.modalContent}>
-                                <div style={{ marginBottom: '15px' }}>
-                                    <h2 style={{ color: '#d32f2f', margin: 0 }}>🔥 ĐƠN HÀNG MỚI!</h2>
-                                    <p style={{ color: '#666', fontSize: '14px' }}>Cách bạn {incomingJob.distance ? (incomingJob.distance/1000).toFixed(1) : 0} km</p>
-                                </div>
-                                
-                                <div style={{ textAlign: 'left', background: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
-                                    <p style={{margin: '5px 0'}}>🏪 <strong>Lấy:</strong> {incomingJob.pickup}</p>
-                                    <p style={{margin: '5px 0'}}>🏠 <strong>Giao:</strong> {incomingJob.dropoff}</p>
-                                    <hr style={{ border: '0', borderTop: '1px solid #eee', margin: '10px 0' }}/>
-                                    <p style={{margin: '5px 0', fontSize: '18px', color: '#2e7d32'}}>💰 <strong>Thu nhập: {incomingJob.fee?.toLocaleString()} đ</strong></p>
-                                </div>
-
-                                <div style={styles.buttonGroup}>
-                                    <button onClick={handleRejectJob} style={styles.btnReject}>Bỏ qua</button>
-                                    <button onClick={handleAcceptJob} style={styles.btnAccept}>NHẬN ĐƠN NGAY</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* B. DASHBOARD CHÍNH */}
+                    {/* CASE A: ĐANG RẢNH -> HIỆN LIST ĐƠN */}
                     {!currentOrder ? (
-                        // Trạng thái chờ đơn
-                        <div className="p-4" style={{ textAlign: 'center', marginTop: '100px' }}>
-                            <div style={styles.radarWave}>📡</div>
-                            <h3 style={{ marginTop: 20, color: '#333' }}>Đang quét đơn hàng quanh đây...</h3>
-                            <p style={{ color: '#666' }}>Vui lòng giữ ứng dụng mở để nhận thông báo</p>
+                        <div style={{ padding: '15px', maxWidth: '600px', margin: '0 auto' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                <h3 style={{ margin: 0 }}>📍 Đơn hàng quanh đây</h3>
+                                <span style={{fontSize: '13px', background: '#e0e0e0', padding: '2px 8px', borderRadius: '10px'}}>
+                                    {availableJobs.length} đơn
+                                </span>
+                            </div>
+
+                            {availableJobs.length === 0 ? (
+                                <div style={{ textAlign: 'center', marginTop: '80px', color: '#999' }}>
+                                    <div style={styles.radarWave}>📡</div>
+                                    <p style={{ marginTop: '20px' }}>Đang quét tìm đơn hàng...</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                    {availableJobs.map(job => (
+                                        <div key={job._id} style={{
+                                            ...styles.jobCard,
+                                            border: job.isNew ? '2px solid #4caf50' : '1px solid #eee',
+                                            animation: job.isNew ? 'flash 1s' : 'none'
+                                        }}>
+                                            {/* Header Card: Giá tiền + Khoảng cách */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #f0f0f0' }}>
+                                                <span style={{ fontWeight: 'bold', color: '#2e7d32', fontSize: '18px' }}>
+                                                    +{job.shippingFee?.toLocaleString()} đ
+                                                </span>
+                                                <span style={styles.distanceBadge}>
+                                                    {(job.distance / 1000).toFixed(1)} km
+                                                </span>
+                                            </div>
+                                            
+                                            {/* Nội dung địa chỉ */}
+                                            <div style={{ fontSize: '14px', marginBottom: '8px', display: 'flex', gap: '10px' }}>
+                                                <span style={{color: '#888'}}>🏪 Lấy:</span> 
+                                                <strong style={{flex: 1}}>{job.pickup.address}</strong>
+                                            </div>
+                                            <div style={{ fontSize: '14px', marginBottom: '15px', display: 'flex', gap: '10px' }}>
+                                                <span style={{color: '#888'}}>🏠 Giao:</span> 
+                                                <strong style={{flex: 1}}>{job.dropoff.address}</strong>
+                                            </div>
+                                            
+                                            {/* Nút nhận đơn */}
+                                            <button 
+                                                onClick={() => handleAcceptJob(job._id)}
+                                                style={styles.btnAcceptList}
+                                            >
+                                                NHẬN ĐƠN NGAY
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : (
-                        // Trạng thái đang giao hàng
-                        <div style={{ padding: '0 15px 15px 15px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        // CASE B: ĐANG BẬN -> HIỆN MAP (Giữ nguyên)
+                        <div style={{ padding: '0 15px 15px' }}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                 <h2 style={{ margin: 0 }}>📦 Đang thực hiện</h2>
                                 <span style={styles.statusBadge}>{currentOrder.status}</span>
                             </div>
-                            
-                            <div className="map-container" style={{ borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                            <div className="map-container" style={{ borderRadius: '12px', overflow: 'hidden', height: '400px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
                                 <RealtimeMap 
                                     pickup={currentOrder.pickup.location.coordinates} 
                                     dropoff={currentOrder.dropoff.location.coordinates}
                                     shipperLocation={shipperLoc} 
                                 />
                             </div>
-
-                            <div className="info-panel" style={styles.infoPanel}>
-                                <div style={{ marginBottom: '10px' }}>
-                                    <div style={{ fontSize: '12px', color: '#888' }}>ĐIỂM LẤY HÀNG</div>
-                                    <div style={{ fontWeight: 500 }}>{currentOrder.pickup.address}</div>
-                                </div>
-                                <div style={{ marginBottom: '10px' }}>
-                                    <div style={{ fontSize: '12px', color: '#888' }}>ĐIỂM GIAO HÀNG</div>
-                                    <div style={{ fontWeight: 500 }}>{currentOrder.dropoff.address}</div>
-                                </div>
-                                <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed #ddd', display: 'flex', justifyContent: 'space-between' }}>
-                                    <strong>Tổng tiền thu hộ:</strong>
-                                    <span style={{ color: '#d32f2f', fontSize: '18px', fontWeight: 'bold' }}>
-                                        {currentOrder.orderId.totalAmount?.toLocaleString()} đ
-                                    </span>
-                                </div>
+                            <div style={styles.infoPanel}>
+                                <p><strong>Lấy:</strong> {currentOrder.pickup.address}</p>
+                                <p><strong>Giao:</strong> {currentOrder.dropoff.address}</p>
                             </div>
                         </div>
                     )}
