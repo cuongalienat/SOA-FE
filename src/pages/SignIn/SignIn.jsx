@@ -72,7 +72,7 @@ const SignIn = () => {
         // Đăng nhập thành công
         // Normalize role: lowercase and trim whitespace
         const role = result.data.user.role ? result.data.user.role.toLowerCase().trim() : "";
-        showNotification(`Login success. Role: '${role}'`, "success");
+        showNotification("Đăng nhập thành công", "success");
 
         // Use timeout to ensure AuthContext updates before navigation
         setTimeout(() => {
@@ -81,7 +81,6 @@ const SignIn = () => {
               navigate("/restaurant", { replace: true });
               break;
             case "driver": // Handle potential alias
-            case "shipper":
               navigate("/shipper", { replace: true });
               break;
             default:
@@ -103,9 +102,19 @@ const SignIn = () => {
   const handleGoogleSignIn = async (tokenId) => {
     const result = await signInGoogle(tokenId);
     if (result.success === true) {
+      const role = result.data.user.role ? result.data.user.role.toLowerCase().trim() : "";
       showNotification("Đăng nhập Google thành công!", "success");
       setTimeout(() => {
-        navigate("/");
+        switch (role) {
+          case "restaurant_manager":
+            navigate("/restaurant", { replace: true });
+            break;
+          case "driver": // Handle potential alias
+            navigate("/shipper", { replace: true });
+            break;
+          default:
+            navigate("/", { replace: true });
+        }
       }, 1500);
     } else {
       showNotification(result.error, "error");

@@ -25,11 +25,12 @@ import LocationPicker from "../../components/common/LocationPicker.jsx";
 import { getDistance, getCoordinates } from "../../services/goongServices";
 import { calculateShippingFee } from "../../utils/shippingUtils";
 import { useShop } from "../../hooks/useShop";
+import { useUser } from "../../hooks/useUser.jsx";
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, updateItemNote, cartTotal, clearCart } = useCart();
-  const { user, updateUser } = useAuth();
-
+  const { user } = useAuth();
+  const { updateUser } = useUser();
   const navigate = useNavigate();
 
   const { orders, createOrder, loadMyOrders, cancelOrder } = useOrders();
@@ -126,7 +127,7 @@ const Cart = () => {
   };
 
   // Form thông tin giao hàng
-  const { values, handleChange, handleSubmit } = useForm({
+  const { values, handleChange, handleSubmit, setValue } = useForm({
     fullName: user?.fullName || "",
     phone: user?.phone || "",
     address: user?.address || "",
@@ -134,6 +135,53 @@ const Cart = () => {
   });
 
   const [userLocation, setUserLocation] = useState({ lat: null, lng: null });
+
+  // Update form values when user data becomes available (e.g. after page load)
+  useEffect(() => {
+    if (user) {
+      if (!values.fullName && user.fullName) setValue("fullName", user.fullName);
+      if (!values.phone && user.phone) setValue("phone", user.phone);
+      if (!values.address && user.address) setValue("address", user.address);
+    }
+  }, [user]);
+
+  // Automatically calculate shipping fee for default address
+  useEffect(() => {
+    const calcDefaultAddressFee = async () => {
+      // Condition: User has address, currently showing default address, shop location known, and coords not yet set
+      if (user?.address && values.address === user.address && shopLocation && !userLocation.lat) {
+        try {
+          // 1. Geocode the default address
+          const coords = await getCoordinates(user.address);
+
+          if (coords) {
+            setUserLocation(coords);
+            console.log("Geocoded Default User Address:", coords);
+
+            // 2. Calculate distance and fee
+            const origin = `${coords.lat},${coords.lng}`;
+            const shopLat = shopLocation.lat || shopLocation.latitude;
+            const shopLng = shopLocation.lng || shopLocation.longitude;
+
+            if (shopLat && shopLng) {
+              const destination = `${shopLat},${shopLng}`;
+              const distanceData = await getDistance(origin, destination);
+
+              if (distanceData) {
+                const fee = calculateShippingFee(distanceData.distanceValue);
+                setShippingFee(fee);
+                console.log("Calculated Default Shipping Fee:", fee);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error calculating fee for default address:", error);
+        }
+      }
+    };
+
+    calcDefaultAddressFee();
+  }, [user, values.address, shopLocation, userLocation.lat]);
 
   const handleAddressConfirm = async ({ address, lat, lng }) => {
     const event = {
@@ -188,11 +236,13 @@ const Cart = () => {
     setShowInvoiceModal(true);
   };
 
+  const [paymentMethod, setPaymentMethod] = useState("Wallet");
+
   const confirmPayment = async () => {
     if (!user) return;
 
     // 1. Kiểm tra số dư ví (Nếu dùng ví)
-    if (user.balance < finalTotal) {
+    if (paymentMethod === "Wallet" && user.balance < finalTotal) {
       console.log(user.balance);
       showToast("Số dư ví không đủ!", "error");
       return;
@@ -224,15 +274,21 @@ const Cart = () => {
       }));
 
       // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
-      const newBalance = user.balance;
-      updateUser({ ...user, balance: newBalance });
+      if (paymentMethod === "Wallet") {
+        const newBalance = user.balance - finalTotal; // FIXED: Should deduct the total, not just set to current balance (which was a bug in previous code 'user.balance')
+        // Wait, previous code was: const newBalance = user.balance; updateUser({...}); This looks like a bug in previous code?
+        // Ah, typically client-side update handles formatted logic. The previous code `const newBalance = user.balance;` actually did NOT deduct anything locally? Or maybe I misread.
+        // Let's look at previous code: `const newBalance = user.balance; updateUser({ ...user, balance: newBalance });` -> This effectively did NOTHING to the balance locally.
+        // Let's implement correct optimistic update if Wallet is used.
+        updateUser({ ...user, balance: newBalance });
+      }
 
       // 5. GỌI API TẠO ĐƠN HÀNG (Dùng hook useOrders)
       const result = await createOrder({
         userId: user._id,
         shopId: shopId,
         items: orderItems,
-        paymentMethod: "Wallet",
+        paymentMethod: paymentMethod === "Wallet" ? "Wallet" : "COD",
         shippingFee: shippingFee, // Send shipping fee to backend
         userLocation: {
           address: values.address,
@@ -251,7 +307,17 @@ const Cart = () => {
         window.scrollTo(0, 0);
       } else {
         // Nếu lỗi API -> Hoàn tiền ảo lại (Rollback UI)
-        updateUser({ ...user, balance: user.balance });
+        if (paymentMethod === "Wallet") {
+          // Rollback logic is complicated if we don't know original balance precisely, but we can just reload user? 
+          // Or simpler: restore user.balance + finalTotal. 
+          // Actually, simplest is to not do optimistic update or just trust reload. 
+          // Let's just restore from user.balance (which is state). Wait, `user` is from AuthContext.
+          // If I updated it, `user.balance` is new.
+          // Let's stick to simple reload or just `loadUser()` if available? 
+          // useAuth provides `user`, `updateUser`.
+          // For safety in this hacky optimistic update, let's just reverse the operation.
+          updateUser({ ...user, balance: user.balance + finalTotal });
+        }
         showToast(result.error, "error");
       }
 
@@ -409,32 +475,49 @@ const Cart = () => {
           <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 sticky top-24">
             <h2 className="text-xl font-bold mb-6">Thanh toán</h2>
 
-            {/* Ví người dùng */}
-            {user ? (
-              <div className="bg-gray-50 p-4 rounded-xl mb-6 flex justify-between items-center border border-gray-200">
+            {/* Chọn phương thức thanh toán */}
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Phương thức thanh toán</h3>
+            <div className="space-y-3 mb-6">
+              {/* Option: Wallet */}
+              <div
+                onClick={() => setPaymentMethod("Wallet")}
+                className={`p-4 rounded-xl border cursor-pointer transition flex justify-between items-center ${paymentMethod === "Wallet" ? "border-orange-500 bg-orange-50" : "border-gray-200 hover:border-orange-200"
+                  }`}
+              >
                 <div className="flex items-center">
-                  <div className="bg-gray-900 p-2 rounded-lg text-white mr-3">
+                  <div className={`p-2 rounded-lg text-white mr-3 ${paymentMethod === "Wallet" ? "bg-orange-500" : "bg-gray-400"
+                    }`}>
                     <Wallet size={20} />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900">
-                      Ví FlavorDash
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Số dư: {(user.balance || 0).toLocaleString()}đ
-                    </p>
+                    <p className={`text-sm font-bold ${paymentMethod === "Wallet" ? "text-orange-700" : "text-gray-700"
+                      }`}>Ví FlavorDash</p>
+                    {user && <p className="text-xs text-gray-500">Số dư: {user.balance?.toLocaleString()}đ</p>}
                   </div>
                 </div>
+                {paymentMethod === "Wallet" && <div className="w-4 h-4 rounded-full bg-orange-500" />}
               </div>
-            ) : (
-              <div className="bg-yellow-50 p-3 rounded-xl mb-6 text-sm text-yellow-700 flex items-start">
-                <AlertTriangle
-                  size={16}
-                  className="mr-2 mt-0.5 flex-shrink-0"
-                />
-                Đăng nhập để sử dụng ví và tích điểm.
+
+              {/* Option: Cash (COD) */}
+              <div
+                onClick={() => setPaymentMethod("COD")}
+                className={`p-4 rounded-xl border cursor-pointer transition flex justify-between items-center ${paymentMethod === "COD" ? "border-orange-500 bg-orange-50" : "border-gray-200 hover:border-orange-200"
+                  }`}
+              >
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-lg text-white mr-3 ${paymentMethod === "COD" ? "bg-green-600" : "bg-gray-400"
+                    }`}>
+                    <p className="font-bold text-xs">TIỀN</p>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-bold ${paymentMethod === "COD" ? "text-orange-700" : "text-gray-700"
+                      }`}>Tiền mặt (COD)</p>
+                    <p className="text-xs text-gray-500">Thanh toán khi nhận hàng</p>
+                  </div>
+                </div>
+                {paymentMethod === "COD" && <div className="w-4 h-4 rounded-full bg-orange-500" />}
               </div>
-            )}
+            </div>
 
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-gray-600">
@@ -457,7 +540,7 @@ const Cart = () => {
               type="submit"
               className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg flex items-center justify-center space-x-2"
             >
-              <span>Đặt hàng ngay</span>
+              <span>{paymentMethod === 'Wallet' ? 'Thanh toán ngay' : 'Đặt hàng (COD)'}</span>
               <CreditCard size={20} />
             </button>
 

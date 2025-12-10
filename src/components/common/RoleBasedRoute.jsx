@@ -22,7 +22,12 @@ const RoleBasedRoute = ({ allowedRoles, children }) => {
   }
 
   // Database bạn lưu là 'restaurant_manager' hay 'restaurant'? Check kỹ log
-  if (!allowedRoles.includes(user.role)) {
+  // Normalize check
+  const hasPermission = allowedRoles.some(
+    (role) => role.toLowerCase() === (user.role || "").toLowerCase()
+  );
+
+  if (!hasPermission) {
     console.warn(`Bị chặn! User role: ${user.role}. Yêu cầu: ${allowedRoles}`);
     return <Navigate to="/" replace />;
   }

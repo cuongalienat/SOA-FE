@@ -6,17 +6,21 @@ import ShipperProfile from "../pages/Shipper/Profile.jsx";
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ShipperLayout from '../components/layout/ShipperLayout.jsx';
 
+import { ShipperProvider } from "../context/ShipperContext.jsx";
+
 const ShipperRoutes = () => {
     return (
-        <ShipperLayout>
-            <Routes>
-                <Route path="/" element={<Navigate to="dashboard" replace />} />
-                <Route path="/dashboard" element={<ShipperDashboard />} />
-                <Route path="/history" element={<ShipperHistory />} />
-                <Route path="/profile" element={<ShipperProfile />} />
-                <Route path="/order/:id" element={<ShipperOrderDetail />} />
-            </Routes>
-        </ShipperLayout>
+        <ShipperProvider>
+            <ShipperLayout>
+                <Routes>
+                    <Route path="/" element={<Navigate to="dashboard" replace />} />
+                    <Route path="/dashboard" element={<ShipperDashboard />} />
+                    <Route path="/history" element={<ShipperHistory />} />
+                    <Route path="/profile" element={<ShipperProfile />} />
+                    <Route path="/order/:id" element={<ShipperOrderDetail />} />
+                </Routes>
+            </ShipperLayout>
+        </ShipperProvider>
     );
 };
 

@@ -2,7 +2,6 @@ import React, { Suspense } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
-import { ShipperProvider } from "./context/ShipperContext";
 
 import RoleBasedRoute from "./components/common/RoleBasedRoute";
 import { ToastProvider } from "./context/ToastContext.jsx";
@@ -37,13 +36,11 @@ const App = () => {
                 </Route>
 
                 {/* 2. KHU VỰC SHIPPER (Được bảo vệ) */}
-                <Route element={<RoleBasedRoute allowedRoles={["driver"]} />}>
+                <Route element={<RoleBasedRoute allowedRoles={["driver", "shipper"]} />}>
                   <Route
                     path="/shipper/*"
                     element={
-                      <ShipperProvider>
-                        <ShipperRoutes />
-                      </ShipperProvider>
+                      <ShipperRoutes />
                     }
                   />
                 </Route>

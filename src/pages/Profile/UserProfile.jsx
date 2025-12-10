@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { User, Wallet, CreditCard, Clock, Save, Plus, History, Package, ChevronRight } from "lucide-react";
+import { User, Wallet, CreditCard, Clock, Save, Plus, History, Package, ChevronRight, MapPin } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useUser } from "../../hooks/useUser.jsx"; // Import useUser
 import { useForm } from "../../hooks/useForm.jsx";
 import { useOrders } from "../../hooks/useOrders.jsx";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "../../context/ToastContext.jsx";
+import LocationPicker from "../../components/common/LocationPicker.jsx";
 
 const UserProfile = () => {
   const { user } = useAuth();
   const { updateUser, topUpWallet } = useUser(); // Use methods from useUser
   const { loadMyOrders, orders, loading: loadingOrders } = useOrders();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState("info"); // 'info' | 'wallet' | 'history'
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
+  const [showMap, setShowMap] = useState(false);
 
   // Load orders when switching to history tab
   useEffect(() => {
@@ -24,7 +28,7 @@ const UserProfile = () => {
   }, [activeTab, loadMyOrders]);
 
   // Form for Personal Info
-  const { values, handleChange, handleSubmit, isSubmitting } = useForm(
+  const { values, handleChange, handleSubmit, isSubmitting, setValue } = useForm(
     {
       fullName: user?.fullName || "",
       phone: user?.phone || "",
@@ -37,18 +41,26 @@ const UserProfile = () => {
           name: formData.fullName,
           phone: formData.phone,
           address: formData.address,
+          // Optional: If backend supports saving lat/lng, we can include it here if we stored it in state
         });
-        alert("Cập nhật thông tin thành công!");
+        showToast("Cập nhật thông tin thành công!", "success");
       } catch (error) {
-        alert("Cập nhật thất bại: " + (error.message || "Lỗi không xác định"));
+        showToast("Cập nhật thất bại: " + (error.message || "Lỗi không xác định"), "error");
       }
     }
   );
 
+  const handleAddressConfirm = ({ address, lat, lng }) => {
+    setValue("address", address);
+    setShowMap(false);
+    // Logic to save lat/lng can be added here if needed, for now just address text
+    console.log("picked:", address, lat, lng);
+  };
+
   const handleTopUp = async (e) => {
     e.preventDefault();
     if (!topUpAmount || isNaN(topUpAmount) || Number(topUpAmount) <= 0) {
-      alert("Vui lòng nhập số tiền hợp lệ");
+      showToast("Vui lòng nhập số tiền hợp lệ", "error");
       return;
     }
 
@@ -56,11 +68,12 @@ const UserProfile = () => {
       await topUpWallet(Number(topUpAmount));
       setTopUpAmount("");
       setShowTopUp(false);
-      alert(
-        `Đã nạp thành công ${Number(topUpAmount).toLocaleString()}đ vào ví!`
+      showToast(
+        `Đã nạp thành công ${Number(topUpAmount).toLocaleString()}đ vào ví!`,
+        "success"
       );
     } catch (error) {
-      alert("Nạp tiền thất bại: " + (error.message || "Lỗi không xác định"));
+      showToast("Nạp tiền thất bại: " + (error.message || "Lỗi không xác định"), "error");
     }
   };
 
@@ -175,8 +188,15 @@ const UserProfile = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex justify-between items-center">
                     Địa chỉ giao hàng mặc định
+                    <button
+                      type="button"
+                      onClick={() => setShowMap(true)}
+                      className="text-orange-600 text-xs font-bold hover:underline flex items-center"
+                    >
+                      <MapPin size={12} className="mr-1" /> Chọn trên bản đồ
+                    </button>
                   </label>
                   <input
                     name="address"
@@ -338,6 +358,12 @@ const UserProfile = () => {
           )}
         </div>
       </div>
+      {showMap && (
+        <LocationPicker
+          onClose={() => setShowMap(false)}
+          onConfirm={handleAddressConfirm}
+        />
+      )}
     </div>
   );
 };
