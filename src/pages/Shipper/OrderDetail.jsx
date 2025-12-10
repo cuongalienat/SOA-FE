@@ -129,7 +129,7 @@ const ShipperOrderDetail = () => {
         </div>
         <div className="ml-auto">
           <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded">
-            COD: {(order.total || 0).toLocaleString()}đ
+            COD: {(order.total || 0).toLocaleString('vi-VN')}đ
           </span>
         </div>
       </div>

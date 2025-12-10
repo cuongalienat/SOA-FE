@@ -37,6 +37,12 @@ const ENDPOINTS = {
     GET_MY_SHOP: "/shops/my-shop",
     UPDATE_SHOP_INFO: "/shops/my-shop",
     TOGGLE_SHOP_STATUS: "/shops/my-shop/status",
+    GET_BY_ID: "/shops/:id",
+  },
+  USER: {
+    GET_USER_INFO: "/users",
+    UPDATE_USER_INFO: "/users",
+    DELETE_USER: "/users",
   },
 };
 
