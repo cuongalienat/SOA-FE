@@ -100,7 +100,7 @@ const FoodDetail = () => {
           </h1>
 
           <div className="text-3xl font-bold text-orange-600 mb-6">
-            {food.price} VNĐ
+            {Number(food.price).toLocaleString('vi-VN')} VNĐ
           </div>
 
           {/* AI Description Feature */}

@@ -51,7 +51,7 @@ const Orders = () => {
               </h3>
               <p className="text-gray-600 text-sm">{order.items}</p>
               <p className="text-orange-600 font-bold mt-2">
-                {order.total} VNĐ
+                {Number(order.total).toLocaleString('vi-VN')} VNĐ
               </p>
             </div>
 

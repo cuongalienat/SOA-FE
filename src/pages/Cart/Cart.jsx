@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Trash2,
   Plus,
@@ -35,7 +35,25 @@ const Cart = () => {
 
   const { orders, createOrder, loadMyOrders, cancelOrder } = useOrders();
 
-  const [activeTab, setActiveTab] = useState("cart");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "cart");
+
+  // Sync tab with URL
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  // Update URL when tab changes internally
+  useEffect(() => {
+    if (activeTab === "orders") {
+      setSearchParams({ tab: "orders" });
+    } else {
+      setSearchParams({});
+    }
+  }, [activeTab, setSearchParams]);
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
@@ -212,7 +230,7 @@ const Cart = () => {
           const fee = calculateShippingFee(distanceData.distanceValue);
           setShippingFee(fee);
           // Optional: Show distance toast or info
-          // showToast(`Khoảng cách: ${distanceData.distanceText}, Phí ship: ${fee.toLocaleString()}đ`, "info");
+          // showToast(`Khoảng cách: ${distanceData.distanceText}, Phí ship: ${fee.toLocaleString('vi-VN')}đ`, "info");
         }
       }
     }
@@ -232,8 +250,12 @@ const Cart = () => {
       navigate("/signin");
       return;
     }
-    // Mở modal hóa đơn
-    setShowInvoiceModal(true);
+    if (paymentMethod === "COD") {
+      confirmPayment();
+    } else {
+      // Mở modal hóa đơn (chỉ cho ví)
+      setShowInvoiceModal(true);
+    }
   };
 
   const [paymentMethod, setPaymentMethod] = useState("Wallet");
@@ -303,7 +325,9 @@ const Cart = () => {
         // Cleanup
         setShowInvoiceModal(false);
         clearCart();
+        await loadMyOrders({ userID: user._id }); // Force refresh orders list
         setActiveTab("orders"); // Chuyển sang tab đơn hàng
+        window.scrollTo(0, 0);
         window.scrollTo(0, 0);
       } else {
         // Nếu lỗi API -> Hoàn tiền ảo lại (Rollback UI)
@@ -492,7 +516,7 @@ const Cart = () => {
                   <div>
                     <p className={`text-sm font-bold ${paymentMethod === "Wallet" ? "text-orange-700" : "text-gray-700"
                       }`}>Ví FlavorDash</p>
-                    {user && <p className="text-xs text-gray-500">Số dư: {user.balance?.toLocaleString()}đ</p>}
+                    {user && <p className="text-xs text-gray-500">Số dư: {user.balance?.toLocaleString('vi-VN')}đ</p>}
                   </div>
                 </div>
                 {paymentMethod === "Wallet" && <div className="w-4 h-4 rounded-full bg-orange-500" />}

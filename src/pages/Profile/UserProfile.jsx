@@ -230,7 +230,7 @@ const UserProfile = () => {
                     <Wallet size={16} className="mr-2" /> Số dư hiện tại
                   </p>
                   <h3 className="text-3xl font-bold mb-6">
-                    {(user.balance || 0).toLocaleString()}đ
+                    {(user.balance || 0).toLocaleString('vi-VN')}đ
                   </h3>
 
                   <button

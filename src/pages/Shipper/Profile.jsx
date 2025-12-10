@@ -70,8 +70,8 @@ const ShipperProfile = () => {
               </span>
               <span
                 className={`px-2 py-0.5 rounded text-xs font-bold ${isOnline
-                    ? "bg-green-100 text-green-600"
-                    : "bg-gray-200 text-gray-600"
+                  ? "bg-green-100 text-green-600"
+                  : "bg-gray-200 text-gray-600"
                   }`}
               >
                 {isOnline ? "Đang hoạt động" : "Ngoại tuyến"}
@@ -122,7 +122,7 @@ const ShipperProfile = () => {
           <div>
             <p className="text-gray-400 text-xs mb-1">Số dư ví tài xế</p>
             <h3 className="text-2xl font-bold">
-              {driverProfile.wallet.toLocaleString()}đ
+              {driverProfile.wallet.toLocaleString('vi-VN')}đ
             </h3>
           </div>
           <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition">

@@ -44,7 +44,7 @@ const FoodCard = ({ food }) => {
 
         <div className="flex items-center justify-between mt-2">
           <span className="text-xl font-bold text-gray-900">
-            {food.price} VNĐ
+            {Number(food.price).toLocaleString('vi-VN')} VNĐ
           </span>
           <button
             onClick={() => addToCart(food)}

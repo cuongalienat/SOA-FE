@@ -25,7 +25,7 @@ const OrderDetail = () => {
     if (error) return <div className="p-10 text-center text-red-500">{error}</div>;
     if (!orderDetail) return null;
 
-    const handleBack = () => navigate(-1);
+    const handleBack = () => navigate('/cart?tab=orders');
 
     const handleCancel = async () => {
         if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
@@ -123,7 +123,7 @@ const OrderDetail = () => {
                                         <p className="text-sm text-gray-500">x{item.quantity}</p>
                                     </div>
                                     <span className="font-bold text-gray-900">
-                                        {(item.price * item.quantity).toLocaleString()}đ
+                                        {(item.price * item.quantity).toLocaleString('vi-VN')}đ
                                     </span>
                                 </div>
                             ))}
@@ -135,7 +135,7 @@ const OrderDetail = () => {
                         <div className="space-y-3">
                             <div className="flex justify-between text-gray-600">
                                 <span>Phí giao hàng</span>
-                                <span>{orderDetail.shippingFee ? orderDetail.shippingFee.toLocaleString() : '3,000'}đ</span>
+                                <span>{orderDetail.shippingFee ? orderDetail.shippingFee.toLocaleString('vi-VN') : '3,000'}đ</span>
                             </div>
                             {/* Divider with dashed line */}
                             <div className="border-t border-dashed border-gray-200 my-4"></div>
@@ -143,7 +143,7 @@ const OrderDetail = () => {
                             <div className="flex justify-between items-center text-orange-600">
                                 <span className="font-medium text-gray-900 text-lg">Tổng tiền</span>
                                 <span className="text-3xl font-bold">
-                                    {orderDetail.totalAmount?.toLocaleString()}
+                                    {orderDetail.totalAmount?.toLocaleString('vi-VN')}
                                 </span>
                             </div>
                         </div>

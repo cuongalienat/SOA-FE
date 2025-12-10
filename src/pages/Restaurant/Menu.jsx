@@ -163,7 +163,7 @@ const Menu = () => {
               <div className="flex justify-between items-start">
                 <h3 className="font-bold text-gray-900 text-lg">{item.name}</h3>
                 <span className="text-orange-600 font-bold">
-                  {item.price} VNĐ
+                  {Number(item.price).toLocaleString('vi-VN')} VNĐ
                 </span>
               </div>
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">
