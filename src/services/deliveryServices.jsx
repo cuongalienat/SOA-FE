@@ -19,3 +19,14 @@ export const acceptDelivery = async (deliveryId, token) => {
     );
     return response.data;
 };
+
+export const getNearbyOrders = async (token) => {
+    try {
+        const response = await axios.get(`${API_URL}/deliveries/nearby`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        return response.data; // Trả về danh sách đơn hàng
+    } catch (error) {
+        throw error.response?.data || error.message;
+    }
+};
