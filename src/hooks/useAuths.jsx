@@ -26,7 +26,6 @@ export const useAuth = () => {
   // Persistence: Load user from local storage on mount
   useEffect(() => {
     const storedUser = getCurrentUser();
-    const storedToken = getAuthToken();
     if (storedUser) {
       if (storedUser.balance === undefined) {
         storedUser.balance = 0;
@@ -34,9 +33,6 @@ export const useAuth = () => {
       setUser(storedUser);
     }
 
-    if (storedToken) {
-      setToken(storedToken);
-    }
   }, []);
 
   const signin = async (username, password) => {
@@ -53,13 +49,7 @@ export const useAuth = () => {
       }
 
       const data = await signInUser({ username, password });
-      const tokenValue = data.accessToken || data.token;      // Lưu token & user sử dụng authUtils
-      const authDataToSave = {
-        token: tokenValue, 
-        user: data.user
-      };
-      saveAuthData(authDataToSave);
-      setToken(tokenValue);
+      saveAuthData(data);
       if (data.user) {
         setUser(data.user);
       }
@@ -86,13 +76,7 @@ export const useAuth = () => {
         data.user.balance = 80000;
       }
 
-      const tokenValue = data.accessToken || data.token;
-      const authDataToSave = {
-        token: tokenValue,
-        user: data.user
-      };
-      
-      saveAuthData(authDataToSave);
+      saveAuthData(data);
       if (data.user) {
         setUser(data.user);
       }
@@ -126,13 +110,13 @@ export const useAuth = () => {
 
       const tokenValue = data.accessToken || data.token;
       if (tokenValue && data.user) {
-         const authDataToSave = {
-            token: tokenValue,
-            user: data.user
-         };
-         saveAuthData(authDataToSave);
-         setUser(data.user);
-         setToken(tokenValue);
+        const authDataToSave = {
+          token: tokenValue,
+          user: data.user
+        };
+        saveAuthData(authDataToSave);
+        setUser(data.user);
+        setToken(tokenValue);
       } else {
         // Nếu backend cũ (không trả token khi signup) thì giữ nguyên logic cũ
         saveAuthData(data);
@@ -167,6 +151,5 @@ export const useAuth = () => {
     loading,
     error,
     user,
-    token
   };
 };

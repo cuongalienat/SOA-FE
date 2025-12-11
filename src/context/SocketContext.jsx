@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 // 👇 1. Import hook lấy user hiện tại
-import { useAuth } from '../hooks/useAuths'; 
+import { useAuth } from '../context/AuthContext';
 
 const SocketContext = createContext();
 
@@ -9,9 +9,9 @@ export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
-    
+
     // 👇 2. Lấy thông tin user đăng nhập
-    const { user } = useAuth(); 
+    const { user } = useAuth();
 
     useEffect(() => {
         // Chỉ kết nối khi đã có User (Đã login)
@@ -29,7 +29,7 @@ export const SocketProvider = ({ children }) => {
             autoConnect: true,
             // 👇 3. QUAN TRỌNG: Gửi userId lên Server qua query
             query: {
-                userId: user._id 
+                userId: user._id
             }
         });
 
@@ -39,7 +39,7 @@ export const SocketProvider = ({ children }) => {
             // Log cả ID để chắc chắn
             console.log(`🟢 Socket Connected [ID: ${user._id}]:`, newSocket.id);
         });
-        
+
         newSocket.on('connect_error', (err) => {
             console.error("🔴 Socket Error:", err.message);
         });
