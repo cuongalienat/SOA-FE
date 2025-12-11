@@ -1,57 +1,80 @@
-import React, { useState } from "react";
-import {
-  User,
-  Wallet,
-  CreditCard,
-  Clock,
-  Save,
-  Plus,
-  History,
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { User, Wallet, CreditCard, Clock, Save, Plus, History, Package, ChevronRight, MapPin } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useUser } from "../../hooks/useUser.jsx"; // Import useUser
 import { useForm } from "../../hooks/useForm.jsx";
+import { useOrders } from "../../hooks/useOrders.jsx";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "../../context/ToastContext.jsx";
+import LocationPicker from "../../components/common/LocationPicker.jsx";
 
 const UserProfile = () => {
-  const { user, updateUser, topUpWallet } = useAuth();
-  const [activeTab, setActiveTab] = useState("info"); // 'info' | 'wallet'
+  const { user } = useAuth();
+  const { updateUser, topUpWallet } = useUser(); // Use methods from useUser
+  const { loadMyOrders, orders, loading: loadingOrders } = useOrders();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+
+  const [activeTab, setActiveTab] = useState("info"); // 'info' | 'wallet' | 'history'
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
+  const [showMap, setShowMap] = useState(false);
+
+  // Load orders when switching to history tab
+  useEffect(() => {
+    if (activeTab === 'history') {
+      loadMyOrders();
+    }
+  }, [activeTab, loadMyOrders]);
 
   // Form for Personal Info
-  const { values, handleChange, handleSubmit, isSubmitting } = useForm(
+  const { values, handleChange, handleSubmit, isSubmitting, setValue } = useForm(
     {
-      fullName: user?.name || "",
+      fullName: user?.fullName || "",
       phone: user?.phone || "",
+      email: user?.email || "",
       address: user?.address || "",
     },
     async (formData) => {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      updateUser({
-        name: formData.fullName,
-        phone: formData.phone,
-        address: formData.address,
-      });
-      alert("Cập nhật thông tin thành công!");
+      try {
+        await updateUser({
+          name: formData.fullName,
+          phone: formData.phone,
+          address: formData.address,
+          // Optional: If backend supports saving lat/lng, we can include it here if we stored it in state
+        });
+        showToast("Cập nhật thông tin thành công!", "success");
+      } catch (error) {
+        showToast("Cập nhật thất bại: " + (error.message || "Lỗi không xác định"), "error");
+      }
     }
   );
 
-  const handleTopUp = (e) => {
+  const handleAddressConfirm = ({ address, lat, lng }) => {
+    setValue("address", address);
+    setShowMap(false);
+    // Logic to save lat/lng can be added here if needed, for now just address text
+    console.log("picked:", address, lat, lng);
+  };
+
+  const handleTopUp = async (e) => {
     e.preventDefault();
     if (!topUpAmount || isNaN(topUpAmount) || Number(topUpAmount) <= 0) {
-      alert("Vui lòng nhập số tiền hợp lệ");
+      showToast("Vui lòng nhập số tiền hợp lệ", "error");
       return;
     }
 
-    // Simulate Payment Processing
-    setTimeout(() => {
-      topUpWallet(Number(topUpAmount));
+    try {
+      await topUpWallet(Number(topUpAmount));
       setTopUpAmount("");
       setShowTopUp(false);
-      alert(
-        `Đã nạp thành công ${Number(topUpAmount).toLocaleString()}đ vào ví!`
+      showToast(
+        `Đã nạp thành công ${Number(topUpAmount).toLocaleString()}đ vào ví!`,
+        "success"
       );
-    }, 1500);
+    } catch (error) {
+      showToast("Nạp tiền thất bại: " + (error.message || "Lỗi không xác định"), "error");
+    }
   };
 
   // Mock Transaction History
@@ -92,23 +115,30 @@ const UserProfile = () => {
           <div className="flex p-6 pb-0 space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab("info")}
-              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${
-                activeTab === "info"
-                  ? "border-orange-500 text-orange-600"
-                  : "border-transparent text-gray-500 hover:text-gray-800"
-              }`}
+              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${activeTab === "info"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+                }`}
             >
               <User size={18} className="mr-2" /> Thông tin cá nhân
             </button>
             <button
               onClick={() => setActiveTab("wallet")}
-              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${
-                activeTab === "wallet"
-                  ? "border-orange-500 text-orange-600"
-                  : "border-transparent text-gray-500 hover:text-gray-800"
-              }`}
+              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${activeTab === "wallet"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+                }`}
             >
               <Wallet size={18} className="mr-2" /> Ví của tôi
+            </button>
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`pb-4 px-2 font-bold text-sm flex items-center transition-colors border-b-2 ${activeTab === "history"
+                ? "border-orange-500 text-orange-600"
+                : "border-transparent text-gray-500 hover:text-gray-800"
+                }`}
+            >
+              <Package size={18} className="mr-2" /> Lịch sử đơn hàng
             </button>
           </div>
         </div>
@@ -139,7 +169,7 @@ const UserProfile = () => {
                     </label>
                     <input
                       disabled
-                      value={user.email}
+                      value={values.email}
                       className="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
@@ -158,8 +188,15 @@ const UserProfile = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex justify-between items-center">
                     Địa chỉ giao hàng mặc định
+                    <button
+                      type="button"
+                      onClick={() => setShowMap(true)}
+                      className="text-orange-600 text-xs font-bold hover:underline flex items-center"
+                    >
+                      <MapPin size={12} className="mr-1" /> Chọn trên bản đồ
+                    </button>
                   </label>
                   <input
                     name="address"
@@ -193,7 +230,7 @@ const UserProfile = () => {
                     <Wallet size={16} className="mr-2" /> Số dư hiện tại
                   </p>
                   <h3 className="text-3xl font-bold mb-6">
-                    {(user.balance || 0).toLocaleString()}đ
+                    {(user.balance || 0).toLocaleString('vi-VN')}đ
                   </h3>
 
                   <button
@@ -243,11 +280,10 @@ const UserProfile = () => {
                     >
                       <div className="flex items-center">
                         <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${
-                            t.type === "topup"
-                              ? "bg-green-100 text-green-600"
-                              : "bg-red-100 text-red-600"
-                          }`}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${t.type === "topup"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-red-100 text-red-600"
+                            }`}
                         >
                           {t.type === "topup" ? (
                             <Plus size={20} />
@@ -265,9 +301,8 @@ const UserProfile = () => {
                         </div>
                       </div>
                       <span
-                        className={`font-bold ${
-                          t.amount > 0 ? "text-green-600" : "text-gray-900"
-                        }`}
+                        className={`font-bold ${t.amount > 0 ? "text-green-600" : "text-gray-900"
+                          }`}
                       >
                         {t.amount > 0 ? "+" : ""}
                         {t.amount.toLocaleString()}đ
@@ -278,8 +313,57 @@ const UserProfile = () => {
               </div>
             </div>
           )}
+
+          {activeTab === 'history' && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold text-gray-900 mb-6">Đơn hàng của bạn</h2>
+              {loadingOrders ? (
+                <div className="text-center py-10">Đang tải đơn hàng...</div>
+              ) : orders.filter(o => ['Delivered', 'Cancelled'].includes(o.status)).length === 0 ? (
+                <div className="text-center py-10 text-gray-500">Bạn chưa có đơn hàng nào trong lịch sử.</div>
+              ) : (
+                orders.filter(o => ['Delivered', 'Cancelled'].includes(o.status)).map((order) => (
+                  <div
+                    key={order._id}
+                    onClick={() => navigate(`/order/${order._id}`)}
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition group"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-bold text-gray-900">Đơn hàng #{order._id?.slice(-6).toUpperCase()}</h3>
+                        <p className="text-sm text-gray-500">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${order.status === 'Delivered' ? 'bg-green-100 text-green-600' :
+                        order.status === 'Cancelled' ? 'bg-red-100 text-red-600' :
+                          'bg-blue-100 text-blue-600'
+                        }`}>
+                        {order.status === 'Pending' && 'Chờ xác nhận'}
+                        {order.status === 'Confirmed' && 'Đã xác nhận'}
+                        {order.status === 'Shipping' && 'Đang giao'}
+                        {order.status === 'Delivered' && 'Hoàn thành'}
+                        {order.status === 'Cancelled' && 'Đã hủy'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">{order.items?.length} món</span>
+                      <div className="flex items-center font-bold text-orange-600">
+                        {order.totalAmount?.toLocaleString()}đ
+                        <ChevronRight size={16} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
+      {showMap && (
+        <LocationPicker
+          onClose={() => setShowMap(false)}
+          onConfirm={handleAddressConfirm}
+        />
+      )}
     </div>
   );
 };

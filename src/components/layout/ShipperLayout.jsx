@@ -15,7 +15,7 @@ const ShipperLayout = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden relative">
-      {/* Status Bar / Header */}
+      {/* Header */}
       <div
         className={`px-4 py-3 text-white flex justify-between items-center transition-colors duration-300 ${
           isOnline ? "bg-green-600" : "bg-gray-800"
@@ -25,10 +25,11 @@ const ShipperLayout = ({ children }) => {
           <div className="bg-white/20 p-1.5 rounded-full">
             <Bike size={20} />
           </div>
-          <span className="font-bold text-xl tracking-tight text-white-800">
+          <span className="font-bold text-xl tracking-tight">
             Món<span className="text-orange-500">Việt</span>
           </span>
         </div>
+
         <div className="flex items-center space-x-2">
           <span className="text-xs font-medium px-2 py-1 bg-black/20 rounded-full">
             {isOnline ? "TRỰC TUYẾN" : "NGOẠI TUYẾN"}
@@ -36,14 +37,17 @@ const ShipperLayout = ({ children }) => {
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Main */}
       <main className="flex-1 overflow-y-auto pb-20">{children}</main>
 
-      {/* Bottom Navigation */}
+      {/* Bottom navigation */}
       <nav className="absolute bottom-0 w-full bg-white border-t border-gray-200 flex justify-around py-2 z-50">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path;
+
+          // Fix: dùng startsWith để hỗ trợ route con
+          const isActive = location.pathname.startsWith(item.path);
+
           return (
             <Link
               key={item.path}

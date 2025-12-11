@@ -1,234 +1,60 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { SocketProvider } from "./context/SocketContext.jsx";
-import Layout from "./components/layout/Layout.jsx";
-import RestaurantLayout from "./components/layout/RestaurantLayout.jsx";
-import ShipperLayout from "./components/layout/ShipperLayout.jsx";
-import Home from "./pages/Home/Home.jsx";
-import FoodDetail from "./pages/FoodDetail/FoodDetail.jsx";
-import Cart from "./pages/Cart/Cart.jsx";
-import Order from "./pages/Order/Order.jsx";
-import Deals from "./pages/Deals/Deals.jsx";
-import Contact from "./pages/Contact/Contact.jsx";
-import SignIn from "./pages/SignIn/SignIn.jsx";
-import SignUp from "./pages/SignUp/SignUp.jsx";
-import ForgotPassword from "./pages/ForgotPassword/ForgotPassword.jsx";
-import VerifyCode from "./pages/VerifyCode/VerifyCode.jsx";
-import SetPassword from "./pages/SetPassword/SetPassword.jsx";
-import UserProfile from "./pages/Profile/UserProfile.jsx";
+import { AuthProvider } from "./context/AuthContext";
+import { CartProvider } from "./context/CartContext";
 
-// Restaurant Pages
-import Dashboard from "./pages/Restaurant/Dashboard.jsx";
-import Menu from "./pages/Restaurant/Menu.jsx";
-import Orders from "./pages/Restaurant/Orders.jsx";
-import Settings from "./pages/Restaurant/Settings.jsx";
+import RoleBasedRoute from "./components/common/RoleBasedRoute";
+import { ToastProvider } from "./context/ToastContext.jsx";
 
-// Shipper Pages
-import ShipperDashboard from "./pages/Shipper/Dashboard.jsx";
-import ShipperOrderDetail from "./pages/Shipper/OrderDetail.jsx";
-import ShipperHistory from "./pages/Shipper/History.jsx";
-import ShipperProfile from "./pages/Shipper/Profile.jsx";
-
-import { CartProvider } from "./context/CartContext.jsx";
-import { RestaurantProvider } from "./context/RestaurantContext.jsx";
-import { ShipperProvider } from "./context/ShipperContext.jsx";
-import { AuthProvider } from "./context/AuthContext.jsx";
+const ClientRoutes = React.lazy(() => import("./routes/customerRoutes.jsx"));
+const RestaurantRoutes = React.lazy(() => import("./routes/shopRoutes.jsx"));
+const ShipperRoutes = React.lazy(() => import("./routes/shipperRoutes.jsx"));
 
 const App = () => {
   return (
     <AuthProvider>
       <SocketProvider>
-        <CartProvider>
-          <RestaurantProvider>
-            <ShipperProvider>
-              <HashRouter>
+        <ToastProvider>
+          <CartProvider>
+            <HashRouter>
+              {/* Suspense để hiện loading khi đang tải các file route con */}
+              <Suspense
+                fallback={
+                  <div className="h-screen flex items-center justify-center">
+                    Loading app...
+                  </div>
+                }
+              >
                 <Routes>
-                  {/* Client Routes */}
+                  {/* 1. KHU VỰC NHÀ HÀNG (Được bảo vệ) */}
+                  {/* Khi vào đường dẫn bắt đầu bằng /restaurant/* thì check quyền trước */}
                   <Route
-                    path="/"
                     element={
-                      <Layout>
-                        <Home />
-                      </Layout>
+                      <RoleBasedRoute allowedRoles={["restaurant_manager"]} />
                     }
-                  />
-                  <Route
-                    path="/food/:id"
-                    element={
-                      <Layout>
-                        <FoodDetail />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/cart"
-                    element={
-                      <Layout>
-                        <Cart />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/order"
-                    element={
-                      <Layout>
-                        <Order />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/deals"
-                    element={
-                      <Layout>
-                        <Deals />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/contact"
-                    element={
-                      <Layout>
-                        <Contact />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/signin"
-                    element={
-                      <Layout>
-                        <SignIn />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/signup"
-                    element={
-                      <Layout>
-                        <SignUp />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/forgot-password"
-                    element={
-                      <Layout>
-                        <ForgotPassword />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/set-password"
-                    element={
-                      <Layout>
-                        <SetPassword />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/verify-code"
-                    element={
-                      <Layout>
-                        <VerifyCode />
-                      </Layout>
-                    }
-                  />
-                  <Route
-                    path="/profile"
-                    element={
-                      <Layout>
-                        <UserProfile />
-                      </Layout>
-                    }
-                  />
+                  >
+                    <Route path="/restaurant/*" element={<RestaurantRoutes />} />
+                  </Route>
 
-                  {/* Restaurant/Admin Routes */}
-                  <Route
-                    path="/restaurant"
-                    element={
-                      <RestaurantLayout>
-                        <Dashboard />
-                      </RestaurantLayout>
-                    }
-                  />
-                  <Route
-                    path="/restaurant/dashboard"
-                    element={
-                      <RestaurantLayout>
-                        <Dashboard />
-                      </RestaurantLayout>
-                    }
-                  />
-                  <Route
-                    path="/restaurant/menu"
-                    element={
-                      <RestaurantLayout>
-                        <Menu />
-                      </RestaurantLayout>
-                    }
-                  />
-                  <Route
-                    path="/restaurant/orders"
-                    element={
-                      <RestaurantLayout>
-                        <Orders />
-                      </RestaurantLayout>
-                    }
-                  />
-                  <Route
-                    path="/restaurant/settings"
-                    element={
-                      <RestaurantLayout>
-                        <Settings />
-                      </RestaurantLayout>
-                    }
-                  />
+                  {/* 2. KHU VỰC SHIPPER (Được bảo vệ) */}
+                  <Route element={<RoleBasedRoute allowedRoles={["driver", "shipper"]} />}>
+                    <Route
+                      path="/shipper/*"
+                      element={
+                        <ShipperRoutes />
+                      }
+                    />
+                  </Route>
 
-                  {/* Shipper/Driver Routes */}
-                  <Route
-                    path="/shipper"
-                    element={
-                      <ShipperLayout>
-                        <ShipperDashboard />
-                      </ShipperLayout>
-                    }
-                  />
-                  <Route
-                    path="/shipper/dashboard"
-                    element={
-                      <ShipperLayout>
-                        <ShipperDashboard />
-                      </ShipperLayout>
-                    }
-                  />
-                  <Route
-                    path="/shipper/order/:id"
-                    element={
-                      <ShipperLayout>
-                        <ShipperOrderDetail />
-                      </ShipperLayout>
-                    }
-                  />
-                  <Route
-                    path="/shipper/history"
-                    element={
-                      <ShipperLayout>
-                        <ShipperHistory />
-                      </ShipperLayout>
-                    }
-                  />
-                  <Route
-                    path="/shipper/profile"
-                    element={
-                      <ShipperLayout>
-                        <ShipperProfile />
-                      </ShipperLayout>
-                    }
-                  />
+                  {/* 3. KHU VỰC KHÁCH HÀNG (Public) */}
+                  {/* Dấu * nghĩa là tất cả các đường dẫn còn lại sẽ do ClientRoutes xử lý */}
+                  <Route path="/*" element={<ClientRoutes />} />
                 </Routes>
-              </HashRouter>
-            </ShipperProvider>
-          </RestaurantProvider>
-        </CartProvider>
+              </Suspense>
+            </HashRouter>
+          </CartProvider>
+        </ToastProvider>
       </SocketProvider>
     </AuthProvider>
   );

@@ -1,199 +1,181 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useRef,
-} from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
+import { useMemo } from "react";
+import {
+  toggleShipperStatusService,
+  getShipperProfileService,
+  getCurrentDeliveryService,
+  updateShipperLocationService,
+  updateDeliveryStatusService,
+} from "../services/shipperService";
+import { useToast } from "./ToastContext"; // Import Toast nếu muốn thông báo
 
 const ShipperContext = createContext();
 
-// Mock pool of orders waiting for drivers
-const PENDING_ORDERS = [
-  {
-    id: "ORD-9981",
-    restaurant: {
-      name: "Burger King - Cầu Giấy",
-      address: "241 Xuân Thủy, Cầu Giấy, Hà Nội",
-      phone: "024.7300.1234",
-      lat: 21.0362,
-      lng: 105.7905,
-    },
-    customer: {
-      name: "Phạm Nhật Minh",
-      address: "Ngõ 105 Doãn Kế Thiện, Mai Dịch",
-      phone: "0988.777.666",
-      note: "Gọi trước khi đến, nhà trong ngách nhỏ",
-      lat: 21.04,
-      lng: 105.78,
-    },
-    items: [
-      { name: "Whopper Meal Medium", quantity: 1, price: 125000 },
-      { name: "Onion Rings", quantity: 1, price: 45000 },
-    ],
-    total: 170000,
-    shippingFee: 15000, // Earnings for driver
-    paymentMethod: "COD", // Cash on Delivery
-    status: "Finding Driver",
-  },
-  {
-    id: "ORD-7722",
-    restaurant: {
-      name: "Phở Thìn Lò Đúc",
-      address: "13 Lò Đúc, Hai Bà Trưng, Hà Nội",
-      phone: "0901.222.333",
-    },
-    customer: {
-      name: "Nguyễn Thu Hà",
-      address: "Times City T1, 458 Minh Khai",
-      phone: "0912.345.678",
-      note: "Gửi sảnh lễ tân giúp em",
-    },
-    items: [
-      { name: "Phở Tái Lăn", quantity: 2, price: 180000 },
-      { name: "Quẩy", quantity: 5, price: 25000 },
-    ],
-    total: 205000,
-    shippingFee: 22000,
-    paymentMethod: "Banking",
-    status: "Finding Driver",
-  },
-];
-
 export const ShipperProvider = ({ children }) => {
+  const [profile, setProfile] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
-  const [currentOrder, setCurrentOrder] = useState(null);
-  const algorithmTimeoutRef = useRef(null);
+  const [currentDelivery, setCurrentDelivery] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock Driver Profile
-  const [driverProfile] = useState({
-    name: "Nguyễn Văn Tài",
-    id: "DRV-8888",
-    rating: 4.9,
-    totalTrips: 1245,
-    vehicle: "Honda AirBlade",
-    plate: "29-G1 567.89",
-    avatar:
-      "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60",
-    balance: 1540000,
-    todayIncome: 350000,
-  });
+  // Ref để tránh re-render khi set interval
+  const orderPollingRef = useRef(null);
 
-  // Initial Mock History
-  const [history, setHistory] = useState([
-    {
-      id: "ORD-1102",
-      date: "2023-10-26 10:30",
-      restaurant: { name: "Cơm Tấm Sài Gòn" },
-      customer: { name: "Lê Thị B", address: "10 Nguyễn Trãi" },
-      total: 85000,
-      shippingFee: 15000,
-      status: "Delivered",
-    },
-    {
-      id: "ORD-1098",
-      date: "2023-10-26 09:15",
-      restaurant: { name: "Highlands Coffee" },
-      customer: { name: "Trần Văn C", address: "Toà nhà Keangnam" },
-      total: 120000,
-      shippingFee: 18000,
-      status: "Delivered",
-    },
-    {
-      id: "ORD-1055",
-      date: "2023-10-25 19:45",
-      restaurant: { name: "KFC Phạm Ngọc Thạch" },
-      customer: { name: "Hoàng Tùng", address: "5 Chùa Bộc" },
-      total: 350000,
-      shippingFee: 25000,
-      status: "Delivered",
-    },
-  ]);
-
-  // Function to toggle online status
-  const toggleOnline = () => {
-    setIsOnline((prev) => !prev);
+  // ---------------------------------
+  // 0. Lấy profile shipper
+  // ---------------------------------
+  const fetchProfile = async () => {
+    try {
+      const data = await getShipperProfileService();
+      setProfile(data);
+      setIsOnline(data.status === "ONLINE");
+      return data;
+    } catch (error) {
+      console.error("Lỗi lấy profile shipper:", error);
+      return null;
+    }
   };
 
-  // The "Algorithm" to automatically assign orders
-  useEffect(() => {
-    if (isOnline && !currentOrder) {
-      // Simulate scanning delay (3-8 seconds)
-      const delay = Math.floor(Math.random() * 5000) + 3000;
+  // ---------------------------------
+  // 1. Bật / Tắt ONLINE
+  // ---------------------------------
+  const toggleOnline = async () => {
+    try {
+      const newStatus = isOnline ? "OFFLINE" : "ONLINE";
+      await toggleShipperStatusService(newStatus);
 
-      console.log(`📡 Đang quét đơn hàng... (Giả lập chờ ${delay}ms)`);
+      // Cập nhật state local ngay lập tức cho mượt
+      setIsOnline(!isOnline);
 
-      algorithmTimeoutRef.current = setTimeout(() => {
-        // Randomly pick an order from pending pool
-        const randomOrder =
-          PENDING_ORDERS[Math.floor(Math.random() * PENDING_ORDERS.length)];
-
-        // Assign to driver
-        const assignedOrder = {
-          ...randomOrder,
-          status: "Driver Assigned",
-          assignedAt: new Date().toLocaleTimeString(),
-        };
-
-        setCurrentOrder(assignedOrder);
-        // Play sound or vibration here in a real app
-        alert(`🔔 Đã tìm thấy đơn hàng mới: ${assignedOrder.restaurant.name}`);
-      }, delay);
-    } else {
-      // Clear timeout if goes offline or gets an order
-      if (algorithmTimeoutRef.current) {
-        clearTimeout(algorithmTimeoutRef.current);
+      if (newStatus === "ONLINE") {
+        await fetchCurrentDelivery();
+      } else {
+        setCurrentDelivery(null);
       }
+    } catch (error) {
+      console.error("Lỗi bật tắt trạng thái", error);
+    }
+  };
+
+  // ---------------------------------
+  // 2. Lấy đơn hiện tại & CHECK ĐƠN MỚI
+  // ---------------------------------
+  const fetchCurrentDelivery = async () => {
+    try {
+      const delivery = await getCurrentDeliveryService();
+
+      // Logic kiểm tra đơn mới để thông báo (Tùy chọn)
+      if (delivery && !currentDelivery) {
+        // Play sound hoặc Toast thông báo có đơn mới
+        console.log("🔔 TING TING! Có đơn hàng mới");
+      }
+
+      setCurrentDelivery(delivery || null);
+    } catch {
+      setCurrentDelivery(null);
+    }
+  };
+
+  // ---------------------------------
+  // 3. Gửi GPS định kỳ (Chỉ gửi, không nhận đơn)
+  // ---------------------------------
+  const pingLocation = async () => {
+    if (!navigator.geolocation || !isOnline) return;
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const location = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        };
+        // Gửi ngầm, không cần await chặn UI
+        updateShipperLocationService(location).catch((err) =>
+          console.log("Lỗi GPS", err)
+        );
+      },
+      (err) => console.log(err)
+    );
+  };
+
+  // Effect 1: Ping GPS mỗi 30s (GPS không cần gửi quá dày đặc)
+  useEffect(() => {
+    if (isOnline) {
+      const gpsInterval = setInterval(pingLocation, 30000);
+      return () => clearInterval(gpsInterval);
+    }
+  }, [isOnline]);
+
+  // 👇 EFFECT QUAN TRỌNG: Polling check đơn mới mỗi 10s
+  useEffect(() => {
+    if (isOnline) {
+      // Gọi ngay 1 lần
+      fetchCurrentDelivery();
+
+      // Sau đó cứ 10s gọi 1 lần
+      orderPollingRef.current = setInterval(() => {
+        console.log("🔄 Auto-checking orders...");
+        fetchCurrentDelivery();
+      }, 10000);
+    } else {
+      if (orderPollingRef.current) clearInterval(orderPollingRef.current);
     }
 
     return () => {
-      if (algorithmTimeoutRef.current)
-        clearTimeout(algorithmTimeoutRef.current);
+      if (orderPollingRef.current) clearInterval(orderPollingRef.current);
     };
-  }, [isOnline, currentOrder]);
+  }, [isOnline]); // Chỉ chạy lại khi trạng thái Online thay đổi
 
-  // Update order status workflow
-  const updateOrderStatus = (status) => {
-    if (!currentOrder) return;
+  // ---------------------------------
+  // 4. Load lúc mở app
+  // ---------------------------------
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await fetchProfile();
+        // Không cần gọi fetchCurrentDelivery ở đây vì effect trên đã lo rồi
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
+  }, []);
 
-    const updatedOrder = { ...currentOrder, status };
-    setCurrentOrder(updatedOrder);
+  // ---------------------------------
+  // 5. Update trạng thái đơn
+  // ---------------------------------
+  const updateDeliveryStatus = async (deliveryId, status, location = null) => {
+    try {
+      const updated = await updateDeliveryStatusService(
+        deliveryId,
+        status,
+        location
+      );
+      setCurrentDelivery(updated);
 
-    if (status === "Delivered") {
-      // Move to history and clear current order
-      const completedOrder = {
-        ...updatedOrder,
-        date: new Date().toLocaleString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          day: "2-digit",
-          month: "2-digit",
-        }),
-        shippingFee: updatedOrder.shippingFee || 15000, // Ensure fallback
-      };
-
-      setHistory((prev) => [completedOrder, ...prev]);
-      setCurrentOrder(null);
+      if (status === "COMPLETED" || status === "CANCELLED") {
+        // Nếu xong đơn thì load lại để xem có đơn mới luôn không
+        await fetchCurrentDelivery();
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật đơn:", error);
+      throw error; // Ném lỗi ra để component xử lý UI (nếu cần)
     }
   };
 
-  const cancelOrder = (reason) => {
-    // Logic to release order back to pool (not implemented fully)
-    setCurrentOrder(null);
-  };
-
+  const contextValue = useMemo(
+    () => ({
+      profile,
+      fetchProfile,
+      isOnline,
+      toggleOnline,
+      currentDelivery,
+      fetchCurrentDelivery,
+      updateDeliveryStatus,
+      loading,
+    }),
+    [profile, isOnline, currentDelivery, loading]
+  );
   return (
-    <ShipperContext.Provider
-      value={{
-        isOnline,
-        toggleOnline,
-        currentOrder,
-        updateOrderStatus,
-        history,
-        cancelOrder,
-        driverProfile,
-      }}
-    >
+    <ShipperContext.Provider value={contextValue}>
       {children}
     </ShipperContext.Provider>
   );

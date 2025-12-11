@@ -1,60 +1,108 @@
 import React, { useState } from "react";
 import { Plus, Edit2, Trash2, X, Image as ImageIcon } from "lucide-react";
-import { useRestaurant } from "../../context/RestaurantContext.jsx";
 import { CATEGORIES } from "../../constants.js";
+import { useItems } from "../../hooks/useItems.jsx";
+import { useEffect } from "react";
+import { useToast } from "../../context/ToastContext.jsx";
+import { useShop } from "../../hooks/useShop.jsx";
 
 const Menu = () => {
-  const { menu, addMenuItem, updateMenuItem, deleteMenuItem } = useRestaurant();
+  const {
+    items,
+    loadItemsShop,
+    createShopItem, // Cần bổ sung vào hook useItems
+    updateShopItem, // Cần bổ sung vào hook useItems
+    deleteShopItem, // Cần bổ sung vào hook useItems
+    loading
+  } = useItems();
+
+  const { showToast } = useToast();
+  const [filterCategory, setFilterCategory] = useState("Tất cả");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [filterCategory, setFilterCategory] = useState("Tất cả");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
     name: "",
     price: "",
-    category: "Burger",
+    category: CATEGORIES[1] || "Món ăn", // Default category
+    imageUrl: "", // Đổi image -> imageUrl cho khớp với DB
     description: "",
-    image: "",
   });
+
+  // Load dữ liệu khi vào trang
+  useEffect(() => {
+    loadItemsShop();
+  }, []);
+
+  // Xử lý data an toàn
+  const realItems = items?.data || (Array.isArray(items) ? items : []);
+
+  // Filter logic
+  const filteredMenu = realItems.filter((item) => {
+    return filterCategory === "Tất cả" || item.category === filterCategory;
+  });
+
+  // --- HANDLERS ---
 
   const openAddModal = () => {
     setEditingItem(null);
     setFormData({
       name: "",
       price: "",
-      category: "Burger",
+      category: CATEGORIES[1] || "Món ăn",
+      imageUrl: "",
       description: "",
-      image: "",
     });
     setIsModalOpen(true);
   };
 
   const openEditModal = (item) => {
     setEditingItem(item);
-    setFormData({ ...item });
+    setFormData({
+      name: item.name,
+      price: item.price,
+      category: item.category,
+      imageUrl: item.imageUrl,
+      description: item.description || "",
+    });
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const itemData = {
-      ...formData,
-      price: parseFloat(formData.price),
-    };
-
-    if (editingItem) {
-      updateMenuItem(editingItem.id, itemData);
-    } else {
-      addMenuItem(itemData);
+  const handleDelete = async (id) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa món này không?")) {
+      const result = await deleteShopItem(id);
+      if (result.success) {
+        // loadItemsShop(); // Hook thường tự update state, nếu không thì gọi lại
+      }
     }
-    setIsModalOpen(false);
   };
 
-  const filteredMenu = menu.filter(
-    (item) => filterCategory === "Tất cả" || item.category === filterCategory
-  );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
+    try {
+      let result;
+      if (editingItem) {
+        // --- CẬP NHẬT ---
+        result = await updateShopItem(editingItem._id || editingItem.id, formData);
+      } else {
+        // --- THÊM MỚI ---
+        result = await createShopItem(formData);
+      }
+
+      if (result.success) {
+        setIsModalOpen(false);
+        // loadItemsShop(); // Gọi lại nếu cần refresh
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
@@ -73,11 +121,10 @@ const Menu = () => {
           <button
             key={cat}
             onClick={() => setFilterCategory(cat)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${
-              filterCategory === cat
-                ? "bg-gray-900 text-white"
-                : "bg-white text-gray-600 border"
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${filterCategory === cat
+              ? "bg-gray-900 text-white"
+              : "bg-white text-gray-600 border"
+              }`}
           >
             {cat}
           </button>
@@ -93,7 +140,7 @@ const Menu = () => {
           >
             <div className="h-48 overflow-hidden relative">
               <img
-                src={item.image || "https://via.placeholder.com/400"}
+                src={item.imageUrl || "https://via.placeholder.com/400"}
                 alt={item.name}
                 className="w-full h-full object-cover"
               />
@@ -116,7 +163,7 @@ const Menu = () => {
               <div className="flex justify-between items-start">
                 <h3 className="font-bold text-gray-900 text-lg">{item.name}</h3>
                 <span className="text-orange-600 font-bold">
-                  {item.price} VNĐ
+                  {Number(item.price).toLocaleString('vi-VN')} VNĐ
                 </span>
               </div>
               <p className="text-sm text-gray-500 mt-1 line-clamp-2">
@@ -201,7 +248,7 @@ const Menu = () => {
                 </label>
                 <div className="flex items-center">
                   <input
-                    value={formData.image}
+                    value={formData.imageUrl}
                     onChange={(e) =>
                       setFormData({ ...formData, image: e.target.value })
                     }

@@ -1,17 +1,40 @@
 import React from "react";
 import { DollarSign, ShoppingBag, Star, TrendingUp } from "lucide-react";
-import { useRestaurant } from "../../context/RestaurantContext.jsx";
+import { useEffect } from "react";
+import { useShop } from "../../hooks/useShop.jsx";
+
 
 const Dashboard = () => {
-  const { stats, orders, info } = useRestaurant();
+  const { shop, loading, loadMyShop, toggleShopStatus } = useShop();
+  const info = shop || {
+    isOpen: false,
+    name: "Quán Ăn Mặc Định",
+    phone: "0123456789",
+    address: "123 Đường ABC, Quận 1, TP.HCM",
+  };
+  const stats = {
+    revenue: 1250000,
+    totalOrders: 75,
+    avgOrderValue: 16666,
+  };
 
-  // Simple mock data for chart
   const chartData = [
-    { label: "Burger", value: 80 },
-    { label: "Pizza", value: 65 },
-    { label: "Mì", value: 45 },
-    { label: "Đồ uống", value: 90 },
+    { label: "Phở Bò", value: 40 },
+    { label: "Bún Chả", value: 25 },
+    { label: "Cơm Tấm", value: 20 },
+    { label: "Gỏi Cuốn", value: 15 },
   ];
+  const orders = [
+    { id: 1, customer: "Nguyễn Văn A", total: 50000, status: "Hoàn thành" },
+    { id: 2, customer: "Trần Thị B  ", total: 75000, status: "Đang chờ" },
+    { id: 3, customer: "Lê Văn C", total: 60000, status: "Đang giao" },
+    { id: 4, customer: "Phạm Thị D", total: 85000, status: "Hoàn thành" },
+    { id: 5, customer: "Hoàng Văn E", total: 90000, status: "Đang chờ" },
+  ];
+
+  useEffect(() => {
+    loadMyShop();
+  }, [loadMyShop]);
 
   const StatCard = ({ title, value, icon: Icon, color }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
@@ -35,11 +58,10 @@ const Dashboard = () => {
           <p className="text-gray-500">Đây là tình hình kinh doanh hôm nay.</p>
         </div>
         <div
-          className={`px-4 py-2 rounded-full text-sm font-bold ${
-            info.isOpen
-              ? "bg-green-100 text-green-600"
-              : "bg-red-100 text-red-600"
-          }`}
+          className={`px-4 py-2 rounded-full text-sm font-bold ${info.isOpen
+            ? "bg-green-100 text-green-600"
+            : "bg-red-100 text-red-600"
+            }`}
         >
           {info.isOpen ? "Đang Mở Cửa" : "Đang Đóng Cửa"}
         </div>
@@ -49,7 +71,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Tổng doanh thu"
-          value={`${stats.revenue} VNĐ`}
+          value={`${stats.revenue.toLocaleString('vi-VN')} VNĐ`}
           icon={DollarSign}
           color="bg-green-500"
         />
@@ -61,7 +83,7 @@ const Dashboard = () => {
         />
         <StatCard
           title="Trung bình đơn"
-          value={`${stats.avgOrderValue} VNĐ`}
+          value={`${stats.avgOrderValue.toLocaleString('vi-VN')} VNĐ`}
           icon={TrendingUp}
           color="bg-purple-500"
         />
@@ -122,17 +144,16 @@ const Dashboard = () => {
                     <td className="py-3 text-gray-900 font-medium">
                       {order.customer}
                     </td>
-                    <td className="py-3 text-gray-600">{order.total} VNĐ</td>
+                    <td className="py-3 text-gray-600">{order.total.toLocaleString('vi-VN')} VNĐ</td>
                     <td className="py-3">
                       <span
                         className={`px-2 py-1 rounded-md text-xs font-bold
-                        ${
-                          order.status === "Hoàn thành"
+                        ${order.status === "Hoàn thành"
                             ? "bg-green-100 text-green-600"
                             : order.status === "Đang chờ"
-                            ? "bg-yellow-100 text-yellow-600"
-                            : "bg-blue-100 text-blue-600"
-                        }`}
+                              ? "bg-yellow-100 text-yellow-600"
+                              : "bg-blue-100 text-blue-600"
+                          }`}
                       >
                         {order.status}
                       </span>

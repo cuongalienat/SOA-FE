@@ -4,17 +4,24 @@ import {
   Phone,
   Navigation,
   ArrowLeft,
-  Package,
-  MapPin,
-  CheckCircle,
   AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import { useShipper } from "../../context/ShipperContext.jsx";
 
 const ShipperOrderDetail = () => {
-  const { currentOrder, updateOrderStatus } = useShipper();
+  const { currentOrder, loadingCurrentOrder, updateOrderStatus } = useShipper();
   const navigate = useNavigate();
   const [showConfirm, setShowConfirm] = useState(false);
+
+  /** -------------------------
+   * LOADING / NO ORDER
+   * ------------------------- */
+  if (loadingCurrentOrder) {
+    return (
+      <div className="p-8 text-center text-gray-500">Đang tải đơn hàng...</div>
+    );
+  }
 
   if (!currentOrder) {
     return (
@@ -32,45 +39,55 @@ const ShipperOrderDetail = () => {
     );
   }
 
-  const steps = [
-    "Driver Assigned",
-    "Arrived at Restaurant",
-    "Picked Up",
-    "Delivering",
-    "Delivered",
-  ];
-  const currentStepIndex =
-    steps.indexOf(currentOrder.status) === -1
-      ? 0
-      : steps.indexOf(currentOrder.status);
+  /** -------------------------
+   * STRUCTURE
+   * ------------------------- */
+  const delivery = currentOrder;
+  const order = delivery.orderId ?? {};
+  const restaurant = order.restaurant ?? {};
+  const customer = order.customer ?? {};
 
-  // Define the next action based on current status
+  // Normalize status to uppercase
+  const status = (delivery.status || "").toUpperCase();
+
+  /** -------------------------
+   * STATUS STEPS
+   * ------------------------- */
+  const statusMap = {
+    ASSIGNED: 1,
+    PICKING_UP: 2,
+    DELIVERING: 3,
+    COMPLETED: 4,
+  };
+
+  const stepIndex = statusMap[status] || 1;
+
+  /** -------------------------
+   * NEXT ACTION BUTTON
+   * ------------------------- */
   const getNextAction = () => {
-    switch (currentOrder.status) {
-      case "Driver Assigned":
+    switch (status) {
+      case "ASSIGNED":
         return {
           label: "Đã đến quán",
-          nextStatus: "Arrived at Restaurant",
+          nextStatus: "PICKING_UP",
           color: "bg-blue-600",
         };
-      case "Arrived at Restaurant":
+
+      case "PICKING_UP":
         return {
           label: "Đã lấy hàng",
-          nextStatus: "Picked Up",
+          nextStatus: "DELIVERING",
           color: "bg-orange-600",
         };
-      case "Picked Up":
-        return {
-          label: "Bắt đầu giao",
-          nextStatus: "Delivering",
-          color: "bg-purple-600",
-        };
-      case "Delivering":
+
+      case "DELIVERING":
         return {
           label: "Đã giao thành công",
-          nextStatus: "Delivered",
+          nextStatus: "COMPLETED",
           color: "bg-green-600",
         };
+
       default:
         return null;
     }
@@ -78,17 +95,22 @@ const ShipperOrderDetail = () => {
 
   const action = getNextAction();
 
+  /** -------------------------
+   * HANDLE ACTION
+   * ------------------------- */
   const handleMainAction = () => {
-    if (action.nextStatus === "Delivered") {
-      setShowConfirm(true); // Confirm before finishing
+    if (!action) return;
+
+    if (action.nextStatus === "COMPLETED") {
+      setShowConfirm(true);
     } else {
-      updateOrderStatus(action.nextStatus);
+      updateOrderStatus(delivery._id, action.nextStatus);
     }
   };
 
-  const confirmDelivery = () => {
-    updateOrderStatus("Delivered");
-    navigate("/shipper/dashboard"); // Go back to dashboard to find new order
+  const confirmDelivery = async () => {
+    await updateOrderStatus(delivery._id, "COMPLETED");
+    navigate("/shipper/dashboard");
   };
 
   return (
@@ -102,35 +124,39 @@ const ShipperOrderDetail = () => {
           <ArrowLeft size={20} />
         </button>
         <div>
-          <h1 className="font-bold text-lg">Đơn #{currentOrder.id}</h1>
-          <p className="text-xs text-gray-500">{currentOrder.status}</p>
+          <h1 className="font-bold text-lg">Đơn #{delivery._id?.slice(-6)}</h1>
+          <p className="text-xs text-gray-500">{status}</p>
         </div>
         <div className="ml-auto">
           <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded">
-            COD: {currentOrder.total.toLocaleString()}đ
+            COD: {(order.total || 0).toLocaleString('vi-VN')}đ
           </span>
         </div>
       </div>
 
+      {/* MAIN */}
       <div className="p-4 space-y-4">
-        {/* Status Progress */}
+        {/* Progress Bar */}
         <div className="bg-white p-4 rounded-xl shadow-sm">
           <div className="flex justify-between text-xs text-gray-400 mb-2">
             <span>Nhận đơn</span>
             <span>Lấy hàng</span>
             <span>Giao hàng</span>
           </div>
+
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-green-500 transition-all duration-500"
-              style={{ width: `${(currentStepIndex / 4) * 100}%` }}
+              style={{ width: `${((stepIndex - 1) / 3) * 100}%` }}
             ></div>
           </div>
         </div>
-        {/* Restaurant Section */}
+
+        {/* Restaurant */}
         <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-bold text-gray-800 text-lg">Lấy hàng</h3>
+
             <div className="flex space-x-2">
               <button className="p-2 bg-gray-100 rounded-full text-blue-600">
                 <Phone size={18} />
@@ -140,19 +166,18 @@ const ShipperOrderDetail = () => {
               </button>
             </div>
           </div>
-          <h4 className="font-bold text-gray-900">
-            {currentOrder.restaurant.name}
-          </h4>
-          <p className="text-sm text-gray-600 mb-3">
-            {currentOrder.restaurant.address}
-          </p>
 
+          <h4 className="font-bold text-gray-900">{restaurant.name}</h4>
+          <p className="text-sm text-gray-600 mb-3">{restaurant.address}</p>
+
+          {/* Items */}
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
             <h5 className="text-xs font-bold text-gray-500 uppercase mb-2">
               Chi tiết món
             </h5>
+
             <ul className="space-y-2 text-sm">
-              {currentOrder.items.map((item, idx) => (
+              {(order.items || []).map((item, idx) => (
                 <li key={idx} className="flex justify-between">
                   <span>
                     <span className="font-bold text-green-600">
@@ -165,10 +190,12 @@ const ShipperOrderDetail = () => {
             </ul>
           </div>
         </div>
-        {/* Customer Section */}
+
+        {/* Customer */}
         <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-red-500">
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-bold text-gray-800 text-lg">Giao đến</h3>
+
             <div className="flex space-x-2">
               <button className="p-2 bg-gray-100 rounded-full text-blue-600">
                 <Phone size={18} />
@@ -178,57 +205,60 @@ const ShipperOrderDetail = () => {
               </button>
             </div>
           </div>
-          <h4 className="font-bold text-gray-900">
-            {currentOrder.customer.name}
-          </h4>
-          <p className="text-sm text-gray-600 mb-2">
-            {currentOrder.customer.address}
-          </p>
-          {currentOrder.customer.note && (
+
+          <h4 className="font-bold text-gray-900">{customer.name}</h4>
+          <p className="text-sm text-gray-600 mb-2">{customer.address}</p>
+
+          {customer.note && (
             <div className="flex items-start text-xs text-orange-600 bg-orange-50 p-2 rounded">
               <AlertCircle size={14} className="mr-1 mt-0.5 flex-shrink-0" />
-              <span>Ghi chú: {currentOrder.customer.note}</span>
+              <span>Ghi chú: {customer.note}</span>
             </div>
           )}
         </div>
-        {/* Payment Info */}
+
+        {/* Payment */}
         <div className="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center">
           <span className="text-gray-600 font-medium">
             Khách cần thanh toán:
           </span>
           <span className="text-2xl font-bold text-gray-900">
-            {currentOrder.total.toLocaleString()}đ
+            {(order.total || 0).toLocaleString()}đ
           </span>
         </div>
-        <div className="h-20"></div> {/* Spacer for fixed bottom button */}
+
+        <div className="h-20"></div>
       </div>
 
-      {/* Fixed Bottom Action Button */}
+      {/* Action Button */}
       {action && (
         <div className="fixed bottom-16 left-0 w-full p-4 bg-white border-t border-gray-200 z-20">
           <button
             onClick={handleMainAction}
-            className={`w-full ${action.color} text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center text-lg active:scale-95 transition-transform`}
+            className={`w-full ${action.color} text-white font-bold py-4 rounded-xl shadow-lg text-lg active:scale-95`}
           >
             {action.label}
           </button>
         </div>
       )}
 
-      {/* Confirmation Modal */}
+      {/* Confirm Modal */}
       {showConfirm && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
+
             <h3 className="text-xl font-bold text-gray-900 mb-2">
               Xác nhận giao thành công?
             </h3>
+
             <p className="text-gray-500 mb-6">
               Hãy chắc chắn rằng bạn đã nhận{" "}
-              {currentOrder.total.toLocaleString()}đ từ khách hàng.
+              {(order.total || 0).toLocaleString()}đ từ khách hàng.
             </p>
+
             <div className="flex space-x-3">
               <button
                 onClick={() => setShowConfirm(false)}

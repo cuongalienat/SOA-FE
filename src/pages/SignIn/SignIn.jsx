@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import Separator from "../../components/common/Separator";
 import GoogleSignIn from "../../components/common/GoogleSignIn";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuths";
+import { useAuth } from "../../context/AuthContext";
 import { useEmailVerification } from "../../hooks/useEmailVerification";
-import Logo from "../../components/common/Logo";
 import Input from "../../components/common/Input";
 import PasswordInput from "../../components/common/PasswordInput";
 import NotificationPopup from "../../components/common/NotificationPopup";
@@ -16,9 +15,11 @@ const SignIn = () => {
   const navigate = useNavigate();
   const { signin, signInGoogle, loading, error } = useAuth();
 
+
   const { resendVerification } = useEmailVerification();
   const [username, setUsername] = useState("john.doe@gmail.com");
   const [password, setPassword] = useState("12345678");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({
     isVisible: false,
     message: "",
@@ -42,46 +43,78 @@ const SignIn = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const result = await signin(username, password);
-    console.log("isverified:", result?.data?.user);
+    try {
+      const result = await signin(username, password);
 
-    if (result.success === true && result.data?.user?.isVerified === "no") {
-      const emailToVerify = result?.data?.user?.email || username;
-      showNotification(
-        "Tài khoản chưa được xác thực. Đang gửi lại mã xác thực...",
-        "warning"
-      );
-      resendVerification(emailToVerify);
-      setTimeout(() => {
-        navigate("/verify-code", {
-          state: {
-            email: emailToVerify,
-          },
-        });
-      }, 1200);
-      return;
-    }
+      if (!result) {
+        showNotification("Lỗi không xác định. Vui lòng thử lại.", "error");
+        return;
+      }
 
-    if (result.success === true) {
-      // Đăng nhập thành công
-      showNotification(result.data.message, "success");
+      if (result.success === true && result.data?.user?.isVerified === "no") {
+        const emailToVerify = result?.data?.user?.email || username;
+        showNotification(
+          "Tài khoản chưa được xác thực. Đang gửi lại mã xác thực...",
+          "warning"
+        );
+        resendVerification(emailToVerify);
+        setTimeout(() => {
+          navigate("/verify-code", {
+            state: {
+              email: emailToVerify,
+            },
+          });
+        }, 1200);
+        return;
+      }
 
-      // Chuyển hướng sau 1.5 giây
-      setTimeout(() => {
-        navigate("/"); // hoặc trang chính của app
-      }, 1500);
-    } else {
-      // Đăng nhập thất bại
-      showNotification(result.error, "error");
+      if (result.success === true) {
+        // Đăng nhập thành công
+        // Normalize role: lowercase and trim whitespace
+        const role = result.data.user.role ? result.data.user.role.toLowerCase().trim() : "";
+        showNotification("Đăng nhập thành công", "success");
+
+        // Use timeout to ensure AuthContext updates before navigation
+        setTimeout(() => {
+          switch (role) {
+            case "restaurant_manager":
+              navigate("/restaurant", { replace: true });
+              break;
+            case "driver": // Handle potential alias
+              navigate("/shipper", { replace: true });
+              break;
+            default:
+              // Check if there was a previous location attempt
+              // (Note: need to access location.state.from if implementing redirect back)
+              navigate("/", { replace: true });
+          }
+        }, 1500);
+      } else {
+        // Đăng nhập thất bại
+        showNotification(result.error || "Đăng nhập thất bại", "error");
+      }
+    } catch (error) {
+      console.error("Login error in handler:", error);
+      showNotification("Có lỗi xảy ra khi đăng nhập", "error");
     }
   };
 
   const handleGoogleSignIn = async (tokenId) => {
     const result = await signInGoogle(tokenId);
     if (result.success === true) {
+      const role = result.data.user.role ? result.data.user.role.toLowerCase().trim() : "";
       showNotification("Đăng nhập Google thành công!", "success");
       setTimeout(() => {
-        navigate("/");
+        switch (role) {
+          case "restaurant_manager":
+            navigate("/restaurant", { replace: true });
+            break;
+          case "driver": // Handle potential alias
+            navigate("/shipper", { replace: true });
+            break;
+          default:
+            navigate("/", { replace: true });
+        }
       }, 1500);
     } else {
       showNotification(result.error, "error");
@@ -138,9 +171,9 @@ const SignIn = () => {
             <button
               type="submit"
               className="bg-orange-500 signIn-btn"
-              disabled={loading}
+              disabled={isSubmitting}
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {isSubmitting ? "... Đang đăng nhập" : "Đăng nhập"}
             </button>
 
             <Separator text="Hoặc đăng nhập với" />

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuths";
+import { useAuth } from "../../context/AuthContext";
 import { validateSignupData } from "../../utils/validationUtils.js";
 import Logo from "../../components/common/Logo";
 import Input from "../../components/common/Input";

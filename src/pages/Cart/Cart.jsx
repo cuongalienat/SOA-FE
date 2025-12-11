@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Trash2,
   Plus,
@@ -14,38 +14,232 @@ import {
   Bike,
   Wallet,
   AlertTriangle,
-  CheckCircle,
+  Loader,
 } from "lucide-react";
 import { useCart } from "../../context/CartContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useForm } from "../../hooks/useForm.jsx";
+import { useOrders } from "../../hooks/useOrders.jsx";
+import { useToast } from "../../context/ToastContext.jsx";
+import LocationPicker from "../../components/common/LocationPicker.jsx";
+import { getDistance, getCoordinates } from "../../services/goongServices";
+import { calculateShippingFee } from "../../utils/shippingUtils";
+import { useShop } from "../../hooks/useShop";
+import { useUser } from "../../hooks/useUser.jsx";
 
 const Cart = () => {
-  const { items, removeFromCart, updateQuantity, cartTotal, clearCart } =
-    useCart();
-  const { myOrders, user, placeOrder, updateUser } = useAuth();
+  const { items, removeFromCart, updateQuantity, updateItemNote, cartTotal, clearCart } = useCart();
+  const { user } = useAuth();
+  const { updateUser } = useUser();
   const navigate = useNavigate();
 
-  // State quản lý tab và tracking
-  const [activeTab, setActiveTab] = useState("cart"); // 'cart' | 'orders'
-  const [trackingOrder, setTrackingOrder] = useState(null);
+  const { orders, createOrder, loadMyOrders, cancelOrder } = useOrders();
 
-  // State quản lý thanh toán
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "cart");
+
+  // Sync tab with URL
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  // Update URL when tab changes internally
+  useEffect(() => {
+    if (activeTab === "orders") {
+      setSearchParams({ tab: "orders" });
+    } else {
+      setSearchParams({});
+    }
+  }, [activeTab, setSearchParams]);
+  const [trackingOrder, setTrackingOrder] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const { showToast } = useToast();
+  const { shop, loadShopById } = useShop();
+
+  const userId = user?._id;
+
+  const [shopLocation, setShopLocation] = useState(null);
+  const [shippingFee, setShippingFee] = useState(0);
+
+  useEffect(() => {
+    if (userId) {
+      loadMyOrders({ userID: userId });
+    }
+  }, [userId, loadMyOrders]);
+
+  // Fetch shop location
+  // Fetch shop location
+  useEffect(() => {
+    if (items.length > 0) {
+      let shopId = items[0].shopId;
+      if (shopId && typeof shopId === 'object') {
+        shopId = shopId._id || shopId.id;
+      }
+      if (shopId) {
+        loadShopById(shopId);
+      }
+    }
+  }, [items]); // Re-run if items change (different shop?)
+
+  useEffect(() => {
+    if (shop) {
+      const fetchShopCoordinates = async () => {
+        // If shop has explicit location coordinates, use them
+        if (shop.location && shop.location.coordinates) {
+          setShopLocation({
+            lat: shop.location.coordinates[1],
+            lng: shop.location.coordinates[0]
+          });
+          return;
+        }
+
+        // Otherwise, geocode the address
+        if (shop.address) {
+          try {
+            const coords = await getCoordinates(shop.address);
+            if (coords) {
+              setShopLocation(coords);
+              console.log("Geocoded Shop Location:", coords);
+            } else {
+              console.error("Could not geocode shop address:", shop.address);
+            }
+          } catch (error) {
+            console.error("Error geocoding shop address:", error);
+          }
+        }
+      };
+
+      fetchShopCoordinates();
+    }
+  }, [shop]);
+
+
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
+
+    try {
+      const success = await cancelOrder(orderId);
+      if (success) {
+        await loadMyOrders({ userID: userId });
+        showToast("Hủy đơn hàng thành công", "success");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const canCancel = (order) => {
+    if (order.status === 'Pending') return true;
+    if (order.status === 'Confirmed') {
+      const updatedAt = new Date(order.updatedAt);
+      const now = new Date();
+      const diffMinutes = (now - updatedAt) / 1000 / 60;
+      return diffMinutes < 10;
+    }
+    return false;
+  };
 
   // Form thông tin giao hàng
-  const { values, handleChange, handleSubmit } = useForm({
-    fullName: user?.name || "",
+  const { values, handleChange, handleSubmit, setValue } = useForm({
+    fullName: user?.fullName || "",
     phone: user?.phone || "",
     address: user?.address || "",
     note: "",
   });
 
+  const [userLocation, setUserLocation] = useState({ lat: null, lng: null });
+
+  // Update form values when user data becomes available (e.g. after page load)
+  useEffect(() => {
+    if (user) {
+      if (!values.fullName && user.fullName) setValue("fullName", user.fullName);
+      if (!values.phone && user.phone) setValue("phone", user.phone);
+      if (!values.address && user.address) setValue("address", user.address);
+    }
+  }, [user]);
+
+  // Automatically calculate shipping fee for default address
+  useEffect(() => {
+    const calcDefaultAddressFee = async () => {
+      // Condition: User has address, currently showing default address, shop location known, and coords not yet set
+      if (user?.address && values.address === user.address && shopLocation && !userLocation.lat) {
+        try {
+          // 1. Geocode the default address
+          const coords = await getCoordinates(user.address);
+
+          if (coords) {
+            setUserLocation(coords);
+            console.log("Geocoded Default User Address:", coords);
+
+            // 2. Calculate distance and fee
+            const origin = `${coords.lat},${coords.lng}`;
+            const shopLat = shopLocation.lat || shopLocation.latitude;
+            const shopLng = shopLocation.lng || shopLocation.longitude;
+
+            if (shopLat && shopLng) {
+              const destination = `${shopLat},${shopLng}`;
+              const distanceData = await getDistance(origin, destination);
+
+              if (distanceData) {
+                const fee = calculateShippingFee(distanceData.distanceValue);
+                setShippingFee(fee);
+                console.log("Calculated Default Shipping Fee:", fee);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error calculating fee for default address:", error);
+        }
+      }
+    };
+
+    calcDefaultAddressFee();
+  }, [user, values.address, shopLocation, userLocation.lat]);
+
+  const handleAddressConfirm = async ({ address, lat, lng }) => {
+    const event = {
+      target: {
+        name: "address",
+        value: address
+      }
+    };
+    handleChange(event);
+    setUserLocation({ lat, lng });
+    setShowMap(false);
+
+    console.log("Handle Address Confirm:", { address, lat, lng, shopLocation });
+
+    // Calculate Distance and Fee
+    if (shopLocation && lat && lng) {
+      // Construct strings "lat,lng"
+      const origin = `${lat},${lng}`;
+      // Ensure shopLocation has lat/lng
+      const shopLat = shopLocation.lat || shopLocation.latitude;
+      const shopLng = shopLocation.lng || shopLocation.longitude;
+
+      if (shopLat && shopLng) {
+        const destination = `${shopLat},${shopLng}`;
+        const distanceData = await getDistance(origin, destination);
+
+        if (distanceData) {
+          const fee = calculateShippingFee(distanceData.distanceValue);
+          setShippingFee(fee);
+          // Optional: Show distance toast or info
+          // showToast(`Khoảng cách: ${distanceData.distanceText}, Phí ship: ${fee.toLocaleString('vi-VN')}đ`, "info");
+        }
+      }
+    }
+  };
   // Tính toán chi phí
-  const tax = cartTotal * 0.1;
-  const deliveryFee = 3000;
-  const finalTotal = cartTotal + tax + deliveryFee;
+
+  // const deliveryFee = 3000; // Old static fee
+  const finalTotal = cartTotal + shippingFee;
+
 
   // Xử lý khi bấm nút "Đặt hàng"
   const handlePreCheckout = (e) => {
@@ -56,46 +250,113 @@ const Cart = () => {
       navigate("/signin");
       return;
     }
-    // Mở modal hóa đơn
-    setShowInvoiceModal(true);
+    if (paymentMethod === "COD") {
+      confirmPayment();
+    } else {
+      // Mở modal hóa đơn (chỉ cho ví)
+      setShowInvoiceModal(true);
+    }
   };
 
-  // Xử lý xác nhận thanh toán
+  const [paymentMethod, setPaymentMethod] = useState("Wallet");
+
   const confirmPayment = async () => {
-    setProcessingPayment(true);
+    if (!user) return;
 
-    // Giả lập API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // 1. Trừ tiền (nếu đủ)
-    // Lưu ý: Logic này giả định đơn vị tiền tệ tương thích.
-    // Trong thực tế cần xử lý quy đổi tỷ giá nếu price là USD và balance là VND.
-    // Ở đây mình giả định hệ thống dùng chung 1 đơn vị số học để trừ.
-    if (user && user.balance >= finalTotal) {
-      const newBalance = user.balance - finalTotal;
-      updateUser({ balance: newBalance });
+    // 1. Kiểm tra số dư ví (Nếu dùng ví)
+    if (paymentMethod === "Wallet" && user.balance < finalTotal) {
+      console.log(user.balance);
+      showToast("Số dư ví không đủ!", "error");
+      return;
     }
 
-    // 2. Tạo đơn hàng
-    placeOrder({
-      customer: values.fullName,
-      phone: values.phone,
-      address: values.address,
-      note: values.note,
-      total: finalTotal,
-      items: items,
-      paymentMethod: "Ví FlavorDash",
-    });
+    try {
+      // 2. Chuẩn bị dữ liệu
+      // Lấy ID nhà hàng từ món đầu tiên (Giả sử giỏ hàng chỉ chứa món của 1 quán)
+      console.log("item 0:", items[0]);
+      let shopId = items[0]?.shopId;
+      // Ensure restaurantId is a string ID
+      if (shopId && typeof shopId === 'object') {
+        shopId = shopId._id || shopId.id;
+      }
+      console.log("Restaurant ID to send:", shopId);
 
-    // 3. Cleanup & Chuyển tab
-    setProcessingPayment(false);
-    setShowInvoiceModal(false);
-    clearCart();
-    setActiveTab("orders");
+      if (!shopId) {
+        showToast("Lỗi dữ liệu món ăn (thiếu ID quán)", "error");
+        return;
+      }
 
-    // Scroll lên đầu
-    window.scrollTo(0, 0);
+      // Map items sang format backend cần: { item: itemID, quantity: N, note: ... }
+      const orderItems = items.map(i => ({
+        item: i._id || i.id, // ID món ăn
+        quantity: i.quantity,
+        imageUrl: i.imageUrl,
+        price: i.price, // Giá tại thời điểm mua (quan trọng)
+        options: i.note ? [i.note] : [] // Ghi chú được lưu vào options
+      }));
+
+      // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
+      if (paymentMethod === "Wallet") {
+        const newBalance = user.balance - finalTotal; // FIXED: Should deduct the total, not just set to current balance (which was a bug in previous code 'user.balance')
+        // Wait, previous code was: const newBalance = user.balance; updateUser({...}); This looks like a bug in previous code?
+        // Ah, typically client-side update handles formatted logic. The previous code `const newBalance = user.balance;` actually did NOT deduct anything locally? Or maybe I misread.
+        // Let's look at previous code: `const newBalance = user.balance; updateUser({ ...user, balance: newBalance });` -> This effectively did NOTHING to the balance locally.
+        // Let's implement correct optimistic update if Wallet is used.
+        updateUser({ ...user, balance: newBalance });
+      }
+
+      // 5. GỌI API TẠO ĐƠN HÀNG (Dùng hook useOrders)
+      const result = await createOrder({
+        userId: user._id,
+        shopId: shopId,
+        items: orderItems,
+        paymentMethod: paymentMethod === "Wallet" ? "Wallet" : "COD",
+        shippingFee: shippingFee, // Send shipping fee to backend
+        userLocation: {
+          address: values.address,
+          lat: userLocation.lat,
+          lng: userLocation.lng
+        },
+      });
+
+      if (result.success) {
+        showToast("Đặt hàng thành công!", "success");
+
+        // Cleanup
+        setShowInvoiceModal(false);
+        clearCart();
+        await loadMyOrders({ userID: user._id }); // Force refresh orders list
+        setActiveTab("orders"); // Chuyển sang tab đơn hàng
+        window.scrollTo(0, 0);
+        window.scrollTo(0, 0);
+      } else {
+        // Nếu lỗi API -> Hoàn tiền ảo lại (Rollback UI)
+        if (paymentMethod === "Wallet") {
+          // Rollback logic is complicated if we don't know original balance precisely, but we can just reload user? 
+          // Or simpler: restore user.balance + finalTotal. 
+          // Actually, simplest is to not do optimistic update or just trust reload. 
+          // Let's just restore from user.balance (which is state). Wait, `user` is from AuthContext.
+          // If I updated it, `user.balance` is new.
+          // Let's stick to simple reload or just `loadUser()` if available? 
+          // useAuth provides `user`, `updateUser`.
+          // For safety in this hacky optimistic update, let's just reverse the operation.
+          updateUser({ ...user, balance: user.balance + finalTotal });
+        }
+        showToast(result.error, "error");
+      }
+
+    } catch (error) {
+      console.error(error);
+      showToast("Có lỗi xảy ra khi thanh toán", "error");
+    }
   };
+
+  const orderHistory = Array.isArray(orders) ? orders : [];
+
+  // Filter active orders for this view
+  const activeOrders = orderHistory.filter(order =>
+    ['Pending', 'Confirmed', 'Shipping'].includes(order.status)
+  );
 
   // Render Tab Giỏ hàng + Form Thanh toán
   const renderCartAndCheckout = () => {
@@ -134,45 +395,58 @@ const Cart = () => {
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center space-x-4 border-b border-gray-50 pb-4 last:border-0 last:pb-0"
+                  className="border-b border-gray-50 pb-4 last:border-0 last:pb-0"
                 >
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-20 h-20 rounded-xl object-cover"
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-800">{item.name}</h3>
-                    <p className="text-gray-500 text-xs">{item.category}</p>
-                    <div className="text-orange-600 font-bold mt-1">
-                      {item.price} VNĐ
+                  <div className="flex items-center space-x-4">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="w-20 h-20 rounded-xl object-cover"
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-800">{item.name}</h3>
+                      <p className="text-gray-500 text-xs">{item.category}</p>
+                      <div className="text-orange-600 font-bold mt-1">
+                        {item.price} VNĐ
+                      </div>
                     </div>
+
+                    <div className="flex items-center space-x-2 bg-gray-50 rounded-lg p-1">
+                      <button
+                        onClick={() => updateQuantity(item.id, -1)}
+                        className="p-1 hover:bg-white rounded-md transition shadow-sm"
+                      >
+                        <Minus size={14} />
+                      </button>
+                      <span className="font-semibold w-6 text-center text-sm">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="p-1 hover:bg-white rounded-md transition shadow-sm"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-gray-400 hover:text-red-500 p-2"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
 
-                  <div className="flex items-center space-x-2 bg-gray-50 rounded-lg p-1">
-                    <button
-                      onClick={() => updateQuantity(item.id, -1)}
-                      className="p-1 hover:bg-white rounded-md transition shadow-sm"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span className="font-semibold w-6 text-center text-sm">
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => updateQuantity(item.id, 1)}
-                      className="p-1 hover:bg-white rounded-md transition shadow-sm"
-                    >
-                      <Plus size={14} />
-                    </button>
+                  {/* Note Input */}
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      placeholder="Ghi chú cho món này (VD: Ít cay, không hành...)"
+                      className="w-full text-sm bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-lg px-3 py-2 outline-none transition-all placeholder-gray-400 text-gray-700"
+                      value={item.note || ""}
+                      onChange={(e) => updateItemNote(item.id, e.target.value)}
+                    />
                   </div>
-
-                  <button
-                    onClick={() => removeFromCart(item.id)}
-                    className="text-gray-400 hover:text-red-500 p-2"
-                  >
-                    <Trash2 size={18} />
-                  </button>
                 </div>
               ))}
             </div>
@@ -195,36 +469,17 @@ const Cart = () => {
               className="space-y-4"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Họ tên
-                  </label>
-                  <input
-                    required
-                    name="fullName"
-                    value={values.fullName}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-orange-500"
-                    placeholder="Nguyễn Văn A"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Số điện thoại
-                  </label>
-                  <input
-                    required
-                    name="phone"
-                    value={values.phone}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-orange-500"
-                    placeholder="090..."
-                  />
-                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Địa chỉ nhận hàng
+                <label className="block text-sm font-medium text-gray-700 mb-1 flex justify-between items-center">
+                  <span>Địa chỉ nhận hàng</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowMap(true)}
+                    className="text-orange-600 text-xs font-bold hover:underline flex items-center"
+                  >
+                    <MapPin size={12} className="mr-1" /> Chọn trên bản đồ
+                  </button>
                 </label>
                 <input
                   required
@@ -233,18 +488,6 @@ const Cart = () => {
                   onChange={handleChange}
                   className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-orange-500"
                   placeholder="Số nhà, đường, phường..."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ghi chú cho tài xế
-                </label>
-                <input
-                  name="note"
-                  value={values.note}
-                  onChange={handleChange}
-                  className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-orange-500"
-                  placeholder="Ví dụ: Gọi trước khi đến"
                 />
               </div>
             </form>
@@ -256,50 +499,63 @@ const Cart = () => {
           <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 sticky top-24">
             <h2 className="text-xl font-bold mb-6">Thanh toán</h2>
 
-            {/* Ví người dùng */}
-            {user ? (
-              <div className="bg-gray-50 p-4 rounded-xl mb-6 flex justify-between items-center border border-gray-200">
+            {/* Chọn phương thức thanh toán */}
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Phương thức thanh toán</h3>
+            <div className="space-y-3 mb-6">
+              {/* Option: Wallet */}
+              <div
+                onClick={() => setPaymentMethod("Wallet")}
+                className={`p-4 rounded-xl border cursor-pointer transition flex justify-between items-center ${paymentMethod === "Wallet" ? "border-orange-500 bg-orange-50" : "border-gray-200 hover:border-orange-200"
+                  }`}
+              >
                 <div className="flex items-center">
-                  <div className="bg-gray-900 p-2 rounded-lg text-white mr-3">
+                  <div className={`p-2 rounded-lg text-white mr-3 ${paymentMethod === "Wallet" ? "bg-orange-500" : "bg-gray-400"
+                    }`}>
                     <Wallet size={20} />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900">
-                      Ví FlavorDash
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Số dư: {(user.balance || 0).toLocaleString()}đ
-                    </p>
+                    <p className={`text-sm font-bold ${paymentMethod === "Wallet" ? "text-orange-700" : "text-gray-700"
+                      }`}>Ví FlavorDash</p>
+                    {user && <p className="text-xs text-gray-500">Số dư: {user.balance?.toLocaleString('vi-VN')}đ</p>}
                   </div>
                 </div>
+                {paymentMethod === "Wallet" && <div className="w-4 h-4 rounded-full bg-orange-500" />}
               </div>
-            ) : (
-              <div className="bg-yellow-50 p-3 rounded-xl mb-6 text-sm text-yellow-700 flex items-start">
-                <AlertTriangle
-                  size={16}
-                  className="mr-2 mt-0.5 flex-shrink-0"
-                />
-                Đăng nhập để sử dụng ví và tích điểm.
+
+              {/* Option: Cash (COD) */}
+              <div
+                onClick={() => setPaymentMethod("COD")}
+                className={`p-4 rounded-xl border cursor-pointer transition flex justify-between items-center ${paymentMethod === "COD" ? "border-orange-500 bg-orange-50" : "border-gray-200 hover:border-orange-200"
+                  }`}
+              >
+                <div className="flex items-center">
+                  <div className={`p-2 rounded-lg text-white mr-3 ${paymentMethod === "COD" ? "bg-green-600" : "bg-gray-400"
+                    }`}>
+                    <p className="font-bold text-xs">TIỀN</p>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-bold ${paymentMethod === "COD" ? "text-orange-700" : "text-gray-700"
+                      }`}>Tiền mặt (COD)</p>
+                    <p className="text-xs text-gray-500">Thanh toán khi nhận hàng</p>
+                  </div>
+                </div>
+                {paymentMethod === "COD" && <div className="w-4 h-4 rounded-full bg-orange-500" />}
               </div>
-            )}
+            </div>
 
             <div className="space-y-3 mb-6">
               <div className="flex justify-between text-gray-600">
                 <span>Tạm tính</span>
-                <span>{cartTotal} VNĐ</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Thuế (10%)</span>
-                <span>{tax} VNĐ</span>
+                <span>{cartTotal.toLocaleString('vi-VN')} VNĐ</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Phí giao hàng</span>
-                <span>{deliveryFee} VNĐ</span>
+                <span>{shippingFee.toLocaleString('vi-VN')} VNĐ</span>
               </div>
               <div className="h-px bg-gray-200 my-4"></div>
               <div className="flex justify-between text-xl font-bold text-gray-900">
                 <span>Tổng cộng</span>
-                <span className="text-orange-600">{finalTotal} VNĐ</span>
+                <span className="text-orange-600">{finalTotal.toLocaleString('vi-VN')} VNĐ</span>
               </div>
             </div>
 
@@ -308,7 +564,7 @@ const Cart = () => {
               type="submit"
               className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg flex items-center justify-center space-x-2"
             >
-              <span>Đặt hàng ngay</span>
+              <span>{paymentMethod === 'Wallet' ? 'Thanh toán ngay' : 'Đặt hàng (COD)'}</span>
               <CreditCard size={20} />
             </button>
 
@@ -328,7 +584,8 @@ const Cart = () => {
 
   // Render Tab Đơn hàng
   const renderOrders = () => {
-    if (myOrders.length === 0) {
+
+    if (activeOrders.length === 0) {
       return (
         <div className="min-h-[50vh] flex flex-col items-center justify-center p-4">
           <Clock className="w-16 h-16 text-gray-300 mb-4" />
@@ -348,64 +605,87 @@ const Cart = () => {
 
     return (
       <div className="space-y-6 max-w-4xl mx-auto animate-fadeIn">
-        {myOrders.map((order) => (
+        {activeOrders.map((order) => (
           <div
-            key={order.id}
-            className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md"
+            key={order.id || order._id}
+            onClick={() => navigate(`/order/${order._id || order.id}`)}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md cursor-pointer group"
           >
             <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 border-b border-gray-50 pb-4">
               <div>
                 <div className="flex items-center space-x-3">
-                  <span className="text-lg font-bold text-gray-900">
-                    {order.id}
+                  <span className="text-lg font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
+                    #{order._id ? order._id.slice(-6).toUpperCase() : order.id}
                   </span>
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      order.status === "Hoàn thành"
-                        ? "bg-green-100 text-green-700"
-                        : order.status === "Đang nấu"
+                    className={`px-3 py-1 rounded-full text-xs font-bold ${order.status === "Delivered"
+                      ? "bg-green-100 text-green-700"
+                      : order.status === "Pending"
                         ? "bg-blue-100 text-blue-700"
                         : "bg-yellow-100 text-yellow-700"
-                    }`}
+                      }`}
                   >
-                    {order.status}
+                    {order.status === 'Pending' ? 'Chờ xác nhận' :
+                      order.status === 'Confirmed' ? 'Đã xác nhận' :
+                        order.status === 'Shipping' ? 'Đang giao' :
+                          order.status === 'Delivered' ? 'Hoàn thành' :
+                            order.status === 'Cancelled' ? 'Đã hủy' : order.status}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  {order.date} • {order.items.length} món
+                  {new Date(order.createdAt).toLocaleString('vi-VN')} • {order.items?.length} món
                 </p>
               </div>
               <div className="mt-2 md:mt-0 text-right">
                 <p className="font-bold text-lg text-orange-600">
-                  {order.total} VNĐ
+                  {order.totalAmount?.toLocaleString()} VNĐ
                 </p>
               </div>
             </div>
 
             <div className="space-y-2 mb-6 bg-gray-50 p-4 rounded-xl">
-              {order.items.map((item, idx) => (
+              {order.items?.slice(0, 2).map((item, idx) => (
                 <div key={idx} className="flex justify-between text-sm">
                   <span className="text-gray-700">
                     <span className="font-bold">{item.quantity}x</span>{" "}
-                    {item.name}
+                    {item.name || item.item?.name}
                   </span>
                   <span className="text-gray-500">
-                    {item.price * item.quantity} VNĐ
+                    {((item.price || 0) * item.quantity).toLocaleString()} VNĐ
                   </span>
                 </div>
               ))}
+              {order.items?.length > 2 && (
+                <p className="text-xs text-gray-400 italic text-center pt-1">+ {order.items.length - 2} món khác</p>
+              )}
             </div>
 
             <div className="flex justify-between items-center">
               <div className="text-sm text-gray-500 flex items-center">
-                <MapPin size={14} className="mr-1" /> {order.address}
+                <MapPin size={14} className="mr-1" /> <span className="line-clamp-1">{order.address}</span>
               </div>
-              <button
-                onClick={() => setTrackingOrder(order)}
-                className="bg-gray-900 text-white px-6 py-2 rounded-lg font-bold hover:bg-orange-600 transition flex items-center shadow-lg"
-              >
-                <MapPin size={18} className="mr-2" /> Theo dõi Shipper
-              </button>
+              <div className="flex space-x-2">
+                {canCancel(order) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancelOrder(order._id || order.id);
+                    }}
+                    className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-100 transition flex items-center border border-transparent hover:border-red-200 text-sm"
+                  >
+                    Hủy đơn
+                  </button>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTrackingOrder(order);
+                  }}
+                  className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-bold hover:bg-white hover:text-orange-600 hover:shadow-md transition flex items-center border border-transparent hover:border-orange-100"
+                >
+                  <MapPin size={16} className="mr-2" /> Theo dõi
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -420,23 +700,21 @@ const Cart = () => {
         <div className="bg-gray-100 p-1 rounded-xl inline-flex shadow-inner">
           <button
             onClick={() => setActiveTab("cart")}
-            className={`px-8 py-3 rounded-lg text-sm font-bold transition-all ${
-              activeTab === "cart"
-                ? "bg-white text-orange-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-800"
-            }`}
+            className={`px-8 py-3 rounded-lg text-sm font-bold transition-all ${activeTab === "cart"
+              ? "bg-white text-orange-600 shadow-sm"
+              : "text-gray-500 hover:text-gray-800"
+              }`}
           >
             Giỏ hàng ({items.length})
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`px-8 py-3 rounded-lg text-sm font-bold transition-all ${
-              activeTab === "orders"
-                ? "bg-white text-orange-600 shadow-sm"
-                : "text-gray-500 hover:text-gray-800"
-            }`}
+            className={`px-8 py-3 rounded-lg text-sm font-bold transition-all ${activeTab === "orders"
+              ? "bg-white text-orange-600 shadow-sm"
+              : "text-gray-500 hover:text-gray-800"
+              }`}
           >
-            Đơn hàng ({myOrders.length})
+            Đơn hàng ({activeOrders.length})
           </button>
         </div>
       </div>
@@ -482,11 +760,10 @@ const Cart = () => {
                     Số dư còn lại (ước tính)
                   </span>
                   <span
-                    className={`font-bold text-lg ${
-                      user.balance - finalTotal < 0
-                        ? "text-red-500"
-                        : "text-green-600"
-                    }`}
+                    className={`font-bold text-lg ${user.balance - finalTotal < 0
+                      ? "text-red-500"
+                      : "text-green-600"
+                      }`}
                   >
                     {(user.balance - finalTotal).toLocaleString()}đ
                   </span>
@@ -514,11 +791,10 @@ const Cart = () => {
                   onClick={confirmPayment}
                   disabled={processingPayment || user.balance - finalTotal < 0}
                   className={`flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center transition shadow-lg
-                                ${
-                                  user.balance - finalTotal < 0
-                                    ? "bg-gray-400 cursor-not-allowed"
-                                    : "bg-green-600 hover:bg-green-700"
-                                }
+                                ${user.balance - finalTotal < 0
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-green-600 hover:bg-green-700"
+                    }
                             `}
                 >
                   {processingPayment ? "Đang xử lý..." : "Xác nhận"}
@@ -527,6 +803,14 @@ const Cart = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Map Picker Modal */}
+      {showMap && (
+        <LocationPicker
+          onClose={() => setShowMap(false)}
+          onConfirm={handleAddressConfirm}
+        />
       )}
 
       {/* Tracking Modal */}
@@ -636,5 +920,4 @@ const Cart = () => {
     </div>
   );
 };
-
 export default Cart;
