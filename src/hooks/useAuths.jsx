@@ -12,6 +12,7 @@ import {
   saveAuthData,
   clearAuthData,
   getCurrentUser,
+  getAuthToken
 } from "../utils/authUtils.js";
 
 export const useAuth = () => {
@@ -25,11 +26,16 @@ export const useAuth = () => {
   // Persistence: Load user from local storage on mount
   useEffect(() => {
     const storedUser = getCurrentUser();
+    const storedToken = getAuthToken();
     if (storedUser) {
       if (storedUser.balance === undefined) {
         storedUser.balance = 0;
       }
       setUser(storedUser);
+    }
+
+    if (storedToken) {
+      setToken(storedToken);
     }
   }, []);
 
@@ -47,9 +53,13 @@ export const useAuth = () => {
       }
 
       const data = await signInUser({ username, password });
-
-      // Lưu token & user sử dụng authUtils
-      saveAuthData(data);
+      const tokenValue = data.accessToken || data.token;      // Lưu token & user sử dụng authUtils
+      const authDataToSave = {
+        token: tokenValue, 
+        user: data.user
+      };
+      saveAuthData(authDataToSave);
+      setToken(tokenValue);
       if (data.user) {
         setUser(data.user);
       }
@@ -75,7 +85,14 @@ export const useAuth = () => {
       if (data.user && data.user.balance === undefined) {
         data.user.balance = 80000;
       }
-      saveAuthData(data);
+
+      const tokenValue = data.accessToken || data.token;
+      const authDataToSave = {
+        token: tokenValue,
+        user: data.user
+      };
+      
+      saveAuthData(authDataToSave);
       if (data.user) {
         setUser(data.user);
       }
@@ -107,10 +124,19 @@ export const useAuth = () => {
       // Gọi API đăng ký
       const data = await signUpUser(userData);
 
-      // Lưu token & user sử dụng authUtils (nếu backend trả về)
-      saveAuthData(data);
-      if (data.user) {
-        setUser(data.user);
+      const tokenValue = data.accessToken || data.token;
+      if (tokenValue && data.user) {
+         const authDataToSave = {
+            token: tokenValue,
+            user: data.user
+         };
+         saveAuthData(authDataToSave);
+         setUser(data.user);
+         setToken(tokenValue);
+      } else {
+        // Nếu backend cũ (không trả token khi signup) thì giữ nguyên logic cũ
+        saveAuthData(data);
+        if (data.user) setUser(data.user);
       }
 
       console.log(" Đăng ký thành công:", data);
@@ -129,6 +155,7 @@ export const useAuth = () => {
   const logout = () => {
     clearAuthData();
     setUser(null);
+    setToken(null);
     setError(null);
   };
 
@@ -140,5 +167,6 @@ export const useAuth = () => {
     loading,
     error,
     user,
+    token
   };
 };
