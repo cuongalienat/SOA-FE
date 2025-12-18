@@ -41,15 +41,25 @@ const App = () => {
                 {/* 2. KHU VỰC SHIPPER (Được bảo vệ) */}
                 <Route element={<RoleBasedRoute allowedRoles={["driver", "shipper"]} />}>
                   <Route
-                    path="/shipper/*"
                     element={
                       // BỌC PROVIDER TẠI ĐÂY
                       <ShipperProvider>
                         <ShipperRoutes />
                       </ShipperProvider>
                     }
-                  />
-                </Route>
+                  >
+                    <Route path="/restaurant/*" element={<RestaurantRoutes />} />
+                  </Route>
+
+                  {/* 2. KHU VỰC SHIPPER (Được bảo vệ) */}
+                  <Route element={<RoleBasedRoute allowedRoles={["driver", "shipper"]} />}>
+                    <Route
+                      path="/shipper/*"
+                      element={
+                        <ShipperRoutes />
+                      }
+                    />
+                  </Route>
 
                 {/* 3. KHU VỰC KHÁCH HÀNG (Public) */}
                 {/* Dấu * nghĩa là tất cả các đường dẫn còn lại sẽ do ClientRoutes xử lý */}
