@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { SocketProvider } from "./context/SocketContext.jsx";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
+import { ShipperProvider } from "./context/ShipperContext"
 
 import RoleBasedRoute from "./components/common/RoleBasedRoute";
 import { ToastProvider } from "./context/ToastContext.jsx";
@@ -42,7 +43,10 @@ const App = () => {
                   <Route
                     path="/shipper/*"
                     element={
-                      <ShipperRoutes />
+                      // BỌC PROVIDER TẠI ĐÂY
+                      <ShipperProvider>
+                        <ShipperRoutes />
+                      </ShipperProvider>
                     }
                   />
                 </Route>

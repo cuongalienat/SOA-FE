@@ -23,14 +23,24 @@ export const SocketProvider = ({ children }) => {
             return;
         }
 
-        // Khởi tạo kết nối
+        // 👇 1. CHUẨN BỊ QUERY PARAMS TRƯỚC
+        const queryParams = {
+            userId: user._id,
+            role: user.role
+        };
+
+        // Nếu là chủ quán và có shopId (từ API Login trả về), nhét thêm vào query
+        if (user.role === 'restaurant_manager' && user.shopId) {
+            queryParams.shopId = user.shopId;
+        }
+
+        console.log("🔌 Connecting Socket with params:", queryParams);
+
+        // 👇 2. KHỞI TẠO KẾT NỐI
         const newSocket = io('http://localhost:3000', {
             transports: ['websocket'],
             autoConnect: true,
-            // 👇 3. QUAN TRỌNG: Gửi userId lên Server qua query
-            query: {
-                userId: user._id 
-            }
+            query: queryParams // Truyền object đã chuẩn bị vào đây
         });
 
         setSocket(newSocket);
