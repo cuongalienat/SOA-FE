@@ -22,10 +22,13 @@ export const useAuth = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [token, setToken] = useState(null);
+  
 
   // Persistence: Load user from local storage on mount
   useEffect(() => {
     const storedUser = getCurrentUser();
+    const storedToken = getAuthToken();
     if (storedUser) {
       if (storedUser.balance === undefined) {
         storedUser.balance = 0;
@@ -33,6 +36,9 @@ export const useAuth = () => {
       setUser(storedUser);
     }
 
+    if (storedToken) {
+      setToken(storedToken);
+    }
   }, []);
 
   const signin = async (username, password) => {
@@ -49,9 +55,19 @@ export const useAuth = () => {
       }
 
       const data = await signInUser({ username, password });
-      saveAuthData(data);
+      const tokenValue = data.accessToken || data.token;      // Lưu token & user sử dụng authUtils
+      const authDataToSave = {
+        token: tokenValue, 
+        user: data.user
+      };
+      saveAuthData(authDataToSave);
+      setToken(tokenValue);
       if (data.user) {
         setUser(data.user);
+      }
+
+      if (tokenValue) {
+        setToken(tokenValue);
       }
 
       console.log(" Đăng nhập thành công:"); // <-- confirm login
@@ -76,11 +92,17 @@ export const useAuth = () => {
         data.user.balance = 80000;
       }
 
-      saveAuthData(data);
+      const tokenValue = data.accessToken || data.token;
+      const authDataToSave = {
+        token: tokenValue,
+        user: data.user
+      };
+      
+      saveAuthData(authDataToSave);
       if (data.user) {
         setUser(data.user);
       }
-      console.log(" Đăng nhập Google thành công", data);
+      console.log("✅ Đăng nhập Google thành công:");
       return { success: true, data: data };
     } catch (err) {
       console.error(" Đăng nhập Google thất bại:", err);
@@ -110,13 +132,13 @@ export const useAuth = () => {
 
       const tokenValue = data.accessToken || data.token;
       if (tokenValue && data.user) {
-        const authDataToSave = {
-          token: tokenValue,
-          user: data.user
-        };
-        saveAuthData(authDataToSave);
-        setUser(data.user);
-        setToken(tokenValue);
+         const authDataToSave = {
+            token: tokenValue,
+            user: data.user
+         };
+         saveAuthData(authDataToSave);
+         setUser(data.user);
+         setToken(tokenValue);
       } else {
         // Nếu backend cũ (không trả token khi signup) thì giữ nguyên logic cũ
         saveAuthData(data);
@@ -151,5 +173,6 @@ export const useAuth = () => {
     loading,
     error,
     user,
+    token
   };
 };

@@ -10,11 +10,14 @@ export const getCurrentJob = async (token) => {
 };
 
 // Thêm hàm này vào file service
-export const acceptDelivery = async (deliveryId, token) => {
-    // Gọi API PATCH /deliveries/:id/accept
+export const acceptDelivery = async (deliveryId, token, location) => {
+    // location format: { lat: 21.xxx, lng: 105.xxx }
     const response = await axios.patch(
-        `${API_URL}/deliveries/${deliveryId}/accept`,
-        {}, // Body rỗng
+        `${API_URL}/deliveries/${deliveryId}`,
+        { 
+            status: "ASSIGNED",
+            location: location // 👈 Gửi thêm cái này
+        }, 
         { headers: { Authorization: `Bearer ${token}` } }
     );
     return response.data;
