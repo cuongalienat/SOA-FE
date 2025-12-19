@@ -82,6 +82,24 @@ const ShipperDashboard = () => {
         }
     };
 
+    const fetchAvailableJobs = async () => {
+        if (!token) return;
+        try {
+            const res = await getNearbyOrders(token);
+            if (res && res.success) {
+                // Map dữ liệu nếu cần thiết để có estimatedDuration
+                const jobs = res.data.map(job => ({
+                    ...job,
+                    // Fallback nếu API chưa trả về, hoặc giữ nguyên
+                    estimatedDuration: job.estimatedDuration || 'Checking...' 
+                }));
+                setAvailableJobs(jobs);
+            }
+        } catch (error) {
+            console.error("Lỗi lấy đơn hàng quanh đây:", error);
+        }
+    };
+
     // Load lần đầu
     useEffect(() => {
         fetchJob();
@@ -103,6 +121,7 @@ const ShipperDashboard = () => {
                 alert("🎉 Đơn hàng hoàn tất! Đã cộng tiền.");
                 setCurrentOrder(null); 
                 setShipperLoc(null);
+                fetchAvailableJobs(); // Load lại danh sách đơn chờ
             } else {
                 // 2. Nếu đang chạy (PICKING_UP, DELIVERING) -> Cập nhật chữ Status
                 // Dùng callback trong setState để đảm bảo lấy được state cũ nhất
@@ -127,6 +146,7 @@ const ShipperDashboard = () => {
                         _id: newJobData.deliveryId,
                         shippingFee: newJobData.fee,
                         distance: newJobData.distance,
+                        estimatedDuration: newJobData.estimatedDuration,
                         pickup: { address: newJobData.pickup },   // ✅ Map thành object có key address
                         dropoff: { address: newJobData.dropoff }, // Backend gửi string địa chỉ
                         isNew: true // Cờ đánh dấu để làm hiệu ứng nhấp nháy
@@ -178,6 +198,10 @@ const ShipperDashboard = () => {
     };
 
     const handleToggleStatus = async () => {
+        if (currentOrder) {
+            alert("Bạn không thể đổi trạng thái khi đang có đơn hàng!");
+            return; // Không cho đổi khi đang có đơn
+        }
         if (!token) return;
         setIsLoadingToggle(true);
         try {
@@ -217,8 +241,13 @@ const ShipperDashboard = () => {
                 </div>
                 <button 
                     onClick={handleToggleStatus}
-                    disabled={isLoadingToggle || currentOrder} 
-                    style={{...styles.toggleBtn, justifyContent: isOnline ? 'flex-end' : 'flex-start', backgroundColor: isOnline ? '#4caf50' : '#e0e0e0'}}
+                    disabled={isLoadingToggle} 
+                    style={{
+                        ...styles.toggleBtn,
+                        justifyContent: isOnline ? 'flex-end' : 'flex-start',
+                        backgroundColor: isOnline ? '#4caf50' : '#e0e0e0',
+                        opacity: isLoadingToggle ? 0.7 : 1 
+                    }}
                 >
                     <div style={styles.toggleCircle} />
                 </button>
@@ -261,6 +290,14 @@ const ShipperDashboard = () => {
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #f0f0f0' }}>
                                                 <span style={{ fontWeight: 'bold', color: '#2e7d32', fontSize: '18px' }}>
                                                     +{job.shippingFee?.toLocaleString()} đ
+                                                </span>
+                                                <span style={{ 
+                                                    ...styles.distanceBadge, 
+                                                    backgroundColor: '#e8f5e9',
+                                                    color: '#2e7d32' 
+                                                }}>
+                                                    {/* API trả về chuỗi "25 phút" rồi nên hiển thị luôn */}
+                                                    ⏱️ {job.estimatedDuration || 'Calculating...'} 
                                                 </span>
                                                 <span style={styles.distanceBadge}>
                                                     {(job.distance / 1000).toFixed(1)} km
