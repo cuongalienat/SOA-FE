@@ -6,6 +6,8 @@ import {
   getShopByIdService,
 } from "../services/shopServices.jsx"; // Nhớ sửa đường dẫn đúng tới file service của bạn
 import { useToast } from "../context/ToastContext"; // Import hook thông báo
+import { useEffect } from "react";
+
 
 export const useShop = () => {
   const [shop, setShop] = useState(null); // Lưu thông tin shop
@@ -31,6 +33,12 @@ export const useShop = () => {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    console.log("AUTO LOAD SHOP");
+    loadMyShop();
+  }, [loadMyShop]);
+
 
   // 2. Cập nhật thông tin Shop (Tên, ảnh, địa chỉ...)
   const updateShopInfo = async (shopData) => {
