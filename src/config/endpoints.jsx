@@ -32,6 +32,7 @@ const ENDPOINTS = {
     GET_ALL: "/shops",
     CREATE: "/shops",
     GET_MY_SHOP: "/shops/my-shop",
+    GET_MY_SHOP_DASHBOARD: "/shops/my-shop/dashboard",
     UPDATE_SHOP_INFO: "/shops/my-shop",
     TOGGLE_SHOP_STATUS: "/shops/my-shop/status",
     GET_BY_ID: "/shops/:id",
@@ -40,6 +41,12 @@ const ENDPOINTS = {
     GET_USER_INFO: "/users",
     UPDATE_USER_INFO: "/users",
     DELETE_USER: "/users",
+  },
+  CATEGORY: {
+    GET_ALL: "/categories",
+    CREATE: "/categories",
+    UPDATE: "/categories/:id",
+    DELETE: "/categories/:id",
   },
 };
 
