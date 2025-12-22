@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { fetchAllItemsServices, fetchItemsByShopService } from "../services/itemServices.jsx";
+import { 
+    fetchAllItemsServices,
+    fetchItemsByShopService,
+    createItemService,
+    updateItemService,
+    deleteItemService } from "../services/itemServices.jsx";
 
 export const useItems = () => {
     const [items, setItems] = useState([]);
@@ -87,5 +92,26 @@ export const useItems = () => {
         }
     };
 
-    return { items, loadItems, loadItemsShop, loading, pagination };
+    const createShopItem = async (data) => {
+        const res = await createItemService(data);
+        setItems((prev) => [res.data, ...prev]);
+        return { success: true };
+    };
+
+    const updateShopItem = async (id, data) => {
+        const res = await updateItemService(id, data);
+        setItems((prev) =>
+            prev.map((item) => (item._id === id ? res.data : item))
+        );
+        return { success: true };
+    };
+
+    const deleteShopItem = async (id) => {
+        await deleteItemService(id);
+        setItems((prev) => prev.filter((item) => item._id !== id));
+        return { success: true };
+    };
+
+
+    return { items, loadItems, loadItemsShop, loading, pagination, createShopItem, updateShopItem, deleteShopItem };
 };

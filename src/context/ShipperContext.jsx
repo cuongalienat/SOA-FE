@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useMemo } from "react";
 import {
-  toggleShipperStatusService,
+  updateShipperStatusService,
   getShipperProfileService,
   getCurrentDeliveryService,
   updateShipperLocationService,
   updateDeliveryStatusService,
-} from "../services/shipperService";
+} from "../services/shipperServices.jsx";
 import { useToast } from "./ToastContext"; // Import Toast nếu muốn thông báo
 
 const ShipperContext = createContext();
@@ -41,7 +41,7 @@ export const ShipperProvider = ({ children }) => {
   const toggleOnline = async () => {
     try {
       const newStatus = isOnline ? "OFFLINE" : "ONLINE";
-      await toggleShipperStatusService(newStatus);
+      await updateShipperStatusService(newStatus);
 
       // Cập nhật state local ngay lập tức cho mượt
       setIsOnline(!isOnline);
@@ -59,22 +59,21 @@ export const ShipperProvider = ({ children }) => {
   // ---------------------------------
   // 2. Lấy đơn hiện tại & CHECK ĐƠN MỚI
   // ---------------------------------
-  const fetchCurrentDelivery = async () => {
+const fetchCurrentDelivery = async () => {
     try {
-      const delivery = await getCurrentDeliveryService();
-
-      // Logic kiểm tra đơn mới để thông báo (Tùy chọn)
-      if (delivery && !currentDelivery) {
+        const delivery = await getCurrentDeliveryService();
+        if (delivery && !currentDelivery) {
         // Play sound hoặc Toast thông báo có đơn mới
         console.log("🔔 TING TING! Có đơn hàng mới");
       }
-
-      setCurrentDelivery(delivery || null);
-    } catch {
-      setCurrentDelivery(null);
+        setCurrentDelivery(delivery || null);
+        return delivery; // [NEW] Return để bên Dashboard dùng nếu cần check
+    } catch (error) {
+        console.error("Lỗi fetch đơn:", error);
+        setCurrentDelivery(null);
+        return null; // [NEW]
     }
-  };
-
+};
   // ---------------------------------
   // 3. Gửi GPS định kỳ (Chỉ gửi, không nhận đơn)
   // ---------------------------------

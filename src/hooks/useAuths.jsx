@@ -22,6 +22,8 @@ export const useAuth = () => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [token, setToken] = useState(null);
+  
 
   // Persistence: Load user from local storage on mount
   useEffect(() => {
@@ -64,6 +66,10 @@ export const useAuth = () => {
         setUser(data.user);
       }
 
+      if (tokenValue) {
+        setToken(tokenValue);
+      }
+
       console.log(" Đăng nhập thành công:"); // <-- confirm login
 
       return { success: true, data: data };
@@ -96,7 +102,7 @@ export const useAuth = () => {
       if (data.user) {
         setUser(data.user);
       }
-      console.log(" Đăng nhập Google thành công", data);
+      console.log("✅ Đăng nhập Google thành công:");
       return { success: true, data: data };
     } catch (err) {
       console.error(" Đăng nhập Google thất bại:", err);

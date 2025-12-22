@@ -1,233 +1,218 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSocket } from '../../context/SocketContext';
-import { useAuth } from '../../hooks/useAuths'; // Sửa lại đúng tên hook
-// 👇 THÊM: import hàm acceptDelivery
-import { getCurrentJob, acceptDelivery, getNearbyOrders } from '../../services/deliveryServices';
+import { useAuth } from '../../hooks/useAuths';
+import { useShipper } from '../../context/ShipperContext'; 
+import { getNearbyOrders, acceptDelivery } from '../../services/deliveryServices';
 import RealtimeMap from '../../components/common/Map/RealtimeMap';
-import { updateShipperStatus, getShipperProfile } from '../../services/shipperServices.jsx';
+
 const ShipperDashboard = () => {
-    const { token, user } = useAuth(); 
+    const { token } = useAuth();
     const socket = useSocket();
-    
-    const [currentOrder, setCurrentOrder] = useState(null);
+
+    // 1. Context Data
+    const { 
+        isOnline, 
+        toggleOnline, 
+        currentDelivery, 
+        fetchCurrentDelivery, 
+        loading: loadingContext 
+    } = useShipper();
+
+    // 2. Local State
+    const [availableJobs, setAvailableJobs] = useState([]);
     const [shipperLoc, setShipperLoc] = useState(null);
-    const [availableJobs, setAvailableJobs] = useState([]); // Danh sách đơn hàng chờ
-    const [isOnline, setIsOnline] = useState(true); // Quản lý trạng thái online/offline
-    const [isLoadingToggle, setIsLoadingToggle] = useState(false); // Quản lý trạng thái loading khi toggle
+    const [isToggling, setIsToggling] = useState(false);
+    
+    // isBusy: Khóa UI khi đang xử lý nhận đơn
+    const [isBusy, setIsBusy] = useState(false);
 
-    // 👇 THÊM: State quản lý đơn hàng mới đến (để hiện Popup)
-    const [incomingJob, setIncomingJob] = useState(null);
+    // ----------------------------------------------------
+    // HELPER: Lấy vị trí GPS hiện tại (Promise wrapper)
+    // ----------------------------------------------------
+    const getCurrentLocation = () => {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                resolve(null);
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                (err) => {
+                    console.warn("GPS Error/Timeout:", err);
+                    resolve(null);
+                },
+                { timeout: 5000, enableHighAccuracy: true }
+            );
+        });
+    };
 
+    // ----------------------------------------------------
+    // A. EFFECT: Load đơn hàng quanh đây
+    // ----------------------------------------------------
     useEffect(() => {
-        const initDashboard = async () => {
-            if (!token) return;
-            try {
-                // A. Lấy thông tin Shipper để biết đang Online hay Offline
-                const profileRes = await getShipperProfile(token);
-                if (profileRes?.data) {
-                    const onlineStatus = profileRes.data.status === 'ONLINE';
-                    setIsOnline(onlineStatus);
-                    if (onlineStatus) {
-                        console.log("🔄 Đang Online sẵn, load danh sách đơn...");
-                        try {
-                            const nearbyRes = await getNearbyOrders(token);
-                            if (nearbyRes.data) {
-                                // Map dữ liệu API sang format của State (nếu cần)
-                                // Giả sử API trả về mảng khớp format rồi
-                                setAvailableJobs(nearbyRes.data);
-                            }
-                        } catch (err) {
-                            console.error("Lỗi load đơn init:", err);
-                        }
+        let isMounted = true;
+        
+        const loadNearbyJobs = async () => {
+            // Chỉ load khi Online, chưa có đơn, và không đang bận xử lý
+            if (isOnline && !currentDelivery && token && !isBusy) {
+                try {
+                    console.log("📡 Scanning for nearby jobs...");
+                    const res = await getNearbyOrders(token);
+                    if (isMounted && res.data) {
+                        setAvailableJobs(res.data);
                     }
+                } catch (error) {
+                    console.error("Lỗi tìm đơn quanh đây:", error);
                 }
-
-                // B. Kiểm tra xem có đơn hàng nào đang dang dở không
-                const jobRes = await getCurrentJob(token);
-                if (jobRes?.data) {
-                    setCurrentOrder(jobRes.data);
-                    // Quan trọng: Join vào room socket của đơn hàng để nghe update
-                    if (socket) {
-                        const orderId = jobRes.data.orderId._id || jobRes.data.orderId;
-                        socket.emit('JOIN_ORDER_ROOM', orderId);
-                    }
-                }
-            } catch (error) {
-                console.error("Lỗi khởi tạo dashboard:", error);
+            } else if (isMounted) {
+                setAvailableJobs([]);
             }
         };
 
-        initDashboard();
-    }, [token, socket]);
+        loadNearbyJobs();
 
-    // 1. Hàm load đơn hàng hiện tại (Tách ra để tái sử dụng)
-    const fetchJob = async () => {
-        if (!token) return;
-        try {
-            const res = await getCurrentJob(token);
-            if (res.data) {
-                setCurrentOrder(res.data);
-                // Join room đơn hàng hiện tại
-                if(socket) {
-                // Lưu ý: res.data.orderId có thể là object hoặc string tùy populate
-                    const roomId = res.data.orderId._id || res.data.orderId;
-                    socket.emit('JOIN_ORDER_ROOM', roomId);
-                }
-                
-                // Nếu đã có đơn thì tắt popup đơn mới (nếu đang hiện)
-                setIncomingJob(null);
-            }
-        } catch (error) {
-            console.error("Lỗi lấy đơn:", error);
-        }
-    };
+        return () => { isMounted = false; };
+    }, [isOnline, currentDelivery, token, isBusy]);
 
-    const fetchAvailableJobs = async () => {
-        if (!token) return;
-        try {
-            const res = await getNearbyOrders(token);
-            if (res && res.success) {
-                // Map dữ liệu nếu cần thiết để có estimatedDuration
-                const jobs = res.data.map(job => ({
-                    ...job,
-                    // Fallback nếu API chưa trả về, hoặc giữ nguyên
-                    estimatedDuration: job.estimatedDuration || 'Checking...' 
-                }));
-                setAvailableJobs(jobs);
-            }
-        } catch (error) {
-            console.error("Lỗi lấy đơn hàng quanh đây:", error);
-        }
-    };
-
-    // Load lần đầu
-    useEffect(() => {
-        fetchJob();
-    }, [token, socket]);
-
-    // 2. Lắng nghe Socket
+    // ----------------------------------------------------
+    // B. EFFECT: Socket Listeners
+    // ----------------------------------------------------
     useEffect(() => {
         if (!socket) return;
 
-        // --- Logic cũ: Tracking ---
-        socket.on('SHIPPER_MOVED', (data) => setShipperLoc(data));
-
-        socket.on('ORDER_STATUS_UPDATE', (data) => {
-            console.log("🔔 Status Update:", data); 
-            // data trả về thường là: { status: 'PICKING_UP', message: '...' }
-
-            if (data.status === 'COMPLETED') {
-                // 1. Nếu xong rồi -> Reset về giao diện rảnh tay
-                alert("🎉 Đơn hàng hoàn tất! Đã cộng tiền.");
-                setCurrentOrder(null); 
-                setShipperLoc(null);
-                fetchAvailableJobs(); // Load lại danh sách đơn chờ
-            } else {
-                // 2. Nếu đang chạy (PICKING_UP, DELIVERING) -> Cập nhật chữ Status
-                // Dùng callback trong setState để đảm bảo lấy được state cũ nhất
-                setCurrentOrder(prevOrder => {
-                    if (!prevOrder) return null;
-                    // Giữ nguyên các thông tin cũ (pickup, dropoff...), chỉ thay status
-                    return { ...prevOrder, status: data.status };
-                });
-            }
-        });
-
-        socket.on('NEW_JOB', (newJobData) => {
-            // newJobData: { deliveryId, pickup, dropoff, fee, distance }
-            
-            if (!currentOrder && isOnline) {
+        const handleNewJob = (newJobData) => {
+            // Chỉ nhận job mới vào list khi chưa có đơn
+            if (!currentDelivery && isOnline && !isBusy) {
                 setAvailableJobs(prev => {
-                    // 1. Chống trùng (Quan trọng vì Socket có thể bắn trùng)
                     if (prev.find(j => j._id === newJobData.deliveryId)) return prev;
-                    
-                    // 2. Format dữ liệu để hiển thị
                     const jobFormatted = {
-                        _id: newJobData.deliveryId,
-                        shippingFee: newJobData.fee,
+                        _id: newJobData.deliveryId, 
+                        shippingFee: newJobData.shippingFee,
                         distance: newJobData.distance,
                         estimatedDuration: newJobData.estimatedDuration,
-                        pickup: { address: newJobData.pickup },   // ✅ Map thành object có key address
-                        dropoff: { address: newJobData.dropoff }, // Backend gửi string địa chỉ
-                        isNew: true // Cờ đánh dấu để làm hiệu ứng nhấp nháy
+                        pickup: { address: newJobData.pickup },
+                        dropoff: { address: newJobData.dropoff },
+                        isNew: true
                     };
-                    
-                    // 3. Chèn lên đầu
                     return [jobFormatted, ...prev];
                 });
             }
-        });
+        };
 
-        socket.on('JOB_TAKEN', (data) => {
+        const handleJobTaken = (data) => {
             setAvailableJobs(prev => prev.filter(j => j._id !== data.deliveryId));
-        });
+        };
+
+        const handleStatusUpdate = async (data) => {
+            console.log("🔔 Status Update:", data);
+            await fetchCurrentDelivery(); // Cập nhật lại trạng thái đơn hàng
+            if (data.status === 'COMPLETED') {
+                alert("🎉 Đơn hàng hoàn tất! Đã cộng tiền.");
+                setShipperLoc(null);
+            }
+        };
+
+        const handleShipperMoved = (data) => {
+            setShipperLoc(data);
+        };
+
+        // Join room nếu đang có đơn
+        if (currentDelivery) {
+            const roomId = currentDelivery.orderId?._id || currentDelivery.orderId;
+            if (roomId) socket.emit('JOIN_ORDER_ROOM', roomId);
+        }
+
+        socket.on('NEW_JOB', handleNewJob);
+        socket.on('JOB_TAKEN', handleJobTaken);
+        socket.on('ORDER_STATUS_UPDATE', handleStatusUpdate);
+        socket.on('SHIPPER_MOVED', handleShipperMoved);
 
         return () => {
-            socket.off('SHIPPER_MOVED');
-            socket.off('ORDER_STATUS_UPDATE');
-            socket.off('NEW_JOB'); // Dọn dẹp
-            socket.off('JOB_TAKEN');
+            socket.off('NEW_JOB', handleNewJob);
+            socket.off('JOB_TAKEN', handleJobTaken);
+            socket.off('ORDER_STATUS_UPDATE', handleStatusUpdate);
+            socket.off('SHIPPER_MOVED', handleShipperMoved);
         };
-    }, [socket, currentOrder]); // Thêm dependency currentOrder
+    }, [socket, isOnline, currentDelivery, fetchCurrentDelivery, isBusy]);
 
-    // 👇 THÊM: Xử lý chấp nhận đơn
+    // ----------------------------------------------------
+    // C. Handlers
+    // ----------------------------------------------------
+    
+    const handleToggleStatus = async () => {
+        if (currentDelivery) {
+            alert("Bạn đang có đơn hàng, không thể Offline lúc này!");
+            return;
+        }
+        setIsToggling(true);
+        try {
+            await toggleOnline();
+        } catch (error) {
+            alert("Lỗi kết nối, thử lại sau.");
+        } finally {
+            setIsToggling(false);
+        }
+    };
+
+    // [REFACTORED] Logic nhận đơn chuẩn: Try-Catch-Finally
     const handleAcceptJob = async (jobId) => {
         if (!token) return;
-        try {
-            await acceptDelivery(jobId, token);
-            alert("Nhận đơn thành công! 🚀");
-            setAvailableJobs([]); // Clear list sau khi nhận
-            
-            // Load lại job để vào màn hình Map
-            const res = await getCurrentJob(token);
-            if (res?.data) {
-                setCurrentOrder(res.data);
-                if(socket) socket.emit('JOIN_ORDER_ROOM', res.data.orderId._id || res.data.orderId);
-            }
-        } catch (error) {
-            console.error(error);
-            alert("Chậm tay rồi! Đơn đã bị người khác nhận.");
-            // Xóa đơn đó khỏi list hiển thị
-            setAvailableJobs(prev => prev.filter(j => j._id !== jobId));
-        }
-    };
+        
+        // 1. Khóa UI ngay lập tức
+        setIsBusy(true); 
 
-    // 👇 THÊM: Xử lý từ chối
-    const handleRejectJob = () => {
-        setIncomingJob(null);
-    };
-
-    const handleToggleStatus = async () => {
-        if (currentOrder) {
-            alert("Bạn không thể đổi trạng thái khi đang có đơn hàng!");
-            return; // Không cho đổi khi đang có đơn
-        }
-        if (!token) return;
-        setIsLoadingToggle(true);
         try {
-            const newStatus = isOnline ? 'OFFLINE' : 'ONLINE';
-            await updateShipperStatus(newStatus, token);
+            // 2. Lấy vị trí (Async)
+            const currentLoc = await getCurrentLocation();
+
+            // 3. Gọi API nhận đơn
+            await acceptDelivery(jobId, token, currentLoc);
             
-            setIsOnline(!isOnline); // Cập nhật UI
+            // 4. Đồng bộ dữ liệu từ Context (quan trọng)
+            // Khi hàm này chạy xong, state 'currentDelivery' trong Context sẽ thay đổi
+            // Component sẽ re-render và tự động chuyển sang giao diện Map
+            await fetchCurrentDelivery();
             
-            // Nếu tắt Online -> Xóa hết đơn chờ (Incoming)
-            if (newStatus === 'OFFLINE') {
-                setIncomingJob(null);
-            }
+            // 5. Clear list job để UX sạch sẽ
+            setAvailableJobs([]);
+            
+            // alert("Nhận đơn thành công! 🚀"); // Tắt alert để trải nghiệm mượt hơn
+
         } catch (error) {
-            console.error("Lỗi đổi trạng thái:", error);
-            alert("Không thể đổi trạng thái lúc này!");
+            console.error("Lỗi nhận đơn:", error);
+            const msg = error.response?.data?.message || "Có lỗi xảy ra";
+            alert(`⚠️ Không thể nhận đơn: ${msg}`);
+
+            // Nếu lỗi 404/400 (đơn đã bị lấy hoặc hủy), xóa khỏi list hiển thị
+            if (error.response?.status === 400 || error.response?.status === 404) {
+                 setAvailableJobs(prev => prev.filter(j => j._id !== jobId));
+            }
         } finally {
-            setIsLoadingToggle(false);
+            // [QUAN TRỌNG] Luôn mở khóa UI dù thành công hay thất bại
+            setIsBusy(false); 
         }
     };
 
-    // --- RENDER ---
+    // ----------------------------------------------------
+    // D. Render Logic
+    // ----------------------------------------------------
+
+    // Màn hình Loading khi đang fetch context hoặc đang nhận đơn
+    if (loadingContext || isBusy) {
+        return (
+            <div style={{display: 'flex', height: '100vh', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5'}}>
+                <div style={styles.spinner}></div>
+                <p style={{marginTop: '15px', color: '#666', fontWeight: '500'}}>
+                    {isBusy ? 'Đang nhận đơn & Đồng bộ...' : 'Đang tải dữ liệu...'}
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="shipper-dashboard" style={{ minHeight: '100vh', background: '#f5f5f5' }}>
             
-            {/* --- HEADER --- */}
+            {/* HEADER */}
             <div style={styles.headerBar}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div style={{
@@ -241,30 +226,29 @@ const ShipperDashboard = () => {
                 </div>
                 <button 
                     onClick={handleToggleStatus}
-                    disabled={isLoadingToggle} 
+                    //disabled={isToggling || !!currentDelivery} 
                     style={{
-                        ...styles.toggleBtn,
-                        justifyContent: isOnline ? 'flex-end' : 'flex-start',
+                        ...styles.toggleBtn, 
+                        justifyContent: isOnline ? 'flex-end' : 'flex-start', 
                         backgroundColor: isOnline ? '#4caf50' : '#e0e0e0',
-                        opacity: isLoadingToggle ? 0.7 : 1 
+                        opacity: (isToggling || !!currentDelivery) ? 0.6 : 1
                     }}
                 >
                     <div style={styles.toggleCircle} />
                 </button>
             </div>
 
-            {/* --- BODY --- */}
+            {/* BODY */}
             {!isOnline ? (
-                // 1. MÀN HÌNH OFFLINE
                 <div style={styles.offlineScreen}>
                     <h1 style={{ fontSize: '60px', margin: 0 }}>😴</h1>
                     <h3>Bạn đang nghỉ ngơi</h3>
+                    <p style={{fontSize: '14px'}}>Bật trực tuyến để nhận đơn hàng mới</p>
                 </div>
             ) : (
-                // 2. MÀN HÌNH ONLINE
                 <>
-                    {/* CASE A: ĐANG RẢNH -> HIỆN LIST ĐƠN */}
-                    {!currentOrder ? (
+                    {/* Logic Render: Nếu KHÔNG có đơn thì hiện List, CÓ đơn thì hiện Map */}
+                    {!currentDelivery ? (
                         <div style={{ padding: '15px', maxWidth: '600px', margin: '0 auto' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                                 <h3 style={{ margin: 0 }}>📍 Đơn hàng quanh đây</h3>
@@ -286,25 +270,31 @@ const ShipperDashboard = () => {
                                             border: job.isNew ? '2px solid #4caf50' : '1px solid #eee',
                                             animation: job.isNew ? 'flash 1s' : 'none'
                                         }}>
-                                            {/* Header Card: Giá tiền + Khoảng cách */}
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid #f0f0f0' }}>
                                                 <span style={{ fontWeight: 'bold', color: '#2e7d32', fontSize: '18px' }}>
                                                     +{job.shippingFee?.toLocaleString()} đ
                                                 </span>
-                                                <span style={{ 
-                                                    ...styles.distanceBadge, 
-                                                    backgroundColor: '#e8f5e9',
-                                                    color: '#2e7d32' 
-                                                }}>
-                                                    {/* API trả về chuỗi "25 phút" rồi nên hiển thị luôn */}
-                                                    ⏱️ {job.estimatedDuration || 'Calculating...'} 
-                                                </span>
+                                                <div style={{ display: 'flex', gap: '5px' }}>
+                                                    {/* Badge Thời gian (Mới) */}
+                                                    <span style={{ 
+                                                        ...styles.distanceBadge, 
+                                                        backgroundColor: '#e3f2fd', // Màu xanh dương nhạt cho khác biệt
+                                                        color: '#1565c0'
+                                                    }}>
+                                                        {/* Nếu có dữ liệu thì hiện, ko thì hiện text chờ */}
+                                                        ⏱️ {job.estimatedDuration || '...'} 
+                                                    </span>
+
+                                                    {/* Badge Khoảng cách (Cũ) */}
+                                                    <span style={styles.distanceBadge}>
+                                                        📍 {(job.distance / 1000).toFixed(1)} km
+                                                    </span>
+                                                </div>
                                                 <span style={styles.distanceBadge}>
                                                     {(job.distance / 1000).toFixed(1)} km
                                                 </span>
                                             </div>
                                             
-                                            {/* Nội dung địa chỉ */}
                                             <div style={{ fontSize: '14px', marginBottom: '8px', display: 'flex', gap: '10px' }}>
                                                 <span style={{color: '#888'}}>🏪 Lấy:</span> 
                                                 <strong style={{flex: 1}}>{job.pickup.address}</strong>
@@ -314,7 +304,6 @@ const ShipperDashboard = () => {
                                                 <strong style={{flex: 1}}>{job.dropoff.address}</strong>
                                             </div>
                                             
-                                            {/* Nút nhận đơn */}
                                             <button 
                                                 onClick={() => handleAcceptJob(job._id)}
                                                 style={styles.btnAcceptList}
@@ -327,22 +316,23 @@ const ShipperDashboard = () => {
                             )}
                         </div>
                     ) : (
-                        // CASE B: ĐANG BẬN -> HIỆN MAP (Giữ nguyên)
                         <div style={{ padding: '0 15px 15px' }}>
                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                 <h2 style={{ margin: 0 }}>📦 Đang thực hiện</h2>
-                                <span style={styles.statusBadge}>{currentOrder.status}</span>
+                                <span style={styles.statusBadge}>{currentDelivery.status}</span>
                             </div>
                             <div className="map-container" style={{ borderRadius: '12px', overflow: 'hidden', height: '400px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-                                <RealtimeMap 
-                                    pickup={currentOrder.pickup.location.coordinates} 
-                                    dropoff={currentOrder.dropoff.location.coordinates}
-                                    shipperLocation={shipperLoc} 
-                                />
+                                {currentDelivery.pickup && currentDelivery.dropoff && (
+                                    <RealtimeMap 
+                                        pickup={currentDelivery.pickup.location.coordinates} 
+                                        dropoff={currentDelivery.dropoff.location.coordinates}
+                                        shipperLocation={shipperLoc} 
+                                    />
+                                )}
                             </div>
                             <div style={styles.infoPanel}>
-                                <p><strong>Lấy:</strong> {currentOrder.pickup.address}</p>
-                                <p><strong>Giao:</strong> {currentOrder.dropoff.address}</p>
+                                <p><strong>Lấy:</strong> {currentDelivery.pickup?.address}</p>
+                                <p><strong>Giao:</strong> {currentDelivery.dropoff?.address}</p>
                             </div>
                         </div>
                     )}
@@ -352,7 +342,7 @@ const ShipperDashboard = () => {
     );
 };
 
-// CSS inline đơn giản cho Modal (Bạn có thể chuyển sang file CSS riêng)
+// --- STYLES (Giữ nguyên) ---
 const styles = {
     headerBar: {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -373,29 +363,18 @@ const styles = {
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         justifyContent: 'center', height: '60vh', color: '#757575'
     },
-    modalOverlay: {
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000,
-        display: 'flex', justifyContent: 'center', alignItems: 'center',
-        backdropFilter: 'blur(3px)'
+    jobCard: {
+        backgroundColor: 'white', padding: '15px', borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)', transition: 'all 0.3s ease'
     },
-    modalContent: {
-        backgroundColor: 'white', padding: '25px', borderRadius: '16px',
-        width: '90%', maxWidth: '400px', textAlign: 'center',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-        animation: 'popIn 0.3s ease'
+    distanceBadge: {
+        backgroundColor: '#f5f5f5', padding: '2px 8px', borderRadius: '4px',
+        fontSize: '12px', color: '#666'
     },
-    buttonGroup: {
-        display: 'flex', gap: '10px', marginTop: '20px'
-    },
-    btnReject: {
-        flex: 1, padding: '12px', backgroundColor: '#f5f5f5', color: '#333',
-        border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600'
-    },
-    btnAccept: {
-        flex: 1, padding: '12px', backgroundColor: '#2e7d32', color: 'white',
+    btnAcceptList: {
+        width: '100%', padding: '12px', backgroundColor: '#2e7d32', color: 'white',
         border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
-        boxShadow: '0 4px 6px rgba(46, 125, 50, 0.3)'
+        fontSize: '14px', boxShadow: '0 4px 6px rgba(46, 125, 50, 0.2)'
     },
     infoPanel: {
         backgroundColor: 'white', padding: '20px', borderRadius: '12px',
@@ -409,7 +388,23 @@ const styles = {
     radarWave: {
         fontSize: '50px',
         animation: 'pulse 2s infinite'
+    },
+    spinner: {
+        width: '40px',
+        height: '40px',
+        border: '4px solid #e0e0e0',
+        borderTop: '4px solid #2e7d32',
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite'
     }
 };
+
+const styleSheet = document.createElement("style");
+styleSheet.innerText = `
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes pulse { 0% { opacity: 0.5; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0.5; transform: scale(0.9); } }
+@keyframes flash { 0% { background-color: #e8f5e9; } 100% { background-color: white; } }
+`;
+document.head.appendChild(styleSheet);
 
 export default ShipperDashboard;

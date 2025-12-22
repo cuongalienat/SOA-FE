@@ -1,22 +1,23 @@
-import React, { useState } from "react";
-import { Plus, Edit2, Trash2, X, Image as ImageIcon } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Plus, Edit2, Trash2, X } from "lucide-react";
 import { CATEGORIES } from "../../constants.js";
 import { useItems } from "../../hooks/useItems.jsx";
-import { useEffect } from "react";
-import { useToast } from "../../context/ToastContext.jsx";
 import { useShop } from "../../hooks/useShop.jsx";
+import { useToast } from "../../context/ToastContext.jsx";
 
 const Menu = () => {
   const {
     items,
     loadItemsShop,
-    createShopItem, // Cần bổ sung vào hook useItems
-    updateShopItem, // Cần bổ sung vào hook useItems
-    deleteShopItem, // Cần bổ sung vào hook useItems
+    createShopItem,
+    updateShopItem,
+    deleteShopItem,
     loading
   } = useItems();
 
+  const { shop } = useShop();
   const { showToast } = useToast();
+
   const [filterCategory, setFilterCategory] = useState("Tất cả");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -26,25 +27,28 @@ const Menu = () => {
   const [formData, setFormData] = useState({
     name: "",
     price: "",
-    category: CATEGORIES[1] || "Món ăn", // Default category
-    imageUrl: "", // Đổi image -> imageUrl cho khớp với DB
-    description: "",
+    category: CATEGORIES[1] || "Món ăn",
+    imageUrl: "",
+    description: ""
   });
 
-  // Load dữ liệu khi vào trang
+  // Load menu của shop
   useEffect(() => {
-    loadItemsShop();
-  }, []);
+    if (!shop?._id) {
+      console.log("Shop ID not available yet.");
+      return ;
+    }
+    console.log("Loading items for shop ID:", shop._id);
+    loadItemsShop(shop._id);
+  }, [shop?._id]);
 
-  // Xử lý data an toàn
-  const realItems = items?.data || (Array.isArray(items) ? items : []);
-
-  // Filter logic
-  const filteredMenu = realItems.filter((item) => {
-    return filterCategory === "Tất cả" || item.category === filterCategory;
+  // Filter menu theo category
+  const filteredMenu = items.filter(item => {
+    if (filterCategory === "Tất cả") return true;
+    return item.categoryId?.name === filterCategory;
   });
 
-  // --- HANDLERS ---
+  // ===== HANDLERS =====
 
   const openAddModal = () => {
     setEditingItem(null);
@@ -53,7 +57,7 @@ const Menu = () => {
       price: "",
       category: CATEGORIES[1] || "Món ăn",
       imageUrl: "",
-      description: "",
+      description: ""
     });
     setIsModalOpen(true);
   };
@@ -64,18 +68,20 @@ const Menu = () => {
       name: item.name,
       price: item.price,
       category: item.category,
-      imageUrl: item.imageUrl,
-      description: item.description || "",
+      imageUrl: item.imageUrl || "",
+      description: item.description || ""
     });
     setIsModalOpen(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa món này không?")) {
-      const result = await deleteShopItem(id);
-      if (result.success) {
-        // loadItemsShop(); // Hook thường tự update state, nếu không thì gọi lại
-      }
+    if (!window.confirm("Bạn có chắc chắn muốn xóa món này không?")) return;
+
+    try {
+      await deleteShopItem(id);
+      showToast("Xóa món thành công", "success");
+    } catch (err) {
+      showToast("Xóa món thất bại", "error");
     }
   };
 
@@ -84,47 +90,50 @@ const Menu = () => {
     setIsSubmitting(true);
 
     try {
-      let result;
       if (editingItem) {
-        // --- CẬP NHẬT ---
-        result = await updateShopItem(editingItem._id || editingItem.id, formData);
+        await updateShopItem(editingItem._id, formData);
+        showToast("Cập nhật món thành công", "success");
       } else {
-        // --- THÊM MỚI ---
-        result = await createShopItem(formData);
+        await createShopItem({
+          ...formData,
+          shopId: shop._id // BẮT BUỘC
+        });
+        showToast("Thêm món mới thành công", "success");
       }
-
-      if (result.success) {
-        setIsModalOpen(false);
-        // loadItemsShop(); // Gọi lại nếu cần refresh
-      }
-    } catch (error) {
-      console.error(error);
+      setIsModalOpen(false);
+    } catch (err) {
+      showToast("Có lỗi xảy ra", "error");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // ===== RENDER =====
+
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-2xl font-bold text-gray-900">Quản lý thực đơn</h1>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Quản lý thực đơn</h1>
         <button
           onClick={openAddModal}
-          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl flex items-center transition"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl flex items-center"
         >
-          <Plus size={18} className="mr-2" /> Thêm món mới
+          <Plus size={18} className="mr-2" /> Thêm món
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex space-x-2 overflow-x-auto pb-4 mb-4">
+      <div className="flex gap-2 mb-6 overflow-x-auto">
         {CATEGORIES.map((cat) => (
           <button
             key={cat}
             onClick={() => setFilterCategory(cat)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition ${filterCategory === cat
-              ? "bg-gray-900 text-white"
-              : "bg-white text-gray-600 border"
-              }`}
+            className={`px-4 py-2 rounded-lg text-sm ${
+              filterCategory === cat
+                ? "bg-gray-900 text-white"
+                : "bg-white border text-gray-600"
+            }`}
           >
             {cat}
           </button>
@@ -133,164 +142,150 @@ const Menu = () => {
 
       {/* Menu Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredMenu.map((item) => (
-          <div
-            key={item.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden group"
-          >
-            <div className="h-48 overflow-hidden relative">
-              <img
-                src={item.imageUrl || "https://via.placeholder.com/400"}
-                alt={item.name}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-2 right-2 flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => openEditModal(item)}
-                  className="p-2 bg-white rounded-lg shadow-md hover:text-blue-600"
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button
-                  onClick={() => deleteMenuItem(item.id)}
-                  className="p-2 bg-white rounded-lg shadow-md hover:text-red-600"
-                >
-                  <Trash2 size={16} />
-                </button>
+        {filteredMenu.length === 0 ? (
+          // EMPTY STATE
+          <div className="col-span-full text-center py-20 text-gray-500">
+            <p className="text-lg font-semibold">
+              Chưa có món nào trong danh mục này 🍽️
+            </p>
+            <p className="text-sm mt-2">
+              Hãy thêm món mới hoặc chọn danh mục khác
+            </p>
+          </div>
+        ) : (
+          filteredMenu.map((item) => (
+            <div
+              key={item._id}
+              className="bg-white rounded-xl border shadow-sm overflow-hidden"
+            >
+              <div className="relative h-48">
+                <img
+                  src={item.imageUrl || "https://via.placeholder.com/400"}
+                  alt={item.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <button
+                    onClick={() => openEditModal(item)}
+                    className="p-2 bg-white rounded shadow hover:text-blue-600"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item._id)}
+                    className="p-2 bg-white rounded shadow hover:text-red-600"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="p-4">
-              <div className="flex justify-between items-start">
-                <h3 className="font-bold text-gray-900 text-lg">{item.name}</h3>
-                <span className="text-orange-600 font-bold">
-                  {Number(item.price).toLocaleString('vi-VN')} VNĐ
+
+              <div className="p-4">
+                <div className="flex justify-between">
+                  <h3 className="font-bold">{item.name}</h3>
+                  <span className="text-orange-600 font-bold">
+                    {Number(item.price).toLocaleString("vi-VN")} VNĐ
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                  {item.description}
+                </p>
+                <span className="inline-block mt-3 px-2 py-1 text-xs bg-gray-100 rounded">
+                  {item.categoryId?.name}
                 </span>
               </div>
-              <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                {item.description}
-              </p>
-              <div className="mt-3 inline-block px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded">
-                {item.category}
-              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
+
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl w-full max-w-lg p-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between mb-4">
               <h2 className="text-xl font-bold">
-                {editingItem ? "Sửa món ăn" : "Thêm món mới"}
+                {editingItem ? "Sửa món" : "Thêm món"}
               </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
+              <button onClick={() => setIsModalOpen(false)}>
                 <X />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tên món
-                </label>
-                <input
-                  required
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Giá (VNĐ)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={formData.price}
-                    onChange={(e) =>
-                      setFormData({ ...formData, price: e.target.value })
-                    }
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Danh mục
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
-                    }
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                  >
-                    {CATEGORIES.filter((c) => c !== "Tất cả").map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  URL Hình ảnh
-                </label>
-                <div className="flex items-center">
-                  <input
-                    value={formData.imageUrl}
-                    onChange={(e) =>
-                      setFormData({ ...formData, image: e.target.value })
-                    }
-                    className="w-full p-2 border border-gray-300 rounded-lg"
-                    placeholder="https://..."
-                  />
-                  {formData.image && (
-                    <img
-                      src={formData.image}
-                      alt="Preview"
-                      className="w-10 h-10 ml-2 rounded-lg object-cover border"
-                    />
-                  )}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Mô tả
-                </label>
-                <textarea
-                  rows={3}
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                />
-              </div>
+              <input
+                required
+                placeholder="Tên món"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              />
 
-              <div className="flex justify-end space-x-2 mt-6">
+              <input
+                type="number"
+                required
+                placeholder="Giá"
+                value={formData.price}
+                onChange={(e) =>
+                  setFormData({ ...formData, price: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              />
+
+              <select
+                value={formData.category}
+                onChange={(e) =>
+                  setFormData({ ...formData, category: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              >
+                {CATEGORIES.filter((c) => c !== "Tất cả").map((cat) => (
+                  <option key={cat}>{cat}</option>
+                ))}
+              </select>
+
+              <input
+                placeholder="URL hình ảnh"
+                value={formData.imageUrl}
+                onChange={(e) =>
+                  setFormData({ ...formData, imageUrl: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              />
+
+              {formData.imageUrl && (
+                <img
+                  src={formData.imageUrl}
+                  className="w-16 h-16 object-cover rounded"
+                />
+              )}
+
+              <textarea
+                placeholder="Mô tả"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                className="w-full border p-2 rounded"
+              />
+
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="px-4 py-2 border rounded"
                 >
                   Hủy
                 </button>
                 <button
+                  disabled={isSubmitting}
                   type="submit"
-                  className="px-4 py-2 bg-orange-500 text-white hover:bg-orange-600 rounded-lg font-medium"
+                  className="px-4 py-2 bg-orange-500 text-white rounded"
                 >
-                  {editingItem ? "Lưu thay đổi" : "Thêm món"}
+                  {editingItem ? "Lưu" : "Thêm"}
                 </button>
               </div>
             </form>

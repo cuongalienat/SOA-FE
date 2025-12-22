@@ -9,9 +9,6 @@ const ENDPOINTS = {
   },
   ITEM: {
     GET_ALL_ITEMS: "/items",
-    GET_ITEMS_BY_SHOP: "/items",
-    SEARCH_BY_NAME: "/items/search/name",
-    SEARCH_BY_ADDRESS: "/items/search/address",
     GET_BY_ID: "/items/:id",
     CREATE: "/items",
     UPDATE: "/items/:id",
