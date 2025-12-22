@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { User, Wallet, CreditCard, Clock, Save, Plus, History, Package, ChevronRight, MapPin, Lock, X } from "lucide-react";
+import { User, Wallet, CreditCard, Clock, Save, Plus, History, Package, ChevronRight, ChevronLeft, MapPin, Lock, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useUser } from "../../hooks/useUser.jsx"; // Import useUser
 import { useForm } from "../../hooks/useForm.jsx";
@@ -20,6 +20,7 @@ const UserProfile = () => {
   const [showTopUp, setShowTopUp] = useState(false);
   const [topUpAmount, setTopUpAmount] = useState("");
   const [showMap, setShowMap] = useState(false);
+  const [walletPage, setWalletPage] = useState(1);
 
   // Load orders when switching to history tab
   useEffect(() => {
@@ -79,17 +80,18 @@ const UserProfile = () => {
     }
   };
 
-  const { wallet, transactions, loading: walletLoading, fetchWallet, createMyWallet, depositMoney, fetchTransactions } = useWallet();
+  const { wallet, transactions, pagination, loading: walletLoading, fetchWallet, createMyWallet, depositMoney, fetchTransactions } = useWallet();
   const [showCreateWalletModal, setShowCreateWalletModal] = useState(false);
   const [pin, setPin] = useState(["", "", "", "", "", ""]);
 
   // Load wallet and transactions when switching to wallet tab
+  // Load wallet and transactions when switching to wallet tab
   useEffect(() => {
     if (activeTab === 'wallet') {
       fetchWallet();
-      fetchTransactions();
+      fetchTransactions(walletPage, 6);
     }
-  }, [activeTab]);
+  }, [activeTab, walletPage]);
 
   // Handle URL Params for deep linking
   const [searchParams] = useSearchParams(); // Need to import useSearchParams
@@ -318,42 +320,104 @@ const UserProfile = () => {
                       <p className="text-gray-500 text-center py-6">Chưa có giao dịch nào.</p>
                     ) : (
                       <div className="bg-gray-50 rounded-2xl p-2">
-                        {transactions?.map((transaction) => (
-                          <div
-                            key={transaction._id || transaction.id}
-                            className="flex justify-between items-center p-4 bg-white rounded-xl mb-2 last:mb-0 shadow-sm"
-                          >
-                            <div className="flex items-center">
-                              <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${transaction.type === "DEPOSIT" || transaction.amount > 0
-                                  ? "bg-green-100 text-green-600"
-                                  : "bg-red-100 text-red-600"
+                        {transactions?.map((transaction) => {
+                          const isDeposit = transaction.type === 'DEPOSIT';
+                          // If no type, assume it's a payment (negative) based on user context
+                          return (
+                            <div
+                              key={transaction._id || transaction.id}
+                              className="flex justify-between items-center p-4 bg-white rounded-xl mb-2 last:mb-0 shadow-sm"
+                            >
+                              <div className="flex items-center">
+                                <div
+                                  className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${isDeposit
+                                    ? "bg-green-100 text-green-600"
+                                    : "bg-red-100 text-red-600"
+                                    }`}
+                                >
+                                  {isDeposit ? (
+                                    <Plus size={20} />
+                                  ) : (
+                                    <CreditCard size={20} />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-gray-800">
+                                    {transaction.description || transaction.desc || (isDeposit ? "Nạp tiền vào ví" : "Thanh toán đơn hàng")}
+                                  </p>
+                                  <p className="text-xs text-gray-500 flex items-center">
+                                    <Clock size={12} className="mr-1" /> {new Date(transaction.createdAt || transaction.date).toLocaleString('vi-VN')}
+                                  </p>
+                                </div>
+                              </div>
+                              <span
+                                className={`font-bold ${isDeposit ? "text-green-600" : "text-red-900"
                                   }`}
                               >
-                                {(transaction.type === "DEPOSIT" || transaction.amount > 0) ? (
-                                  <Plus size={20} />
-                                ) : (
-                                  <CreditCard size={20} />
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-800">
-                                  {t.description || t.desc || "Giao dịch"}
-                                </p>
-                                <p className="text-xs text-gray-500 flex items-center">
-                                  <Clock size={12} className="mr-1" /> {new Date(t.createdAt || t.date).toLocaleString('vi-VN')}
-                                </p>
-                              </div>
+                                {isDeposit ? "+" : "-"}
+                                {Number(transaction.amount).toLocaleString()}đ
+                              </span>
                             </div>
-                            <span
-                              className={`font-bold ${t.amount > 0 ? "text-green-600" : "text-gray-900"
-                                }`}
-                            >
-                              {t.amount > 0 ? "+" : ""}
-                              {Number(t.amount).toLocaleString()}đ
-                            </span>
-                          </div>
-                        ))}
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Pagination */}
+                    {pagination && pagination.totalPages > 1 && (
+                      <div className="flex justify-center items-center mt-6 gap-2">
+                        <button
+                          disabled={walletPage === 1}
+                          onClick={() => setWalletPage((p) => Math.max(1, p - 1))}
+                          className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        >
+                          <ChevronLeft size={20} className="text-gray-600" />
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                          {(() => {
+                            const total = pagination.totalPages;
+                            const current = walletPage;
+                            let pages = [];
+
+                            if (total <= 7) {
+                              pages = Array.from({ length: total }, (_, i) => i + 1);
+                            } else {
+                              if (current <= 4) {
+                                pages = [1, 2, 3, 4, 5, "...", total];
+                              } else if (current >= total - 3) {
+                                pages = [1, "...", total - 4, total - 3, total - 2, total - 1, total];
+                              } else {
+                                pages = [1, "...", current - 1, current, current + 1, "...", total];
+                              }
+                            }
+
+                            return pages.map((p, i) =>
+                              p === "..." ? (
+                                <span key={i} className="px-2 text-gray-400 font-medium">...</span>
+                              ) : (
+                                <button
+                                  key={i}
+                                  onClick={() => setWalletPage(p)}
+                                  className={`min-w-[36px] h-9 px-2 rounded-xl text-sm font-bold transition border ${current === p
+                                      ? "bg-orange-500 border-orange-500 text-white"
+                                      : "border-transparent hover:bg-gray-100 text-gray-600"
+                                    }`}
+                                >
+                                  {p}
+                                </button>
+                              )
+                            );
+                          })()}
+                        </div>
+
+                        <button
+                          disabled={walletPage === pagination.totalPages}
+                          onClick={() => setWalletPage((p) => Math.min(pagination.totalPages, p + 1))}
+                          className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        >
+                          <ChevronRight size={20} className="text-gray-600" />
+                        </button>
                       </div>
                     )}
                   </div>
@@ -408,62 +472,66 @@ const UserProfile = () => {
       </div>
 
       {/* CREATE WALLET MODAL */}
-      {showCreateWalletModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 relative">
-            <button
-              onClick={() => setShowCreateWalletModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-            >
-              <X size={24} />
-            </button>
+      {
+        showCreateWalletModal && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white w-full max-w-md rounded-3xl p-6 relative">
+              <button
+                onClick={() => setShowCreateWalletModal(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              >
+                <X size={24} />
+              </button>
 
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Lock size={32} className="text-orange-500" />
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Lock size={32} className="text-orange-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Thiết lập mã PIN</h2>
+                <p className="text-gray-500 mt-2">Nhập 6 số để bảo vệ ví của bạn</p>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900">Thiết lập mã PIN</h2>
-              <p className="text-gray-500 mt-2">Nhập 6 số để bảo vệ ví của bạn</p>
-            </div>
 
-            <div className="flex justify-center gap-2 mb-8">
-              {pin.map((digit, index) => (
-                <input
-                  key={index}
-                  id={`pin-${index}`}
-                  type="text" // Use text to allow regex validation control
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handlePinChange(index, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && !digit && index > 0) {
-                      const prev = document.getElementById(`pin-${index - 1}`);
-                      if (prev) prev.focus();
-                    }
-                  }}
-                  className="w-12 h-14 border-2 border-gray-200 rounded-xl text-center text-2xl font-bold focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none transition"
-                />
-              ))}
-            </div>
+              <div className="flex justify-center gap-2 mb-8">
+                {pin.map((digit, index) => (
+                  <input
+                    key={index}
+                    id={`pin-${index}`}
+                    type="text" // Use text to allow regex validation control
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handlePinChange(index, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Backspace' && !digit && index > 0) {
+                        const prev = document.getElementById(`pin-${index - 1}`);
+                        if (prev) prev.focus();
+                      }
+                    }}
+                    className="w-12 h-14 border-2 border-gray-200 rounded-xl text-center text-2xl font-bold focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none transition"
+                  />
+                ))}
+              </div>
 
-            <button
-              onClick={handleCreateWallet}
-              className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg"
-            >
-              Tạo mã PIN
-            </button>
+              <button
+                onClick={handleCreateWallet}
+                className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg"
+              >
+                Tạo mã PIN
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {showMap && (
-        <LocationPicker
-          onClose={() => setShowMap(false)}
-          onConfirm={handleAddressConfirm}
-        />
-      )}
-    </div>
+      {
+        showMap && (
+          <LocationPicker
+            onClose={() => setShowMap(false)}
+            onConfirm={handleAddressConfirm}
+          />
+        )
+      }
+    </div >
   );
 };
 

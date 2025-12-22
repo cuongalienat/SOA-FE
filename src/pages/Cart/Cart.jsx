@@ -25,6 +25,7 @@ import LocationPicker from "../../components/common/LocationPicker.jsx";
 import { useShipping } from "../../hooks/useShipping";
 import { useShop } from "../../hooks/useShop";
 import { useUser } from "../../hooks/useUser.jsx";
+import { useWallet } from "../../hooks/useWallet.jsx";
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, updateItemNote, cartTotal, clearCart } = useCart();
@@ -59,8 +60,13 @@ const Cart = () => {
   const [showMap, setShowMap] = useState(false);
   const { showToast } = useToast();
   const { shop, loadShopById } = useShop();
+  const { wallet, fetchWallet, fetchTransactions } = useWallet();
 
-  const { shippingFee, calculateFee } = useShipping();
+  useEffect(() => {
+    fetchWallet();
+  }, [fetchWallet]);
+
+  const { shippingFee, distanceData, calculateFee } = useShipping();
 
   const userId = user?._id;
 
@@ -92,6 +98,9 @@ const Cart = () => {
       if (success) {
         await loadMyOrders({ userID: userId });
         showToast("Hủy đơn hàng thành công", "success");
+        // Update wallet in case of refund
+        await fetchWallet();
+        await fetchTransactions();
       }
     } catch (err) {
       console.error(err);
@@ -197,10 +206,15 @@ const Cart = () => {
     if (!user) return;
 
     // 1. Kiểm tra số dư ví (Nếu dùng ví)
-    if (paymentMethod === "Wallet" && user.balance < finalTotal) {
-      console.log(user.balance);
-      showToast("Số dư ví không đủ!", "error");
-      return;
+    if (paymentMethod === "Wallet") {
+      if (!wallet) {
+        showToast("Không tìm thấy thông tin ví", "error");
+        return;
+      }
+      if (wallet.balance < finalTotal) {
+        showToast("Số dư ví không đủ!", "error");
+        return;
+      }
     }
 
     try {
@@ -229,14 +243,8 @@ const Cart = () => {
       }));
 
       // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
-      if (paymentMethod === "Wallet") {
-        const newBalance = user.balance - finalTotal; // FIXED: Should deduct the total, not just set to current balance (which was a bug in previous code 'user.balance')
-        // Wait, previous code was: const newBalance = user.balance; updateUser({...}); This looks like a bug in previous code?
-        // Ah, typically client-side update handles formatted logic. The previous code `const newBalance = user.balance;` actually did NOT deduct anything locally? Or maybe I misread.
-        // Let's look at previous code: `const newBalance = user.balance; updateUser({ ...user, balance: newBalance });` -> This effectively did NOTHING to the balance locally.
-        // Let's implement correct optimistic update if Wallet is used.
-        updateUser({ ...user, balance: newBalance });
-      }
+      // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
+      // Note: We rely on backend to handle deduction. Logic moved to backend.
 
       // 5. GỌI API TẠO ĐƠN HÀNG (Dùng hook useOrders)
       const result = await createOrder({
@@ -249,6 +257,7 @@ const Cart = () => {
         userLocation: {
           address: values.address
         },
+        distanceData: distanceData,
       });
 
       if (result.success) {
@@ -261,9 +270,13 @@ const Cart = () => {
         setActiveTab("orders"); // Chuyển sang tab đơn hàng
         window.scrollTo(0, 0);
         window.scrollTo(0, 0);
+        if (paymentMethod === "Wallet") {
+          await fetchWallet();
+          await fetchTransactions(); // Update history even if not shown here
+        }
       } else {
         if (paymentMethod === "Wallet") {
-          updateUser({ ...user, balance: user.balance + finalTotal });
+          fetchWallet(); // Re-fetch to sync if failed
         }
         showToast(result.error, "error");
       }
@@ -440,7 +453,7 @@ const Cart = () => {
                   <div>
                     <p className={`text-sm font-bold ${paymentMethod === "Wallet" ? "text-orange-700" : "text-gray-700"
                       }`}>Ví FlavorDash</p>
-                    {user && <p className="text-xs text-gray-500">Số dư: {user.balance?.toLocaleString('vi-VN')}đ</p>}
+                    {wallet && <p className="text-xs text-gray-500">Số dư: {Number(wallet.balance).toLocaleString('vi-VN')}đ</p>}
                   </div>
                 </div>
                 {paymentMethod === "Wallet" && <div className="w-4 h-4 rounded-full bg-orange-500" />}
@@ -669,7 +682,7 @@ const Cart = () => {
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Số dư ví hiện tại</span>
                   <span className="font-medium text-gray-900">
-                    {(user.balance || 0).toLocaleString()}đ
+                    {(wallet?.balance || 0).toLocaleString()}đ
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-gray-600">
@@ -684,17 +697,17 @@ const Cart = () => {
                     Số dư còn lại (ước tính)
                   </span>
                   <span
-                    className={`font-bold text-lg ${user.balance - finalTotal < 0
+                    className={`font-bold text-lg ${(wallet?.balance || 0) - finalTotal < 0
                       ? "text-red-500"
                       : "text-green-600"
                       }`}
                   >
-                    {(user.balance - finalTotal).toLocaleString()}đ
+                    {((wallet?.balance || 0) - finalTotal).toLocaleString()}đ
                   </span>
                 </div>
               </div>
 
-              {user.balance - finalTotal < 0 && (
+              {(wallet?.balance || 0) - finalTotal < 0 && (
                 <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-start">
                   <AlertTriangle
                     size={16}
@@ -713,9 +726,9 @@ const Cart = () => {
                 </button>
                 <button
                   onClick={confirmPayment}
-                  disabled={processingPayment || user.balance - finalTotal < 0}
+                  disabled={processingPayment || (wallet?.balance || 0) - finalTotal < 0}
                   className={`flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center transition shadow-lg
-                                ${user.balance - finalTotal < 0
+                                ${(wallet?.balance || 0) - finalTotal < 0
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-green-600 hover:bg-green-700"
                     }

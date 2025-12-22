@@ -44,6 +44,7 @@ const ENDPOINTS = {
   WALLET: {
     GET_WALLET: "/wallets",
     CREATE_WALLET: "/wallets",
+    WITHDRAW: "/wallets/withdraw",
     DEPOSIT: "/wallets/deposit",
     GET_HISTORY: "/wallets/history",
   },

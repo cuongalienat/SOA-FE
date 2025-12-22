@@ -32,9 +32,9 @@ export const depositWallet = async (amount) => {
     }
 }
 
-export const getHistory = async () => {
+export const getHistory = async (page = 1, limit = 6) => {
     try {
-        const response = await api.get(ENDPOINTS.WALLET.GET_HISTORY);
+        const response = await api.get(`${ENDPOINTS.WALLET.GET_HISTORY}?page=${page}&limit=${limit}`);
         return response.data;
     } catch (error) {
         throw error;

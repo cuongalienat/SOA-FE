@@ -16,6 +16,7 @@ export const WalletProvider = ({ children }) => {
 
     const [wallet, setWallet] = useState(null);
     const [transactions, setTransactions] = useState([]);
+    const [pagination, setPagination] = useState({ total: 0, totalPages: 1, currentPage: 1 });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -35,13 +36,20 @@ export const WalletProvider = ({ children }) => {
         }
     }, [user]);
 
-    const fetchTransactions = useCallback(async () => {
+    const fetchTransactions = useCallback(async (page = 1, limit = 6) => {
         if (!user) return;
         setLoading(true);
         try {
-            const data = await getHistory();
-            const txList = data.data || data;
+            const response = await getHistory(page, limit);
+            const data = response.data || response;
+            const txList = data.transactions || [];
+
             setTransactions(Array.isArray(txList) ? txList : []);
+            setPagination({
+                total: data.total || 0,
+                totalPages: data.totalPages || 1,
+                currentPage: Number(data.currentPage) || 1
+            });
         } catch (err) {
             console.error("Lỗi tải lịch sử giao dịch:", err);
         } finally {
@@ -120,7 +128,8 @@ export const WalletProvider = ({ children }) => {
         fetchWallet,
         fetchTransactions,
         createMyWallet,
-        depositMoney
+        depositMoney,
+        pagination
     };
 
     return (
