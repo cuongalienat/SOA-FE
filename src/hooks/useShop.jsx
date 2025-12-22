@@ -34,12 +34,6 @@ export const useShop = () => {
     }
   }, []);
 
-  useEffect(() => {
-    console.log("AUTO LOAD SHOP");
-    loadMyShop();
-  }, [loadMyShop]);
-
-
   // 2. Cập nhật thông tin Shop (Tên, ảnh, địa chỉ...)
   const updateShopInfo = async (shopData) => {
     setLoading(true);

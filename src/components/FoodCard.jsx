@@ -1,11 +1,15 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Star, Plus } from "lucide-react";
 import { useCart } from "../context/CartContext.jsx";
+import { useShop } from "../hooks/useShop.jsx";
 
 const FoodCard = ({ food }) => {
   const { addToCart } = useCart();
-
+  const { shop, loadShopById } = useShop();
+  useEffect(() => {
+    loadShopById(food.shopId);
+  }, [food.shopId]);
   return (
     <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-100">
       <div className="relative h-48 overflow-hidden">
@@ -35,10 +39,10 @@ const FoodCard = ({ food }) => {
         </div>
         <div className="text-sm text-gray-500 mb-4 h-10">
           <p className="font-semibold text-gray-700 truncate">
-            {food.shopId?.name || "Homeless"}
+            {shop?.name || "Homeless"}
           </p>
           <p className="text-xs truncate">
-            {food.shopId?.address || "Unknown Address"}
+            {shop?.address || "Unknown Address"}
           </p>
         </div>
 

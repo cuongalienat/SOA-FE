@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { User, Wallet, CreditCard, Clock, Save, Plus, History, Package, ChevronRight, MapPin } from "lucide-react";
+import { User, Wallet, CreditCard, Clock, Save, Plus, History, Package, ChevronRight, MapPin, Lock, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useUser } from "../../hooks/useUser.jsx"; // Import useUser
 import { useForm } from "../../hooks/useForm.jsx";
 import { useOrders } from "../../hooks/useOrders.jsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "../../context/ToastContext.jsx";
 import LocationPicker from "../../components/common/LocationPicker.jsx";
+import { useWallet } from "../../hooks/useWallet.jsx";
 
 const UserProfile = () => {
   const { user } = useAuth();
-  const { updateUser, topUpWallet } = useUser(); // Use methods from useUser
+  const { updateUser } = useUser(); // Use methods from useUser
   const { loadMyOrders, orders, loading: loadingOrders } = useOrders();
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -65,47 +66,66 @@ const UserProfile = () => {
     }
 
     try {
-      await topUpWallet(Number(topUpAmount));
-      setTopUpAmount("");
-      setShowTopUp(false);
-      showToast(
-        `Đã nạp thành công ${Number(topUpAmount).toLocaleString()}đ vào ví!`,
-        "success"
-      );
+      const res = await depositMoney(Number(topUpAmount));
+      if (res.success) {
+        setTopUpAmount("");
+        setShowTopUp(false);
+        // fetchWallet is already called inside useWallet's state update logic but here we might need to trigger a refresh of transactions
+        fetchTransactions();
+      }
     } catch (error) {
-      showToast("Nạp tiền thất bại: " + (error.message || "Lỗi không xác định"), "error");
+      // Error handling is done in depositMoney but we catch here just in case
+      console.error(error);
     }
   };
 
-  // Mock Transaction History
-  const transactions = [
-    {
-      id: 1,
-      type: "payment",
-      desc: "Thanh toán đơn hàng #101",
-      amount: -150000,
-      date: "2023-10-25",
-    },
-    {
-      id: 2,
-      type: "topup",
-      desc: "Nạp tiền vào ví",
-      amount: 500000,
-      date: "2023-10-24",
-    },
-    {
-      id: 3,
-      type: "payment",
-      desc: "Thanh toán đơn hàng #98",
-      amount: -85000,
-      date: "2023-10-20",
-    },
-  ];
+  const { wallet, transactions, loading: walletLoading, fetchWallet, createMyWallet, depositMoney, fetchTransactions } = useWallet();
+  const [showCreateWalletModal, setShowCreateWalletModal] = useState(false);
+  const [pin, setPin] = useState(["", "", "", "", "", ""]);
 
-  if (!user)
-    return (
-      <div className="p-10 text-center">Vui lòng đăng nhập để xem hồ sơ.</div>
-    );
+  // Load wallet and transactions when switching to wallet tab
+  useEffect(() => {
+    if (activeTab === 'wallet') {
+      fetchWallet();
+      fetchTransactions();
+    }
+  }, [activeTab]);
+
+  // Handle URL Params for deep linking
+  const [searchParams] = useSearchParams(); // Need to import useSearchParams
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    const action = searchParams.get("action");
+    if (tab) setActiveTab(tab);
+    if (action === "create_wallet") setShowCreateWalletModal(true);
+  }, [searchParams]);
+
+
+  const handlePinChange = (index, value) => {
+    if (!/^\d*$/.test(value)) return;
+    const newPin = [...pin];
+    newPin[index] = value;
+    setPin(newPin);
+
+    // Auto focus next input
+    if (value && index < 5) {
+      const nextInput = document.getElementById(`pin-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  const handleCreateWallet = async () => {
+    const pinCode = pin.join("");
+    if (pinCode.length !== 6) {
+      showToast("Vui lòng nhập đủ 6 số PIN", "error");
+      return;
+    }
+    const res = await createMyWallet(pinCode);
+    if (res.success) {
+      setShowCreateWalletModal(false);
+    }
+  };
+
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
@@ -221,96 +241,124 @@ const UserProfile = () => {
 
           {activeTab === "wallet" && (
             <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                {/* Balance Card */}
-                <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-                  <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white opacity-5 rounded-full"></div>
-
-                  <p className="text-gray-400 text-sm mb-1 flex items-center">
-                    <Wallet size={16} className="mr-2" /> Số dư hiện tại
+              {walletLoading ? (
+                <div className="text-center py-10">Đang tải ví...</div>
+              ) : !wallet ? (
+                // Wallet NOT Found -> Show Create UI
+                <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
+                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Lock size={32} className="text-orange-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Bạn chưa có ví</h3>
+                  <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                    Tạo ví ngay để thanh toán nhanh chóng, nhận hoàn tiền và nhiều ưu đãi hấp dẫn.
                   </p>
-                  <h3 className="text-3xl font-bold mb-6">
-                    {(user.balance || 0).toLocaleString('vi-VN')}đ
-                  </h3>
-
                   <button
-                    onClick={() => setShowTopUp(!showTopUp)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center"
+                    onClick={() => setShowCreateWalletModal(true)}
+                    className="bg-orange-500 text-white px-8 py-3 rounded-xl font-bold hover:bg-orange-600 transition shadow-lg"
                   >
-                    <Plus size={16} className="mr-1" /> Nạp tiền
+                    Mở Ví Ngay
                   </button>
                 </div>
+              ) : (
+                // Wallet Found -> Show Balance & Logic
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                    {/* Balance Card */}
+                    <div className="bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+                      <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white opacity-5 rounded-full"></div>
 
-                {/* Top Up Form */}
-                {showTopUp && (
-                  <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 animate-fadeIn">
-                    <h3 className="font-bold text-gray-900 mb-4">
-                      Nạp tiền vào ví
-                    </h3>
-                    <div className="space-y-4">
-                      <input
-                        type="number"
-                        value={topUpAmount}
-                        onChange={(e) => setTopUpAmount(e.target.value)}
-                        placeholder="Nhập số tiền (VNĐ)"
-                        className="w-full p-3 border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-white"
-                      />
+                      <p className="text-gray-400 text-sm mb-1 flex items-center">
+                        <Wallet size={16} className="mr-2" /> Số dư hiện tại
+                      </p>
+                      <h3 className="text-3xl font-bold mb-6">
+                        {Number(wallet.balance).toLocaleString('vi-VN')}đ
+                      </h3>
+
                       <button
-                        onClick={handleTopUp}
-                        className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition"
+                        onClick={() => setShowTopUp(!showTopUp)}
+                        className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center"
                       >
-                        Xác nhận nạp tiền
+                        <Plus size={16} className="mr-1" /> Nạp tiền
                       </button>
                     </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Transactions */}
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                  <History size={20} className="mr-2 text-gray-500" /> Lịch sử
-                  giao dịch
-                </h3>
-                <div className="bg-gray-50 rounded-2xl p-2">
-                  {transactions.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex justify-between items-center p-4 bg-white rounded-xl mb-2 last:mb-0 shadow-sm"
-                    >
-                      <div className="flex items-center">
-                        <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${t.type === "topup"
-                            ? "bg-green-100 text-green-600"
-                            : "bg-red-100 text-red-600"
-                            }`}
-                        >
-                          {t.type === "topup" ? (
-                            <Plus size={20} />
-                          ) : (
-                            <CreditCard size={20} />
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800">
-                            {t.desc}
-                          </p>
-                          <p className="text-xs text-gray-500 flex items-center">
-                            <Clock size={12} className="mr-1" /> {t.date}
-                          </p>
+                    {/* Top Up Form */}
+                    {showTopUp && (
+                      <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 animate-fadeIn">
+                        <h3 className="font-bold text-gray-900 mb-4">
+                          Nạp tiền vào ví
+                        </h3>
+                        <div className="space-y-4">
+                          <input
+                            type="number"
+                            value={topUpAmount}
+                            onChange={(e) => setTopUpAmount(e.target.value)}
+                            placeholder="Nhập số tiền (VNĐ)"
+                            className="w-full p-3 border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none bg-white"
+                          />
+                          <button
+                            onClick={handleTopUp}
+                            className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold hover:bg-orange-600 transition"
+                          >
+                            Xác nhận nạp tiền
+                          </button>
                         </div>
                       </div>
-                      <span
-                        className={`font-bold ${t.amount > 0 ? "text-green-600" : "text-gray-900"
-                          }`}
-                      >
-                        {t.amount > 0 ? "+" : ""}
-                        {t.amount.toLocaleString()}đ
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    )}
+                  </div>
+
+                  {/* Transactions */}
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                      <History size={20} className="mr-2 text-gray-500" /> Lịch sử
+                      giao dịch
+                    </h3>
+                    {(!transactions || transactions.length === 0) ? (
+                      <p className="text-gray-500 text-center py-6">Chưa có giao dịch nào.</p>
+                    ) : (
+                      <div className="bg-gray-50 rounded-2xl p-2">
+                        {transactions?.map((transaction) => (
+                          <div
+                            key={transaction._id || transaction.id}
+                            className="flex justify-between items-center p-4 bg-white rounded-xl mb-2 last:mb-0 shadow-sm"
+                          >
+                            <div className="flex items-center">
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${transaction.type === "DEPOSIT" || transaction.amount > 0
+                                  ? "bg-green-100 text-green-600"
+                                  : "bg-red-100 text-red-600"
+                                  }`}
+                              >
+                                {(transaction.type === "DEPOSIT" || transaction.amount > 0) ? (
+                                  <Plus size={20} />
+                                ) : (
+                                  <CreditCard size={20} />
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-gray-800">
+                                  {t.description || t.desc || "Giao dịch"}
+                                </p>
+                                <p className="text-xs text-gray-500 flex items-center">
+                                  <Clock size={12} className="mr-1" /> {new Date(t.createdAt || t.date).toLocaleString('vi-VN')}
+                                </p>
+                              </div>
+                            </div>
+                            <span
+                              className={`font-bold ${t.amount > 0 ? "text-green-600" : "text-gray-900"
+                                }`}
+                            >
+                              {t.amount > 0 ? "+" : ""}
+                              {Number(t.amount).toLocaleString()}đ
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -358,6 +406,57 @@ const UserProfile = () => {
           )}
         </div>
       </div>
+
+      {/* CREATE WALLET MODAL */}
+      {showCreateWalletModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 relative">
+            <button
+              onClick={() => setShowCreateWalletModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X size={24} />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Lock size={32} className="text-orange-500" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900">Thiết lập mã PIN</h2>
+              <p className="text-gray-500 mt-2">Nhập 6 số để bảo vệ ví của bạn</p>
+            </div>
+
+            <div className="flex justify-center gap-2 mb-8">
+              {pin.map((digit, index) => (
+                <input
+                  key={index}
+                  id={`pin-${index}`}
+                  type="text" // Use text to allow regex validation control
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handlePinChange(index, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Backspace' && !digit && index > 0) {
+                      const prev = document.getElementById(`pin-${index - 1}`);
+                      if (prev) prev.focus();
+                    }
+                  }}
+                  className="w-12 h-14 border-2 border-gray-200 rounded-xl text-center text-2xl font-bold focus:border-orange-500 focus:ring-4 focus:ring-orange-500/20 outline-none transition"
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={handleCreateWallet}
+              className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg"
+            >
+              Tạo mã PIN
+            </button>
+          </div>
+        </div>
+      )}
+
       {showMap && (
         <LocationPicker
           onClose={() => setShowMap(false)}

@@ -22,8 +22,7 @@ import { useForm } from "../../hooks/useForm.jsx";
 import { useOrders } from "../../hooks/useOrders.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import LocationPicker from "../../components/common/LocationPicker.jsx";
-import { getDistance, getCoordinates } from "../../services/goongServices";
-import { calculateShippingFee } from "../../utils/shippingUtils";
+import { useShipping } from "../../hooks/useShipping";
 import { useShop } from "../../hooks/useShop";
 import { useUser } from "../../hooks/useUser.jsx";
 
@@ -61,10 +60,9 @@ const Cart = () => {
   const { showToast } = useToast();
   const { shop, loadShopById } = useShop();
 
-  const userId = user?._id;
+  const { shippingFee, calculateFee } = useShipping();
 
-  const [shopLocation, setShopLocation] = useState(null);
-  const [shippingFee, setShippingFee] = useState(0);
+  const userId = user?._id;
 
   useEffect(() => {
     if (userId) {
@@ -85,39 +83,6 @@ const Cart = () => {
       }
     }
   }, [items]); // Re-run if items change (different shop?)
-
-  useEffect(() => {
-    if (shop) {
-      const fetchShopCoordinates = async () => {
-        // If shop has explicit location coordinates, use them
-        if (shop.location && shop.location.coordinates) {
-          setShopLocation({
-            lat: shop.location.coordinates[1],
-            lng: shop.location.coordinates[0]
-          });
-          return;
-        }
-
-        // Otherwise, geocode the address
-        if (shop.address) {
-          try {
-            const coords = await getCoordinates(shop.address);
-            if (coords) {
-              setShopLocation(coords);
-              console.log("Geocoded Shop Location:", coords);
-            } else {
-              console.error("Could not geocode shop address:", shop.address);
-            }
-          } catch (error) {
-            console.error("Error geocoding shop address:", error);
-          }
-        }
-      };
-
-      fetchShopCoordinates();
-    }
-  }, [shop]);
-
 
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
@@ -145,14 +110,12 @@ const Cart = () => {
   };
 
   // Form thông tin giao hàng
-  const { values, handleChange, handleSubmit, setValue } = useForm({
+  const { values, handleChange, setValue } = useForm({
     fullName: user?.fullName || "",
     phone: user?.phone || "",
     address: user?.address || "",
     note: "",
   });
-
-  const [userLocation, setUserLocation] = useState({ lat: null, lng: null });
 
   // Update form values when user data becomes available (e.g. after page load)
   useEffect(() => {
@@ -166,42 +129,29 @@ const Cart = () => {
   // Automatically calculate shipping fee for default address
   useEffect(() => {
     const calcDefaultAddressFee = async () => {
-      // Condition: User has address, currently showing default address, shop location known, and coords not yet set
-      if (user?.address && values.address === user.address && shopLocation && !userLocation.lat) {
+      // Condition: User has address, currently showing default address
+      if (user?.address && values.address === user.address) {
         try {
-          // 1. Geocode the default address
-          const coords = await getCoordinates(user.address);
-
-          if (coords) {
-            setUserLocation(coords);
-            console.log("Geocoded Default User Address:", coords);
-
-            // 2. Calculate distance and fee
-            const origin = `${coords.lat},${coords.lng}`;
-            const shopLat = shopLocation.lat || shopLocation.latitude;
-            const shopLng = shopLocation.lng || shopLocation.longitude;
-
-            if (shopLat && shopLng) {
-              const destination = `${shopLat},${shopLng}`;
-              const distanceData = await getDistance(origin, destination);
-
-              if (distanceData) {
-                const fee = calculateShippingFee(distanceData.distanceValue);
-                setShippingFee(fee);
-                console.log("Calculated Default Shipping Fee:", fee);
-              }
-            }
+          // 2. Calculate fee via Backend API (using Hook)
+          if (shop?._id) {
+            await calculateFee({ userLocation: values.address, shopId: shop._id });
           }
         } catch (error) {
           console.error("Error calculating fee for default address:", error);
         }
       }
-    };
-
+    }
     calcDefaultAddressFee();
-  }, [user, values.address, shopLocation, userLocation.lat]);
+  }, [user, values.address, shop, calculateFee]);
 
-  const handleAddressConfirm = async ({ address, lat, lng }) => {
+  const handleAddressBlur = async () => {
+    if (values.address && shop?._id) {
+      console.log("Address Blur - Recalculating Fee:", values.address);
+      await calculateFee({ userLocation: values.address, shopId: shop._id });
+    }
+  };
+
+  const handleAddressConfirm = async ({ address }) => {
     const event = {
       target: {
         name: "address",
@@ -209,30 +159,13 @@ const Cart = () => {
       }
     };
     handleChange(event);
-    setUserLocation({ lat, lng });
     setShowMap(false);
 
-    console.log("Handle Address Confirm:", { address, lat, lng, shopLocation });
+    console.log("Handle Address Confirm:", address);
 
-    // Calculate Distance and Fee
-    if (shopLocation && lat && lng) {
-      // Construct strings "lat,lng"
-      const origin = `${lat},${lng}`;
-      // Ensure shopLocation has lat/lng
-      const shopLat = shopLocation.lat || shopLocation.latitude;
-      const shopLng = shopLocation.lng || shopLocation.longitude;
-
-      if (shopLat && shopLng) {
-        const destination = `${shopLat},${shopLng}`;
-        const distanceData = await getDistance(origin, destination);
-
-        if (distanceData) {
-          const fee = calculateShippingFee(distanceData.distanceValue);
-          setShippingFee(fee);
-          // Optional: Show distance toast or info
-          // showToast(`Khoảng cách: ${distanceData.distanceText}, Phí ship: ${fee.toLocaleString('vi-VN')}đ`, "info");
-        }
-      }
+    // Calculate Fee via Backend (using Hook)
+    if (shop?._id) {
+      await calculateFee({ userLocation: address, shopId: shop._id });
     }
   };
   // Tính toán chi phí
@@ -312,10 +245,9 @@ const Cart = () => {
         items: orderItems,
         paymentMethod: paymentMethod === "Wallet" ? "Wallet" : "COD",
         shippingFee: shippingFee, // Send shipping fee to backend
+        totalAmount: finalTotal,
         userLocation: {
-          address: values.address,
-          lat: userLocation.lat,
-          lng: userLocation.lng
+          address: values.address
         },
       });
 
@@ -330,16 +262,7 @@ const Cart = () => {
         window.scrollTo(0, 0);
         window.scrollTo(0, 0);
       } else {
-        // Nếu lỗi API -> Hoàn tiền ảo lại (Rollback UI)
         if (paymentMethod === "Wallet") {
-          // Rollback logic is complicated if we don't know original balance precisely, but we can just reload user? 
-          // Or simpler: restore user.balance + finalTotal. 
-          // Actually, simplest is to not do optimistic update or just trust reload. 
-          // Let's just restore from user.balance (which is state). Wait, `user` is from AuthContext.
-          // If I updated it, `user.balance` is new.
-          // Let's stick to simple reload or just `loadUser()` if available? 
-          // useAuth provides `user`, `updateUser`.
-          // For safety in this hacky optimistic update, let's just reverse the operation.
           updateUser({ ...user, balance: user.balance + finalTotal });
         }
         showToast(result.error, "error");
@@ -392,9 +315,9 @@ const Cart = () => {
               {items.length})
             </h2>
             <div className="space-y-4">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <div
-                  key={item.id}
+                  key={item._id || item.id || index}
                   className="border-b border-gray-50 pb-4 last:border-0 last:pb-0"
                 >
                   <div className="flex items-center space-x-4">
@@ -413,7 +336,7 @@ const Cart = () => {
 
                     <div className="flex items-center space-x-2 bg-gray-50 rounded-lg p-1">
                       <button
-                        onClick={() => updateQuantity(item.id, -1)}
+                        onClick={() => updateQuantity(item._id || item.id, -1)}
                         className="p-1 hover:bg-white rounded-md transition shadow-sm"
                       >
                         <Minus size={14} />
@@ -422,7 +345,7 @@ const Cart = () => {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateQuantity(item.id, 1)}
+                        onClick={() => updateQuantity(item._id || item.id, 1)}
                         className="p-1 hover:bg-white rounded-md transition shadow-sm"
                       >
                         <Plus size={14} />
@@ -430,7 +353,7 @@ const Cart = () => {
                     </div>
 
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item._id || item.id)}
                       className="text-gray-400 hover:text-red-500 p-2"
                     >
                       <Trash2 size={18} />
@@ -444,7 +367,7 @@ const Cart = () => {
                       placeholder="Ghi chú cho món này (VD: Ít cay, không hành...)"
                       className="w-full text-sm bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-lg px-3 py-2 outline-none transition-all placeholder-gray-400 text-gray-700"
                       value={item.note || ""}
-                      onChange={(e) => updateItemNote(item.id, e.target.value)}
+                      onChange={(e) => updateItemNote(item._id || item.id, e.target.value)}
                     />
                   </div>
                 </div>
@@ -486,6 +409,7 @@ const Cart = () => {
                   name="address"
                   value={values.address}
                   onChange={handleChange}
+                  onBlur={handleAddressBlur}
                   className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-orange-500"
                   placeholder="Số nhà, đường, phường..."
                 />
@@ -550,7 +474,7 @@ const Cart = () => {
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Phí giao hàng</span>
-                <span>{shippingFee.toLocaleString('vi-VN')} VNĐ</span>
+                <span>{(shippingFee || 0).toLocaleString('vi-VN')} VNĐ</span>
               </div>
               <div className="h-px bg-gray-200 my-4"></div>
               <div className="flex justify-between text-xl font-bold text-gray-900">

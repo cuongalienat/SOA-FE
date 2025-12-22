@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
 import { ToastProvider } from "./context/ToastContext";
+import { WalletProvider } from "./context/WalletContext";
 import { CartProvider } from "./context/CartContext";
 import { ShipperProvider } from "./context/ShipperContext";
 
@@ -19,50 +20,52 @@ const App = () => {
     <AuthProvider>
       <SocketProvider>
         <ToastProvider>
-          <CartProvider>
-            <HashRouter>
-              <Suspense
-                fallback={
-                  <div className="h-screen flex items-center justify-center">
-                    Loading app...
-                  </div>
-                }
-              >
-                <Routes>
-                  {/* ================= RESTAURANT (Protected) ================= */}
-                  <Route
-                    element={
-                      <RoleBasedRoute allowedRoles={["restaurant_manager"]} />
-                    }
-                  >
+          <WalletProvider>
+            <CartProvider>
+              <HashRouter>
+                <Suspense
+                  fallback={
+                    <div className="h-screen flex items-center justify-center">
+                      Loading app...
+                    </div>
+                  }
+                >
+                  <Routes>
+                    {/* ================= RESTAURANT (Protected) ================= */}
                     <Route
-                      path="/restaurant/*"
-                      element={<RestaurantRoutes />}
-                    />
-                  </Route>
-
-                  {/* ================= SHIPPER (Protected) ================= */}
-                  <Route
-                    element={
-                      <RoleBasedRoute allowedRoles={["driver", "shipper"]} />
-                    }
-                  >
-                    <Route
-                      path="/shipper/*"
                       element={
-                        <ShipperProvider>
-                          <ShipperRoutes />
-                        </ShipperProvider>
+                        <RoleBasedRoute allowedRoles={["restaurant_manager"]} />
                       }
-                    />
-                  </Route>
+                    >
+                      <Route
+                        path="/restaurant/*"
+                        element={<RestaurantRoutes />}
+                      />
+                    </Route>
 
-                  {/* ================= CUSTOMER (Public) ================= */}
-                  <Route path="/*" element={<ClientRoutes />} />
-                </Routes>
-              </Suspense>
-            </HashRouter>
-          </CartProvider>
+                    {/* ================= SHIPPER (Protected) ================= */}
+                    <Route
+                      element={
+                        <RoleBasedRoute allowedRoles={["driver", "shipper"]} />
+                      }
+                    >
+                      <Route
+                        path="/shipper/*"
+                        element={
+                          <ShipperProvider>
+                            <ShipperRoutes />
+                          </ShipperProvider>
+                        }
+                      />
+                    </Route>
+
+                    {/* ================= CUSTOMER (Public) ================= */}
+                    <Route path="/*" element={<ClientRoutes />} />
+                  </Routes>
+                </Suspense>
+              </HashRouter>
+            </CartProvider>
+          </WalletProvider>
         </ToastProvider>
       </SocketProvider>
     </AuthProvider>
