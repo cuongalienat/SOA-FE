@@ -12,88 +12,92 @@ import {
   saveAuthData,
   clearAuthData,
   getCurrentUser,
-  getAuthToken
+  getAuthToken,
 } from "../utils/authUtils.js";
 
-export const useAuth = () => {
-  const [user, setUser] = useState(() => {
-    return getCurrentUser(); // Hàm này lấy từ localStorage
-  });
+const AUTH_UPDATE_EVENT = "local-auth-update";
 
+export const useAuth = () => {
+  const [user, setUser] = useState(() => getCurrentUser());
+  const [token, setToken] = useState(() => getAuthToken());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [token, setToken] = useState(null);
 
-
-  // Persistence: Load user from local storage on mount
+  // 1. Đồng bộ hóa giữa các Tab và các Component
   useEffect(() => {
-    const storedUser = getCurrentUser();
-    const storedToken = getAuthToken();
-    if (storedUser) {
-      if (storedUser.balance === undefined) {
-        storedUser.balance = 0;
-      }
-      setUser(storedUser);
-    }
-
-    if (storedToken) {
-      setToken(storedToken);
-    }
+    const syncAuth = () => {
+      setUser(getCurrentUser());
+      setToken(getAuthToken());
+    };
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener(AUTH_UPDATE_EVENT, syncAuth);
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener(AUTH_UPDATE_EVENT, syncAuth);
+    };
   }, []);
 
+  const notifyAuthChange = () => {
+    window.dispatchEvent(new Event(AUTH_UPDATE_EVENT));
+  };
+
+  // 2. Cập nhật thông tin User (Lưu local + dự phòng theo ID)
+  const updateUser = (newUserFields) => {
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+      const updatedUser = { ...currentUser, ...newUserFields };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
+      if (updatedUser._id) {
+        const persistentKey = `local_profile_${updatedUser._id}`;
+        localStorage.setItem(persistentKey, JSON.stringify({
+          name: updatedUser.name,
+          avatar: updatedUser.avatar,
+        }));
+      }
+      setUser(updatedUser);
+      notifyAuthChange();
+    }
+  };
+
+  // 3. Đăng nhập (Kết hợp xử lý lỗi từ Main + Khôi phục Profile từ Shipper-stuff)
   const signin = async (username, password) => {
     setLoading(true);
     setError(null);
-
     try {
-      // Validate dữ liệu đăng nhập
-      // const validationErrors = validateSigninData({ username, password });
-      // if (validationErrors.length > 0) {
-      //   const errorMsg = validationErrors.join(", ");
-      //   setError(errorMsg);
-      //   return { success: false, error: errorMsg };
-      // }
+      const validationErrors = validateSigninData({ username, password });
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors.join(", "));
+      }
 
-      console.log("Starting signin for:", username);
       const data = await signInUser({ username, password });
-      console.log("API Response:", data);
-
-      // Handle generic 200 OK with error payload checking
-      // Some backends return 200 OK but with success: false
+      
+      // Kiểm tra lỗi từ backend (logic từ nhánh main)
       if (data && (data.success === false || (data.code && data.code !== 200))) {
-        console.error("API returned error status despite 200 OK headers");
-        throw new Error(data.message || data.error || "Đăng nhập thất bại");
+        throw new Error(data.message || "Đăng nhập thất bại");
       }
 
-      // Try to find the token in likely places
       const tokenValue = data.accessToken || data.token || (data.data && (data.data.accessToken || data.data.token));
-      console.log("Extracted Token:", tokenValue ? "Token found" : "No token found");
+      let userValue = data.user || (data.data && data.data.user);
 
-      if (!tokenValue || typeof tokenValue !== 'string') {
-        console.error("Invalid or missing token in response");
-        throw new Error(data.message || "Không tìm thấy token hợp lệ trong phản hồi từ server");
+      if (!tokenValue) throw new Error("Không tìm thấy mã truy cập (token) từ server");
+
+      // KHÔI PHỤC PROFILE LOCAL (logic từ nhánh shipper-stuff)
+      if (userValue && userValue._id) {
+        const savedLocal = localStorage.getItem(`local_profile_${userValue._id}`);
+        if (savedLocal) {
+          userValue = { ...userValue, ...JSON.parse(savedLocal) };
+        }
       }
 
-      const userValue = data.user || (data.data && data.data.user);
-
-      const authDataToSave = {
-        token: tokenValue,
-        user: userValue
-      };
-
-      saveAuthData(authDataToSave);
+      saveAuthData({ token: tokenValue, user: userValue });
       setToken(tokenValue);
-      if (userValue) {
-        setUser(userValue);
-      }
+      setUser(userValue);
+      notifyAuthChange();
 
-      console.log("Signin successful. User:", userValue);
-
-      // Return a consistent structure
-      return { success: true, data: { ...data, user: userValue, token: tokenValue } };
+      return { success: true, data: data };
     } catch (err) {
-      console.error("Signin Exception:", err);
-      const errorMessage = err.message || "Sai username hoặc mật khẩu";
+      const errorMessage = err.message || "Sai tài khoản hoặc mật khẩu";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -101,29 +105,26 @@ export const useAuth = () => {
     }
   };
 
+  // 4. Đăng nhập Google (Đã gộp logic)
   const signInGoogle = async (googleToken) => {
     setLoading(true);
     setError(null);
     try {
       const data = await signInWithGoogle(googleToken);
-      if (data.user && data.user.balance === undefined) {
-        data.user.balance = 80000;
-      }
-
       const tokenValue = data.accessToken || data.token;
-      const authDataToSave = {
-        token: tokenValue,
-        user: data.user
-      };
+      let userValue = data.user;
 
-      saveAuthData(authDataToSave);
-      if (data.user) {
-        setUser(data.user);
+      const savedLocal = localStorage.getItem(`local_profile_${userValue?._id}`);
+      if (savedLocal) {
+        userValue = { ...userValue, ...JSON.parse(savedLocal) };
       }
-      console.log("✅ Đăng nhập Google thành công:");
+
+      saveAuthData({ token: tokenValue, user: userValue });
+      setToken(tokenValue);
+      setUser(userValue);
+      notifyAuthChange();
       return { success: true, data: data };
     } catch (err) {
-      console.error(" Đăng nhập Google thất bại:", err);
       setError(err.message || "Đăng nhập Google thất bại");
       return { success: false, error: err.message };
     } finally {
@@ -131,66 +132,56 @@ export const useAuth = () => {
     }
   };
 
+  // 5. Đăng ký (Đã gộp logic xử lý token mới/cũ)
   const signup = async (userData, skipValidation = false) => {
     setLoading(true);
     setError(null);
-
     try {
-      // Chỉ validate nếu không bỏ qua
       if (!skipValidation) {
         const validationErrors = validateSignupData(userData);
-        if (validationErrors.length > 0) {
-          setError(validationErrors.join(", "));
-          return null;
-        }
+        if (validationErrors.length > 0) throw new Error(validationErrors.join(", "));
       }
 
-      // Gọi API đăng ký
       const data = await signUpUser(userData);
-
       const tokenValue = data.accessToken || data.token;
-      if (tokenValue && data.user) {
-        const authDataToSave = {
-          token: tokenValue,
-          user: data.user
-        };
-        saveAuthData(authDataToSave);
-        setUser(data.user);
+      const userValue = data.user;
+
+      if (tokenValue && userValue) {
+        saveAuthData({ token: tokenValue, user: userValue });
+        setUser(userValue);
         setToken(tokenValue);
       } else {
-        // Nếu backend cũ (không trả token khi signup) thì giữ nguyên logic cũ
-        saveAuthData(data);
+        saveAuthData(data); // Fallback cho backend cũ
         if (data.user) setUser(data.user);
       }
 
-      console.log(" Đăng ký thành công:", data);
-
+      notifyAuthChange();
       return { success: true, data: data };
     } catch (err) {
-      console.error(" Đăng ký thất bại:", err);
-      setError(err.message || "Đăng ký thất bại. Vui lòng thử lại.");
+      setError(err.message || "Đăng ký thất bại.");
       return { success: false, error: err.message };
     } finally {
       setLoading(false);
     }
   };
 
-  // Hàm logout
   const logout = () => {
     clearAuthData();
     setUser(null);
     setToken(null);
     setError(null);
+    notifyAuthChange();
   };
 
   return {
     signin,
     signup,
     logout,
+    updateUser,
     signInGoogle,
     loading,
     error,
     user,
-    token
+    token,
   };
 };

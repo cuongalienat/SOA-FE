@@ -25,10 +25,17 @@ export const ShipperProvider = ({ children }) => {
   // ---------------------------------
   const fetchProfile = async () => {
     try {
-      const data = await getShipperProfileService();
-      setProfile(data);
-      setIsOnline(data.status === "ONLINE");
-      return data;
+      const res = await getShipperProfileService();
+      // Kiểm tra xem res là dữ liệu trực tiếp hay nằm trong res.data
+      const shipperData = res.data || res;
+
+      setProfile(shipperData);
+
+      // SỬA TẠI ĐÂY: Nếu status là ONLINE hoặc SHIPPING thì đều coi là đang trực tuyến
+      const onlineStatuses = ["ONLINE", "SHIPPING"];
+      setIsOnline(onlineStatuses.includes(shipperData.status));
+
+      return shipperData;
     } catch (error) {
       console.error("Lỗi lấy profile shipper:", error);
       return null;
@@ -40,17 +47,18 @@ export const ShipperProvider = ({ children }) => {
   // ---------------------------------
   const toggleOnline = async () => {
     try {
+      // Nếu đang SHIPPING thì không cho tắt (logic nghiệp vụ)
+      if (profile?.status === "SHIPPING") {
+        alert("Bạn đang trong chuyến giao hàng, không thể tắt trực tuyến!");
+        return;
+      }
+
       const newStatus = isOnline ? "OFFLINE" : "ONLINE";
       await updateShipperStatusService(newStatus);
 
-      // Cập nhật state local ngay lập tức cho mượt
       setIsOnline(!isOnline);
-
-      if (newStatus === "ONLINE") {
-        await fetchCurrentDelivery();
-      } else {
-        setCurrentDelivery(null);
-      }
+      // Sau khi đổi status, nên fetch lại profile để đồng bộ DB
+      await fetchProfile();
     } catch (error) {
       console.error("Lỗi bật tắt trạng thái", error);
     }
@@ -59,21 +67,21 @@ export const ShipperProvider = ({ children }) => {
   // ---------------------------------
   // 2. Lấy đơn hiện tại & CHECK ĐƠN MỚI
   // ---------------------------------
-const fetchCurrentDelivery = async () => {
+  const fetchCurrentDelivery = async () => {
     try {
-        const delivery = await getCurrentDeliveryService();
-        if (delivery && !currentDelivery) {
+      const delivery = await getCurrentDeliveryService();
+      if (delivery && !currentDelivery) {
         // Play sound hoặc Toast thông báo có đơn mới
         console.log("🔔 TING TING! Có đơn hàng mới");
       }
-        setCurrentDelivery(delivery || null);
-        return delivery; // [NEW] Return để bên Dashboard dùng nếu cần check
+      setCurrentDelivery(delivery || null);
+      return delivery; // [NEW] Return để bên Dashboard dùng nếu cần check
     } catch (error) {
-        console.error("Lỗi fetch đơn:", error);
-        setCurrentDelivery(null);
-        return null; // [NEW]
+      console.error("Lỗi fetch đơn:", error);
+      setCurrentDelivery(null);
+      return null; // [NEW]
     }
-};
+  };
   // ---------------------------------
   // 3. Gửi GPS định kỳ (Chỉ gửi, không nhận đơn)
   // ---------------------------------
