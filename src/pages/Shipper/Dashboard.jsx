@@ -86,9 +86,10 @@ const ShipperDashboard = () => {
                 setAvailableJobs(prev => {
                     if (prev.find(j => j._id === newJobData.deliveryId)) return prev;
                     const jobFormatted = {
-                        _id: newJobData.deliveryId,
-                        shippingFee: newJobData.fee,
+                        _id: newJobData.deliveryId, 
+                        shippingFee: newJobData.shippingFee,
                         distance: newJobData.distance,
+                        estimatedDuration: newJobData.estimatedDuration,
                         pickup: { address: newJobData.pickup },
                         dropoff: { address: newJobData.dropoff },
                         isNew: true
@@ -273,6 +274,22 @@ const ShipperDashboard = () => {
                                                 <span style={{ fontWeight: 'bold', color: '#2e7d32', fontSize: '18px' }}>
                                                     +{job.shippingFee?.toLocaleString()} đ
                                                 </span>
+                                                <div style={{ display: 'flex', gap: '5px' }}>
+                                                    {/* Badge Thời gian (Mới) */}
+                                                    <span style={{ 
+                                                        ...styles.distanceBadge, 
+                                                        backgroundColor: '#e3f2fd', // Màu xanh dương nhạt cho khác biệt
+                                                        color: '#1565c0'
+                                                    }}>
+                                                        {/* Nếu có dữ liệu thì hiện, ko thì hiện text chờ */}
+                                                        ⏱️ {job.estimatedDuration || '...'} 
+                                                    </span>
+
+                                                    {/* Badge Khoảng cách (Cũ) */}
+                                                    <span style={styles.distanceBadge}>
+                                                        📍 {(job.distance / 1000).toFixed(1)} km
+                                                    </span>
+                                                </div>
                                                 <span style={styles.distanceBadge}>
                                                     {(job.distance / 1000).toFixed(1)} km
                                                 </span>

@@ -5,9 +5,9 @@ const api = axios.create({
     import.meta.env.MODE === "production"
       ? "https://your-backend-url.com/api/v1" // URL BE khi deploy
       : "http://localhost:3000/v1", // URL BE khi dev
-  headers: {
-    "Content-Type": "application/json",
-  },
+  // headers: {
+  //   "Content-Type": "application/json",
+  // },
 });
 
 // Tự động thêm token nếu có
