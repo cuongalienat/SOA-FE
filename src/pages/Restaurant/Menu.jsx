@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, X } from "lucide-react";
 import { useItems } from "../../hooks/useItems.jsx";
 import { useShop } from "../../hooks/useShop.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
+import { usePagination, getVisiblePages } from "../../hooks/usePagination.jsx";
 import {
   createCategoryService,
   deleteCategoryService,
@@ -28,6 +29,8 @@ const Menu = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Pagination
+  const { currentPage, limit, goToPage, resetPage } = usePagination(1, 9);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
@@ -62,13 +65,17 @@ const Menu = () => {
 
   // Load menu của shop
   useEffect(() => {
-    if (!shop?._id) {
+    if (!shop) {
+      loadMyShop();
+      return;
+    }
+    if (!shop._id) {
       console.log("Shop ID not available yet.");
-      return ;
+      return;
     }
     console.log("Loading items for shop ID:", shop._id);
     loadItemsShop(shop._id);
-  }, [shop?._id]);
+  }, [shop, loadMyShop]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -96,6 +103,15 @@ const Menu = () => {
     const itemCategoryId = typeof item.categoryId === "string" ? item.categoryId : item.categoryId?._id;
     return itemCategoryId === filterCategoryId;
   });
+
+  // Reset page when filter changes
+  useEffect(() => {
+    resetPage();
+  }, [filterCategory]);
+
+  // Client-side Pagination Logic
+  const totalPages = Math.ceil(filteredMenu.length / limit);
+  const currentItems = filteredMenu.slice((currentPage - 1) * limit, currentPage * limit);
 
   // ===== HANDLERS =====
 
@@ -327,8 +343,8 @@ const Menu = () => {
       </div>
 
       {/* Menu Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredMenu.length === 0 ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {currentItems.length === 0 ? (
           // EMPTY STATE
           <div className="col-span-full text-center py-20 text-gray-500">
             <p className="text-lg font-semibold">
@@ -339,10 +355,10 @@ const Menu = () => {
             </p>
           </div>
         ) : (
-          filteredMenu.map((item) => (
+          currentItems.map((item) => (
             <div
               key={item._id}
-              className="bg-white rounded-xl border shadow-sm overflow-hidden"
+              className="bg-white rounded-xl border shadow-sm overflow-hidden flex flex-col"
             >
               <div className="relative h-48">
                 <img
@@ -366,24 +382,64 @@ const Menu = () => {
                 </div>
               </div>
 
-              <div className="p-4">
-                <div className="flex justify-between">
-                  <h3 className="font-bold">{item.name}</h3>
-                  <span className="text-orange-600 font-bold">
-                    {Number(item.price).toLocaleString("vi-VN")} VNĐ
+              <div className="p-4 flex-1 flex flex-col">
+                <div className="flex justify-between mb-2">
+                  <h3 className="font-bold line-clamp-1" title={item.name}>{item.name}</h3>
+                  <span className="text-orange-600 font-bold ml-2 shrink-0">
+                    {Number(item.price).toLocaleString("vi-VN")} đ
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                <p className="text-sm text-gray-500 mt-1 line-clamp-2 flex-1">
                   {item.description}
                 </p>
-                <span className="inline-block mt-3 px-2 py-1 text-xs bg-gray-100 rounded">
-                  {item.categoryId?.name}
-                </span>
+                <div className="mt-3">
+                  <span className="inline-block px-2 py-1 text-xs bg-gray-100 rounded">
+                    {item.categoryId?.name}
+                  </span>
+                </div>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex justify-center space-x-2 mt-4 pb-8">
+          <button
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            Trước
+          </button>
+
+          {getVisiblePages(currentPage, totalPages).map((page, index) =>
+            page === "..." ? (
+              <span key={`dots-${index}`} className="px-4 py-2 text-gray-400">...</span>
+            ) : (
+              <button
+                key={page}
+                onClick={() => goToPage(page)}
+                className={`px-4 py-2 border rounded-lg transition ${currentPage === page
+                  ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                  : "hover:bg-gray-50 text-gray-700 bg-white"
+                  }`}
+              >
+                {page}
+              </button>
+            )
+          )}
+
+          <button
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            Sau
+          </button>
+        </div>
+      )}
 
 
       {/* Modal */}

@@ -42,6 +42,16 @@ const ENDPOINTS = {
     UPDATE_USER_INFO: "/users",
     DELETE_USER: "/users",
   },
+  WALLET: {
+    GET_WALLET: "/wallets",
+    CREATE_WALLET: "/wallets",
+    WITHDRAW: "/wallets/withdraw",
+    DEPOSIT: "/wallets/deposit",
+    GET_HISTORY: "/wallets/history",
+  },
+  SHIPPING: {
+    CALCULATE_FEE: "/shippings/calculate",
+  }
   CATEGORY: {
     GET_ALL: "/categories",
     CREATE: "/categories",
