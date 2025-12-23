@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Trash2,
@@ -77,6 +77,9 @@ const Cart = () => {
   }, [userId, loadMyOrders]);
 
   // Fetch shop location
+  // Ref to track last loaded shop to avoid redundant calls when cart items update (e.g. quantity change)
+  const loadedShopIdRef = useRef(null);
+
   // Fetch shop location
   useEffect(() => {
     if (items.length > 0) {
@@ -84,11 +87,14 @@ const Cart = () => {
       if (shopId && typeof shopId === 'object') {
         shopId = shopId._id || shopId.id;
       }
-      if (shopId) {
+
+      // Only load if shopId exists and is different from what we already loaded
+      if (shopId && shopId !== loadedShopIdRef.current) {
+        loadedShopIdRef.current = shopId;
         loadShopById(shopId);
       }
     }
-  }, [items]); // Re-run if items change (different shop?)
+  }, [items, loadShopById]); // Items change on quantity update, but we gate the call with ref check
 
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
@@ -136,20 +142,30 @@ const Cart = () => {
   }, [user]);
 
   // Automatically calculate shipping fee for default address
+  // Ref to track last calculated params to avoid duplicate calls
+  const lastFeeParams = useRef({ address: null, shopId: null });
+
+  // Automatically calculate shipping fee check
   useEffect(() => {
     const calcDefaultAddressFee = async () => {
-      // Condition: User has address, currently showing default address
-      if (user?.address && values.address === user.address) {
+      // Condition: User has address, currently showing default address, and we have a shop
+      if (user?.address && values.address === user.address && shop?._id) {
+
+        // Prevent duplicate calls if address and shopId haven't changed
+        if (lastFeeParams.current.address === values.address && lastFeeParams.current.shopId === shop._id) {
+          return;
+        }
+
         try {
-          // 2. Calculate fee via Backend API (using Hook)
-          if (shop?._id) {
-            await calculateFee({ userLocation: values.address, shopId: shop._id });
-          }
+          // Update ref immediately to block subsequent triggers
+          lastFeeParams.current = { address: values.address, shopId: shop._id };
+
+          await calculateFee({ userLocation: values.address, shopId: shop._id });
         } catch (error) {
           console.error("Error calculating fee for default address:", error);
         }
       }
-    }
+    };
     calcDefaultAddressFee();
   }, [user, values.address, shop, calculateFee]);
 

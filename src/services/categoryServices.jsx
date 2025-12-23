@@ -43,3 +43,12 @@ export const deleteCategoryService = async (id) => {
     throw error.response?.data || { message: "Lỗi xóa danh mục" };
   }
 };
+
+export const getCategoryByIdService = async (id) => {
+  try {
+    const response = await api.get(ENDPOINTS.CATEGORY.GET_BY_ID.replace(":id", id));
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Lỗi lấy danh mục" };
+  }
+};

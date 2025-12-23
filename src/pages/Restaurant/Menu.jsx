@@ -107,7 +107,7 @@ const Menu = () => {
   // Reset page when filter changes
   useEffect(() => {
     resetPage();
-  }, [filterCategory]);
+  }, [filterCategoryId]);
 
   // Client-side Pagination Logic
   const totalPages = Math.ceil(filteredMenu.length / limit);
@@ -272,9 +272,9 @@ const Menu = () => {
           return editingItem
             ? formData
             : {
-                ...formData,
-                shopId: shop._id
-              };
+              ...formData,
+              shopId: shop._id
+            };
         }
 
         const fd = new FormData();
@@ -331,11 +331,10 @@ const Menu = () => {
           <button
             key={cat.id}
             onClick={() => setFilterCategoryId(cat.id)}
-            className={`px-4 py-2 rounded-lg text-sm ${
-              filterCategoryId === cat.id
+            className={`px-4 py-2 rounded-lg text-sm ${filterCategoryId === cat.id
                 ? "bg-gray-900 text-white"
                 : "bg-white border text-gray-600"
-            }`}
+              }`}
           >
             {cat.name}
           </button>
@@ -512,15 +511,14 @@ const Menu = () => {
                       isDeletingCategory ||
                       !formData.categoryId
                     }
-                    className={`px-3 py-2 border rounded ${
-                      isSubmitting ||
-                      isAddingCategory ||
-                      isUpdatingCategory ||
-                      isDeletingCategory ||
-                      !formData.categoryId
+                    className={`px-3 py-2 border rounded ${isSubmitting ||
+                        isAddingCategory ||
+                        isUpdatingCategory ||
+                        isDeletingCategory ||
+                        !formData.categoryId
                         ? "opacity-60 cursor-not-allowed"
                         : "hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     Sửa
                   </button>
@@ -535,15 +533,14 @@ const Menu = () => {
                       isDeletingCategory ||
                       !formData.categoryId
                     }
-                    className={`px-3 py-2 border rounded ${
-                      isSubmitting ||
-                      isAddingCategory ||
-                      isUpdatingCategory ||
-                      isDeletingCategory ||
-                      !formData.categoryId
+                    className={`px-3 py-2 border rounded ${isSubmitting ||
+                        isAddingCategory ||
+                        isUpdatingCategory ||
+                        isDeletingCategory ||
+                        !formData.categoryId
                         ? "opacity-60 cursor-not-allowed"
                         : "hover:bg-gray-50"
-                    }`}
+                      }`}
                   >
                     {isDeletingCategory ? "..." : "Xóa"}
                   </button>
@@ -582,14 +579,13 @@ const Menu = () => {
                           isUpdatingCategory ||
                           isDeletingCategory
                         }
-                        className={`px-3 py-2 rounded bg-gray-900 text-white ${
-                          isSubmitting ||
-                          isAddingCategory ||
-                          isUpdatingCategory ||
-                          isDeletingCategory
+                        className={`px-3 py-2 rounded bg-gray-900 text-white ${isSubmitting ||
+                            isAddingCategory ||
+                            isUpdatingCategory ||
+                            isDeletingCategory
                             ? "opacity-70 cursor-not-allowed"
                             : "hover:bg-gray-800"
-                        }`}
+                          }`}
                       >
                         {isUpdatingCategory ? "Đang lưu..." : "Lưu"}
                       </button>
@@ -602,14 +598,13 @@ const Menu = () => {
                           isUpdatingCategory ||
                           isDeletingCategory
                         }
-                        className={`px-3 py-2 border rounded ${
-                          isSubmitting ||
-                          isAddingCategory ||
-                          isUpdatingCategory ||
-                          isDeletingCategory
+                        className={`px-3 py-2 border rounded ${isSubmitting ||
+                            isAddingCategory ||
+                            isUpdatingCategory ||
+                            isDeletingCategory
                             ? "opacity-60 cursor-not-allowed"
                             : "hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         Hủy
                       </button>
@@ -624,14 +619,13 @@ const Menu = () => {
                         isUpdatingCategory ||
                         isDeletingCategory
                       }
-                      className={`px-3 py-2 rounded bg-gray-900 text-white ${
-                        isSubmitting ||
-                        isAddingCategory ||
-                        isUpdatingCategory ||
-                        isDeletingCategory
+                      className={`px-3 py-2 rounded bg-gray-900 text-white ${isSubmitting ||
+                          isAddingCategory ||
+                          isUpdatingCategory ||
+                          isDeletingCategory
                           ? "opacity-70 cursor-not-allowed"
                           : "hover:bg-gray-800"
-                      }`}
+                        }`}
                     >
                       {isAddingCategory ? "Đang thêm..." : "Thêm"}
                     </button>
@@ -682,18 +676,16 @@ const Menu = () => {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={isSubmitting}
-                  className={`px-4 py-2 border rounded ${
-                    isSubmitting ? "opacity-60 cursor-not-allowed" : ""
-                  }`}
+                  className={`px-4 py-2 border rounded ${isSubmitting ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
                 >
                   Hủy
                 </button>
                 <button
                   disabled={isSubmitting}
                   type="submit"
-                  className={`px-4 py-2 bg-orange-500 text-white rounded flex items-center gap-2 ${
-                    isSubmitting ? "opacity-70 cursor-not-allowed" : "hover:bg-orange-600"
-                  }`}
+                  className={`px-4 py-2 bg-orange-500 text-white rounded flex items-center gap-2 ${isSubmitting ? "opacity-70 cursor-not-allowed" : "hover:bg-orange-600"
+                    }`}
                 >
                   {isSubmitting && (
                     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

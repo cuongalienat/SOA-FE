@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Filter, Search } from "lucide-react";
 import FoodCard from "../../components/FoodCard.jsx";
 import { CATEGORIES } from "../../constants.js";
-import { useItems } from "../../hooks/useItems.jsx";
+import { useProduct } from "../../context/ProductContext.jsx";
 import { usePagination, getVisiblePages } from "../../hooks/usePagination.jsx";
 import { useSearchParams } from "react-router-dom";
 
@@ -12,8 +12,11 @@ export default function Category() {
   const initialCategory = searchParams.get("category") || "Tất cả";
   const initialSearch = searchParams.get("search") || "";
 
-  const { items, loadItems, loading, pagination: backendPagination } = useItems();
-  const { currentPage, limit, goToPage } = usePagination(initialPage, 12);
+  // Use global product context
+  const { products: items, loading, loadProducts } = useProduct();
+
+  // Use local state for pagination logic (same as before)
+  const { currentPage, limit, goToPage } = usePagination(initialPage, 42);
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
@@ -38,13 +41,10 @@ export default function Category() {
   }, [currentPage, selectedCategory, debouncedSearch]);
 
 
-  // Load ALL items once (Client-side pagination strategy)
+  // Load ALL items using Global Context
   useEffect(() => {
-    // Fetch a large number to ensure we get everything for client-side filtering
-    // If backend doesn't support 'limit', it typically returns all or a default page.
-    // We try to request all.
-    loadItems({ limit: 1000 });
-  }, []); // Run once on mount
+    loadProducts();
+  }, []); // Run once on mount (Context will handle caching)
 
   // Reset page when filters change
   useEffect(() => {
@@ -56,11 +56,25 @@ export default function Category() {
   const rawItems = Array.isArray(items) ? items : [];
 
   // 1. Client-side Filtering
-  const filteredFood = rawItems.filter((item) => {
-    const matchesCategory = selectedCategory === "Tất cả" || item.category === selectedCategory || item.categoryId?.name === selectedCategory;
-    const matchesSearch = !debouncedSearch || item.name?.toLowerCase().includes(debouncedSearch.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // 1. Client-side Filtering & Randomization
+  const filteredFood = useMemo(() => {
+    // a. Filter
+    let results = rawItems.filter((item) => {
+      const matchesCategory = selectedCategory === "Tất cả" || item.category === selectedCategory || item.categoryId?.name === selectedCategory;
+      const matchesSearch = !debouncedSearch || item.name?.toLowerCase().includes(debouncedSearch.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+
+    // b. Shuffle (Fisher-Yates) consistent for this filter state
+    // Clone array to avoid mutating source
+    results = [...results];
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [results[i], results[j]] = [results[j], results[i]];
+    }
+
+    return results;
+  }, [rawItems, selectedCategory, debouncedSearch]);
 
   // 2. Client-side Pagination
   const totalPages = Math.ceil(filteredFood.length / limit);
@@ -154,7 +168,7 @@ export default function Category() {
       )}
 
       {/* Items Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-8">
         {currentItems.map((item) => (
           <FoodCard key={item._id || item.id} food={item} />
         ))}

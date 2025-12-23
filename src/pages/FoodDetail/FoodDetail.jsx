@@ -1,37 +1,26 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Star,
-  Minus,
-  Plus,
   ShoppingBag,
-  Sparkles,
-  ChefHat,
 } from "lucide-react";
-import { FOOD_DATA } from "../../constants.js";
 import { useCart } from "../../context/CartContext.jsx";
-import { useItems } from "../../hooks/useItems.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
-// import {
-//   generateFoodDescription,
-//   askChefAI,
-// } from "../../services/geminiService.js";
+import { fetchItemByIdService } from "../../services/itemServices.jsx";
+import { useShop } from "../../hooks/useShop.jsx";
+import { useCategories } from "../../hooks/useCategories.jsx";
 
 const FoodDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { addToCart } = useCart();
-  const { items, loadItems, loading } = useItems();
-  useEffect(() => {
-    loadItems();
-  }, []);
+  const { shop, loadShopById } = useShop();
 
-  const [aiDescription, setAiDescription] = useState("");
-  const [loadingAi, setLoadingAi] = useState(false);
-  const [chefQuery, setChefQuery] = useState("");
-  const [chefAnswer, setChefAnswer] = useState("");
-  const [loadingChef, setLoadingChef] = useState(false);
+  const [food, setFood] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const { category, getCategoryById } = useCategories();
 
   // Review State
   const [reviews, setReviews] = useState([
@@ -39,41 +28,61 @@ const FoodDetail = () => {
     { id: 2, user: "Trần Thị B", rating: 4, comment: "Giao hàng nhanh, đóng gói cẩn thận.", date: "2024-03-14" },
   ]);
 
+  useEffect(() => {
+    const fetchFood = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchItemByIdService(id);
+        await getCategoryById(data.data.categoryId);
+        // Handle various response structures
+        if (data && data.data) {
+          setFood(data.data);
+        } else {
+          setFood(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch food details:", error);
+        showToast("Không tìm thấy món ăn", "error");
+        navigate("/");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchFood();
+    }
+  }, [id, navigate, showToast]);
 
   useEffect(() => {
-    // Chỉ load nếu items chưa có (tối ưu hạn chế gọi API thừa)
-    if (items.length === 0) {
-      loadItems();
+    if (food && food.shopId) {
+      // Check if shopId is object or string
+      const sId = typeof food.shopId === 'object' ? (food.shopId._id || food.shopId.id) : food.shopId;
+      if (sId) {
+        loadShopById(sId);
+      }
     }
-  }, []);
+  }, [food]);
 
-  // Tìm món ăn trong danh sách items đã tải
-  const food = items.find((f) => f._id === id || f.id === id);
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
 
-  // 2. Xử lý Redirect an toàn
-  useEffect(() => {
-    // Chỉ redirect khi ĐÃ tải xong (loading = false) mà vẫn không thấy food
-    if (!loading && items.length > 0 && !food) {
-      navigate("/");
-    }
-  }, [food, loading, items, navigate]);
+  if (!food) return null;
 
-  const handleEnhanceDescription = async () => {
-    if (!food) return;
-    setLoadingAi(true);
-    const desc = await generateFoodDescription(food.name, food.category);
-    setAiDescription(desc);
-    setLoadingAi(false);
-  };
 
 
   if (!food) return null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Image Section */}
-        <div className="relative rounded-3xl overflow-hidden h-[400px] md:h-[500px] shadow-2xl">
+        <div className="relative rounded-3xl overflow-hidden h-[300px] md:h-[400px] shadow-2xl">
           <img
             src={food.imageUrl}
             alt={food.name}
@@ -83,35 +92,45 @@ const FoodDetail = () => {
 
         {/* Info Section */}
         <div className="flex flex-col justify-center">
-          <div className="flex items-center space-x-2 mb-2">
-            <span className="px-3 py-1 bg-orange-100 text-orange-600 rounded-full text-xs font-bold uppercase tracking-wider">
-              {food.category}
-            </span>
-            <div className="flex items-center text-yellow-500">
-              <Star className="fill-current w-4 h-4" />
-              <span className="ml-1 text-sm font-bold text-gray-700">
-                {food.rating} (128 đánh giá)
+          <div className="mb-4">
+            {/* Shop Name */}
+            {shop && (
+              <Link to={`/shop/${shop._id || shop.id}`} className="inline-flex items-center text-gray-800 hover:text-orange-600 transition group mb-1">
+                <div className="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full mr-2 font-bold text-xs">
+                  {shop.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-lg font-bold group-hover:underline">
+                  {shop.name}
+                </span>
+              </Link>
+            )}
+
+            <div className="flex items-center space-x-2 mt-2">
+              <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-bold uppercase tracking-wider">
+                {category?.name}
               </span>
             </div>
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2 leading-tight">
             {food.name}
           </h1>
 
-          <div className="text-3xl font-bold text-orange-600 mb-6">
+          <div className="text-2xl font-bold text-orange-600 mb-6">
             {Number(food.price).toLocaleString('vi-VN')} VNĐ
           </div>
 
-          {/* AI Description Feature */}
-          <div className="bg-gray-50 p-6 rounded-2xl mb-8 border border-gray-100">
+          {/* Description */}
+          <div className="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-100">
             <h3 className="text-sm font-semibold text-gray-400 uppercase mb-2 flex items-center">
               Mô tả
             </h3>
-            <p className="text-gray-600 leading-relaxed text-lg">
-              {aiDescription || food.description}
+            <p className="text-gray-600 leading-relaxed text-base">
+              {food.description}
             </p>
           </div>
+
+          {/* Rating */}
 
           <div className="flex space-x-4">
             <button
@@ -119,9 +138,9 @@ const FoodDetail = () => {
                 addToCart(food);
                 showToast("Đã thêm món vào giỏ hàng thành công!", "success");
               }}
-              className="flex-1 bg-gray-900 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+              className="flex-1 bg-gray-900 text-white py-3 rounded-xl font-bold text-base hover:bg-orange-600 transition shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
             >
-              <ShoppingBag size={20} />
+              <ShoppingBag size={18} />
               <span>Thêm vào đơn hàng</span>
             </button>
           </div>
@@ -130,7 +149,17 @@ const FoodDetail = () => {
 
       {/* Reviews Section */}
       <div className="mt-16">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8">Đánh giá & Nhận xét</h2>
+        <div className="flex items-center mb-8">
+          <div className="flex text-yellow-500">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star key={i} className={`w-5 h-5 ${i < Math.floor(food.rating || 3.6) ? "fill-current" : "text-gray-300"}`} />
+            ))}
+          </div>
+          <span className="ml-2 text-sm font-bold text-gray-600">
+            {food.rating || 3.6} (128 đánh giá)
+          </span>
+        </div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-8">Đánh giá & Nhận xét (128)</h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Reviews List */}

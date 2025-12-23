@@ -23,7 +23,7 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [token, setToken] = useState(null);
-  
+
 
   // Persistence: Load user from local storage on mount
   useEffect(() => {
@@ -47,34 +47,52 @@ export const useAuth = () => {
 
     try {
       // Validate dữ liệu đăng nhập
-      const validationErrors = validateSigninData({ username, password });
-      if (validationErrors.length > 0) {
-        const errorMsg = validationErrors.join(", ");
-        setError(errorMsg);
-        return { success: false, error: errorMsg };
+      // const validationErrors = validateSigninData({ username, password });
+      // if (validationErrors.length > 0) {
+      //   const errorMsg = validationErrors.join(", ");
+      //   setError(errorMsg);
+      //   return { success: false, error: errorMsg };
+      // }
+
+      console.log("Starting signin for:", username);
+      const data = await signInUser({ username, password });
+      console.log("API Response:", data);
+
+      // Handle generic 200 OK with error payload checking
+      // Some backends return 200 OK but with success: false
+      if (data && (data.success === false || (data.code && data.code !== 200))) {
+        console.error("API returned error status despite 200 OK headers");
+        throw new Error(data.message || data.error || "Đăng nhập thất bại");
       }
 
-      const data = await signInUser({ username, password });
-      const tokenValue = data.accessToken || data.token;      // Lưu token & user sử dụng authUtils
+      // Try to find the token in likely places
+      const tokenValue = data.accessToken || data.token || (data.data && (data.data.accessToken || data.data.token));
+      console.log("Extracted Token:", tokenValue ? "Token found" : "No token found");
+
+      if (!tokenValue || typeof tokenValue !== 'string') {
+        console.error("Invalid or missing token in response");
+        throw new Error(data.message || "Không tìm thấy token hợp lệ trong phản hồi từ server");
+      }
+
+      const userValue = data.user || (data.data && data.data.user);
+
       const authDataToSave = {
-        token: tokenValue, 
-        user: data.user
+        token: tokenValue,
+        user: userValue
       };
+
       saveAuthData(authDataToSave);
       setToken(tokenValue);
-      if (data.user) {
-        setUser(data.user);
+      if (userValue) {
+        setUser(userValue);
       }
 
-      if (tokenValue) {
-        setToken(tokenValue);
-      }
+      console.log("Signin successful. User:", userValue);
 
-      console.log(" Đăng nhập thành công:"); // <-- confirm login
-
-      return { success: true, data: data };
+      // Return a consistent structure
+      return { success: true, data: { ...data, user: userValue, token: tokenValue } };
     } catch (err) {
-      console.error(" Đăng nhập thất bại:", err);
+      console.error("Signin Exception:", err);
       const errorMessage = err.message || "Sai username hoặc mật khẩu";
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -97,7 +115,7 @@ export const useAuth = () => {
         token: tokenValue,
         user: data.user
       };
-      
+
       saveAuthData(authDataToSave);
       if (data.user) {
         setUser(data.user);
@@ -132,13 +150,13 @@ export const useAuth = () => {
 
       const tokenValue = data.accessToken || data.token;
       if (tokenValue && data.user) {
-         const authDataToSave = {
-            token: tokenValue,
-            user: data.user
-         };
-         saveAuthData(authDataToSave);
-         setUser(data.user);
-         setToken(tokenValue);
+        const authDataToSave = {
+          token: tokenValue,
+          user: data.user
+        };
+        saveAuthData(authDataToSave);
+        setUser(data.user);
+        setToken(tokenValue);
       } else {
         // Nếu backend cũ (không trả token khi signup) thì giữ nguyên logic cũ
         saveAuthData(data);
