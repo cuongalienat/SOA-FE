@@ -5,6 +5,7 @@ import {
   updateShopStatusService,
   getShopByIdService,
   getMyShopDashboardService,
+  getShopDashboardService,
 } from "../services/shopServices.jsx";
 import { useToast } from "../context/ToastContext";
 
@@ -17,6 +18,7 @@ export const useShop = () => {
 
   const [shop, setShop] = useState(null);
   const [dashboard, setDashboard] = useState(null);
+  const [shopDashboard, setShopDashboard] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -91,6 +93,24 @@ export const useShop = () => {
     }
   }, []);
 
+  const loadShopDashboard = useCallback(async (shopId) => {
+    setDashboardLoading(true);
+    try {
+      const res = await getShopDashboardService(shopId);
+      setShopDashboard(res.data);
+    } catch (err) {
+      // showToast(err.message || "Không thể tải dashboard", "error");
+      setShopDashboard({
+        stats: {
+          rating: 0,
+          items: 0
+        }
+      });
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, []);
+
   /* =======================
      LOAD SHOP BY ID (PUBLIC) WITH CACHE
   ======================= */
@@ -131,11 +151,13 @@ export const useShop = () => {
   return {
     shop,
     dashboard,
+    shopDashboard,
     loading,
     dashboardLoading,
     error,
     loadMyShop,
     loadDashboard,
+    loadShopDashboard,
     updateShopInfo,
     toggleShopStatus,
     loadShopById,

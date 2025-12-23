@@ -33,6 +33,7 @@ const ENDPOINTS = {
     CREATE: "/shops",
     GET_MY_SHOP: "/shops/my-shop",
     GET_MY_SHOP_DASHBOARD: "/shops/my-shop/dashboard",
+    GET_SHOP_DASHBOARD: "/shops/:id/dashboard",
     UPDATE_SHOP_INFO: "/shops/my-shop",
     TOGGLE_SHOP_STATUS: "/shops/my-shop/status",
     GET_BY_ID: "/shops/:id",
