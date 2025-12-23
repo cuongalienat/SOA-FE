@@ -7,24 +7,27 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = (item) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i._id === item._id);
+      // Robust check for ID
+      const itemId = item._id || item.id;
+      const existing = prev.find((i) => (i._id || i.id) === itemId);
+
       if (existing) {
         return prev.map((i) =>
-          i._id === item._id ? { ...i, quantity: i.quantity + 1 } : i
+          (i._id || i.id) === itemId ? { ...i, quantity: i.quantity + (item.quantity || 1) } : i
         );
       }
-      return [...prev, { ...item, quantity: 1 }];
+      return [...prev, { ...item, quantity: item.quantity || 1 }];
     });
   };
 
   const removeFromCart = (id) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    setItems((prev) => prev.filter((i) => (i._id || i.id) !== id));
   };
 
   const updateQuantity = (id, delta) => {
     setItems((prev) =>
       prev.map((item) => {
-        if (item.id === id) {
+        if ((item._id || item.id) === id) {
           const newQuantity = Math.max(1, item.quantity + delta);
           return { ...item, quantity: newQuantity };
         }
@@ -36,7 +39,7 @@ export const CartProvider = ({ children }) => {
   const updateItemNote = (id, note) => {
     setItems((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, note } : item
+        (item._id || item.id) === id ? { ...item, note } : item
       )
     );
   };

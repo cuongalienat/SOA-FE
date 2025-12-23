@@ -51,8 +51,9 @@ const ENDPOINTS = {
   },
   SHIPPING: {
     CALCULATE_FEE: "/shippings/calculate",
-  }
+  },
   CATEGORY: {
+    GET_BY_ID: "/categories/:id",
     GET_ALL: "/categories",
     CREATE: "/categories",
     UPDATE: "/categories/:id",

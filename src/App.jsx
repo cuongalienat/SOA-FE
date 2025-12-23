@@ -15,56 +15,60 @@ const ClientRoutes = React.lazy(() => import("./routes/customerRoutes.jsx"));
 const RestaurantRoutes = React.lazy(() => import("./routes/shopRoutes.jsx"));
 const ShipperRoutes = React.lazy(() => import("./routes/shipperRoutes.jsx"));
 
+import { ProductProvider } from "./context/ProductContext";
+
 const App = () => {
   return (
     <AuthProvider>
       <SocketProvider>
         <ToastProvider>
           <WalletProvider>
-            <CartProvider>
-              <HashRouter>
-                <Suspense
-                  fallback={
-                    <div className="h-screen flex items-center justify-center">
-                      Loading app...
-                    </div>
-                  }
-                >
-                  <Routes>
-                    {/* ================= RESTAURANT (Protected) ================= */}
-                    <Route
-                      element={
-                        <RoleBasedRoute allowedRoles={["restaurant_manager"]} />
-                      }
-                    >
+            <ProductProvider>
+              <CartProvider>
+                <HashRouter>
+                  <Suspense
+                    fallback={
+                      <div className="h-screen flex items-center justify-center">
+                        Loading app...
+                      </div>
+                    }
+                  >
+                    <Routes>
+                      {/* ================= RESTAURANT (Protected) ================= */}
                       <Route
-                        path="/restaurant/*"
-                        element={<RestaurantRoutes />}
-                      />
-                    </Route>
-
-                    {/* ================= SHIPPER (Protected) ================= */}
-                    <Route
-                      element={
-                        <RoleBasedRoute allowedRoles={["driver", "shipper"]} />
-                      }
-                    >
-                      <Route
-                        path="/shipper/*"
                         element={
-                          <ShipperProvider>
-                            <ShipperRoutes />
-                          </ShipperProvider>
+                          <RoleBasedRoute allowedRoles={["restaurant_manager"]} />
                         }
-                      />
-                    </Route>
+                      >
+                        <Route
+                          path="/restaurant/*"
+                          element={<RestaurantRoutes />}
+                        />
+                      </Route>
 
-                    {/* ================= CUSTOMER (Public) ================= */}
-                    <Route path="/*" element={<ClientRoutes />} />
-                  </Routes>
-                </Suspense>
-              </HashRouter>
-            </CartProvider>
+                      {/* ================= SHIPPER (Protected) ================= */}
+                      <Route
+                        element={
+                          <RoleBasedRoute allowedRoles={["driver", "shipper"]} />
+                        }
+                      >
+                        <Route
+                          path="/shipper/*"
+                          element={
+                            <ShipperProvider>
+                              <ShipperRoutes />
+                            </ShipperProvider>
+                          }
+                        />
+                      </Route>
+
+                      {/* ================= CUSTOMER (Public) ================= */}
+                      <Route path="/*" element={<ClientRoutes />} />
+                    </Routes>
+                  </Suspense>
+                </HashRouter>
+              </CartProvider>
+            </ProductProvider>
           </WalletProvider>
         </ToastProvider>
       </SocketProvider>

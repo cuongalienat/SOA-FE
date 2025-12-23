@@ -8,6 +8,10 @@ import {
 } from "../services/shopServices.jsx";
 import { useToast } from "../context/ToastContext";
 
+// Module-level cache to store shop details across component instances
+const SHOP_CACHE = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export const useShop = () => {
   const { showToast } = useToast();
 
@@ -21,7 +25,9 @@ export const useShop = () => {
      LOAD SHOP (GET)
   ======================= */
   const loadMyShop = useCallback(async () => {
-    if (shop) return; // 🔥 QUAN TRỌNG: đã có shop thì không load lại
+    // For "My Shop", we might want fresh data or handle differently.
+    // Keeping original logic for now, but adding basic state check
+    if (shop) return;
 
     setLoading(true);
     try {
@@ -41,10 +47,7 @@ export const useShop = () => {
     setLoading(true);
     try {
       const res = await updateShopService(shopData);
-
-      // ✅ DÙNG DUY NHẤT DATA BE
       setShop(res.shop);
-
       showToast("Cập nhật thông tin cửa hàng thành công!", "success");
     } catch (err) {
       showToast(err.message || "Cập nhật thất bại", "error");
@@ -58,13 +61,10 @@ export const useShop = () => {
   ======================= */
   const toggleShopStatus = async () => {
     if (!shop) return;
-
     setLoading(true);
     try {
       const res = await updateShopStatusService(!shop.isOpen);
-
-      setShop(res.shop); // ✅ BE quyết định
-
+      setShop(res.shop);
       showToast(
         res.shop.isOpen ? "Cửa hàng đã MỞ CỬA" : "Cửa hàng đã ĐÓNG CỬA",
         res.shop.isOpen ? "success" : "warning"
@@ -92,15 +92,37 @@ export const useShop = () => {
   }, []);
 
   /* =======================
-     LOAD SHOP BY ID (PUBLIC)
+     LOAD SHOP BY ID (PUBLIC) WITH CACHE
   ======================= */
   const loadShopById = async (shopId) => {
+    if (!shopId) return;
+
+    // 1. Check Cache
+    const now = Date.now();
+    const cached = SHOP_CACHE.get(shopId);
+
+    if (cached && (now - cached.timestamp < CACHE_DURATION)) {
+      setShop(cached.data);
+      return;
+    }
+
     setLoading(true);
     try {
+      // 2. Fetch from API
       const res = await getShopByIdService(shopId);
-      setShop(res.data || res);
+      const data = res.data || res;
+
+      // 3. Save to Cache
+      SHOP_CACHE.set(shopId, {
+        data: data,
+        timestamp: now
+      });
+
+      setShop(data);
     } catch (err) {
-      showToast(err.message || "Không thể tải shop", "error");
+      console.error("Load Shop Error:", err);
+      // Don't show toast for every card failure to avoid spam
+      // showToast(err.message || "Không thể tải shop", "error");
     } finally {
       setLoading(false);
     }

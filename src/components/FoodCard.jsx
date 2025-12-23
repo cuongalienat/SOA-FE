@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect } from "react"; 
 import { Link } from "react-router-dom";
 import { Star, Plus } from "lucide-react";
 import { useCart } from "../context/CartContext.jsx";
@@ -12,7 +12,7 @@ const FoodCard = ({ food }) => {
   }, [food.shopId]);
   return (
     <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-100">
-      <div className="relative h-48 overflow-hidden">
+      <div className="relative h-40 overflow-hidden">
         <img
           src={food.imageUrl}
           alt={food.name}
@@ -24,37 +24,37 @@ const FoodCard = ({ food }) => {
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-3">
         <div className="flex justify-between items-start mb-2">
           <div>
-            <span className="text-xs font-medium text-orange-500 uppercase tracking-wide">
+            <span className="text-[10px] font-medium text-orange-500 uppercase tracking-wide">
               {food.category}
             </span>
             <Link to={`/food/${food._id}`}>
-              <h3 className="text-lg font-bold text-gray-800 leading-tight mb-1 hover:text-orange-600 transition">
+              <h3 className="text-base font-bold text-gray-800 leading-tight mb-1 hover:text-orange-600 transition line-clamp-2 min-h-[44px]">
                 {food.name}
               </h3>
             </Link>
           </div>
         </div>
-        <div className="text-sm text-gray-500 mb-4 h-10">
+        <div className="text-xs text-gray-500 mb-3 h-8">
           <p className="font-semibold text-gray-700 truncate">
             {shop?.name || "Homeless"}
           </p>
-          <p className="text-xs truncate">
+          <p className="text-[10px] truncate">
             {shop?.address || "Unknown Address"}
           </p>
         </div>
 
         <div className="flex items-center justify-between mt-2">
-          <span className="text-xl font-bold text-gray-900">
-            {Number(food.price).toLocaleString('vi-VN')} VNĐ
+          <span className="text-lg font-bold text-gray-900">
+            {Number(food.price).toLocaleString('vi-VN')}đ
           </span>
           <button
             onClick={() => addToCart(food)}
-            className="bg-gray-900 hover:bg-orange-500 text-white p-2 rounded-xl transition-colors duration-300 flex items-center justify-center"
+            className="bg-gray-900 hover:bg-orange-500 text-white p-1.5 rounded-lg transition-colors duration-300 flex items-center justify-center"
           >
-            <Plus size={20} />
+            <Plus size={16} />
           </button>
         </div>
       </div>

@@ -42,6 +42,7 @@ const SignIn = () => {
   };
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     try {
       const result = await signin(username, password);
@@ -72,6 +73,7 @@ const SignIn = () => {
         // Đăng nhập thành công
         // Normalize role: lowercase and trim whitespace
         const role = result.data.user.role ? result.data.user.role.toLowerCase().trim() : "";
+        console.log("Login success in UI. Role:", role);
         showNotification("Đăng nhập thành công", "success");
 
         // Use timeout to ensure AuthContext updates before navigation
@@ -84,18 +86,19 @@ const SignIn = () => {
               navigate("/shipper", { replace: true });
               break;
             default:
-              // Check if there was a previous location attempt
-              // (Note: need to access location.state.from if implementing redirect back)
               navigate("/", { replace: true });
           }
         }, 1500);
       } else {
         // Đăng nhập thất bại
+        console.log("Login failed in UI:", result);
         showNotification(result.error || "Đăng nhập thất bại", "error");
       }
     } catch (error) {
       console.error("Login error in handler:", error);
       showNotification("Có lỗi xảy ra khi đăng nhập", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
