@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useCart } from "../../../context/CartContext.jsx";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import { useWallet } from "../../../hooks/useWallet.jsx";
 import LocationSelector from "../LocationSelector/LocationSelector.jsx";
 
 const Navbar = () => {
@@ -18,6 +19,14 @@ const Navbar = () => {
   const { itemCount } = useCart();
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { wallet, fetchWallet, loading: walletLoading } = useWallet();
+
+  // Fetch wallet when user is logged in
+  React.useEffect(() => {
+    if (user) {
+      fetchWallet();
+    }
+  }, [user, fetchWallet]);
 
   const navLinks = [
     { name: "Trang chủ", path: "/" },
@@ -74,9 +83,16 @@ const Navbar = () => {
                     <span className="text-sm font-semibold text-gray-700 block">
                       {user.name}
                     </span>
-                    <span className="text-xs text-orange-600 font-bold block">
-                      {(user.balance || 0).toLocaleString()}đ
-                    </span>
+                    {/* Wallet Balance Logic */}
+                    {wallet ? (
+                      <span className="text-xs text-orange-600 font-bold block">
+                        {(Number(wallet.balance) || 0).toLocaleString()}đ
+                      </span>
+                    ) : (
+                      <Link to="/profile?tab=wallet&action=create_wallet" className="text-xs text-orange-500 font-bold hover:underline block flex items-center justify-end">
+                        Mở ví ngay
+                      </Link>
+                    )}
                   </div>
                   <div className="h-8 w-8 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
                     <UserIcon size={18} />

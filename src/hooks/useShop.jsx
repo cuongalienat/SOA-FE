@@ -4,104 +4,145 @@ import {
   updateShopService,
   updateShopStatusService,
   getShopByIdService,
-} from "../services/shopServices.jsx"; // Nhớ sửa đường dẫn đúng tới file service của bạn
-import { useToast } from "../context/ToastContext"; // Import hook thông báo
-import { useEffect } from "react";
+  getMyShopDashboardService,
+  getShopDashboardService,
+} from "../services/shopServices.jsx";
+import { useToast } from "../context/ToastContext";
 
+// Module-level cache to store shop details across component instances
+const SHOP_CACHE = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export const useShop = () => {
-  const [shop, setShop] = useState(null); // Lưu thông tin shop
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
   const { showToast } = useToast();
 
-  // 1. Lấy thông tin Shop (Thường gọi ở useEffect trong Dashboard)
+  const [shop, setShop] = useState(null);
+  const [dashboard, setDashboard] = useState(null);
+  const [shopDashboard, setShopDashboard] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  /* =======================
+     LOAD SHOP (GET)
+  ======================= */
   const loadMyShop = useCallback(async () => {
+    // For "My Shop", we might want fresh data or handle differently.
+    // Keeping original logic for now, but adding basic state check
+    if (shop) return;
+
     setLoading(true);
-    setError(null);
     try {
-      const data = await getMyShopService();
-      // Tùy cấu trúc BE trả về, có thể là data hoặc data.data
-      // Giả sử service trả về { success: true, data: { ...shop } }
-      setShop(data.data || data);
+      const res = await getMyShopService();
+      setShop(res.data || res);
     } catch (err) {
-      const msg = err.message || "Không thể tải thông tin cửa hàng";
-      setError(msg);
-      // showToast(msg, "error"); // Tùy chọn: có muốn hiện lỗi khi load trang không
+      setError(err.message || "Không thể tải thông tin cửa hàng");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [shop]);
 
-  useEffect(() => {
-    console.log("AUTO LOAD SHOP");
-    loadMyShop();
-  }, [loadMyShop]);
-
-
-  // 2. Cập nhật thông tin Shop (Tên, ảnh, địa chỉ...)
+  /* =======================
+     UPDATE SHOP INFO (PUT)
+  ======================= */
   const updateShopInfo = async (shopData) => {
     setLoading(true);
     try {
-      const data = await updateShopService(shopData);
-
-      // Cập nhật lại state local ngay lập tức để UI thay đổi
-      setShop((prev) => ({ ...prev, ...shopData }));
-      // Hoặc an toàn hơn là set bằng dữ liệu BE trả về:
-      // setShop(data.data || data);
-
+      const res = await updateShopService(shopData);
+      setShop(res.shop);
       showToast("Cập nhật thông tin cửa hàng thành công!", "success");
-      return { success: true, data };
     } catch (err) {
-      const msg = err.message || "Cập nhật thất bại";
-      showToast(msg, "error");
-      return { success: false, error: msg };
+      showToast(err.message || "Cập nhật thất bại", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  // 3. Bật/Tắt trạng thái mở cửa
+  /* =======================
+     TOGGLE SHOP STATUS
+  ======================= */
   const toggleShopStatus = async () => {
+    if (!shop) return;
     setLoading(true);
     try {
-      const data = await updateShopStatusService();
+      const res = await updateShopStatusService(!shop.isOpen);
+      setShop(res.shop);
+      showToast(
+        res.shop.isOpen ? "Cửa hàng đã MỞ CỬA" : "Cửa hàng đã ĐÓNG CỬA",
+        res.shop.isOpen ? "success" : "warning"
+      );
+    } catch (err) {
+      showToast(err.message || "Không thể đổi trạng thái", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Cập nhật UI: Đảo ngược trạng thái hiện tại (Optimistic update)
-      // Hoặc lấy từ data trả về
-      setShop((prev) => {
-        if (!prev) return null;
-        const newStatus = !prev.isOpen; // Giả sử field tên là isOpen
-        showToast(
-          newStatus ? "Cửa hàng đã MỞ CỬA" : "Cửa hàng đã ĐÓNG CỬA",
-          newStatus ? "success" : "warning"
-        );
-        return { ...prev, isOpen: newStatus };
+  /* =======================
+     LOAD DASHBOARD
+  ======================= */
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    try {
+      const res = await getMyShopDashboardService();
+      setDashboard(res.data);
+    } catch (err) {
+      showToast(err.message || "Không thể tải dashboard", "error");
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, []);
+
+  const loadShopDashboard = useCallback(async (shopId) => {
+    setDashboardLoading(true);
+    try {
+      const res = await getShopDashboardService(shopId);
+      setShopDashboard(res.data);
+    } catch (err) {
+      // showToast(err.message || "Không thể tải dashboard", "error");
+      setShopDashboard({
+        stats: {
+          rating: 0,
+          items: 0
+        }
+      });
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, []);
+
+  /* =======================
+     LOAD SHOP BY ID (PUBLIC) WITH CACHE
+  ======================= */
+  const loadShopById = async (shopId) => {
+    if (!shopId) return;
+
+    // 1. Check Cache
+    const now = Date.now();
+    const cached = SHOP_CACHE.get(shopId);
+
+    if (cached && (now - cached.timestamp < CACHE_DURATION)) {
+      setShop(cached.data);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 2. Fetch from API
+      const res = await getShopByIdService(shopId);
+      const data = res.data || res;
+
+      // 3. Save to Cache
+      SHOP_CACHE.set(shopId, {
+        data: data,
+        timestamp: now
       });
 
-      // Nếu BE trả về object shop mới nhất thì set lại cho chắc
-      if (data.data) {
-        setShop(data.data);
-      }
-
-      return { success: true };
+      setShop(data);
     } catch (err) {
-      const msg = err.message || "Không thể thay đổi trạng thái";
-      showToast(msg, "error");
-      return { success: false, error: msg };
-    } finally {
-      setLoading(false);
-    }
-  };
-  const loadShopById = async (shopId) => {
-    setLoading(true);
-    try {
-      const data = await getShopByIdService(shopId);
-      setShop(data.data || data);
-    } catch (err) {
-      const msg = err.message || "Không thể tải thông tin cửa hàng";
-      showToast(msg, "error");
+      console.error("Load Shop Error:", err);
+      // Don't show toast for every card failure to avoid spam
+      // showToast(err.message || "Không thể tải shop", "error");
     } finally {
       setLoading(false);
     }
@@ -109,9 +150,14 @@ export const useShop = () => {
 
   return {
     shop,
+    dashboard,
+    shopDashboard,
     loading,
+    dashboardLoading,
     error,
     loadMyShop,
+    loadDashboard,
+    loadShopDashboard,
     updateShopInfo,
     toggleShopStatus,
     loadShopById,

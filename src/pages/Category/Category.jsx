@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Filter, Search } from "lucide-react";
 import FoodCard from "../../components/FoodCard.jsx";
 import { CATEGORIES } from "../../constants.js";
-import { useItems } from "../../hooks/useItems.jsx";
+import { useProduct } from "../../context/ProductContext.jsx";
 import { usePagination, getVisiblePages } from "../../hooks/usePagination.jsx";
 import { useSearchParams } from "react-router-dom";
 
@@ -12,32 +12,76 @@ export default function Category() {
   const initialCategory = searchParams.get("category") || "Tất cả";
   const initialSearch = searchParams.get("search") || "";
 
-  const { items, loadItems, loading, pagination: backendPagination } = useItems();
-  const { currentPage, limit, goToPage } = usePagination(initialPage, 12);
+  // Use global product context
+  const { products: items, loading, loadProducts } = useProduct();
+
+  // Use local state for pagination logic (same as before)
+  const { currentPage, limit, goToPage } = usePagination(initialPage, 42);
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [searchTerm, setSearchTerm] = useState(initialSearch);
 
-  // Update URL when page, category, or search changes
+  // Debounce search term isn't strictly necessary for client-side filtering but good for URL sync
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Update URL state
   useEffect(() => {
     const params = {};
     if (currentPage > 1) params.page = currentPage;
     if (selectedCategory !== "Tất cả") params.category = selectedCategory;
-    if (searchTerm) params.search = searchTerm;
+    if (debouncedSearch) params.search = debouncedSearch;
     setSearchParams(params);
-  }, [currentPage, selectedCategory, searchTerm]);
+  }, [currentPage, selectedCategory, debouncedSearch]);
 
+
+  // Load ALL items using Global Context
   useEffect(() => {
-    loadItems({ page: currentPage, limit: limit });
-  }, [currentPage, limit]);
+    loadProducts();
+  }, []); // Run once on mount (Context will handle caching)
 
-  const currentItems = Array.isArray(items) ? items : [];
+  // Reset page when filters change
+  useEffect(() => {
+    if (currentPage !== 1) {
+      goToPage(1);
+    }
+  }, [selectedCategory, debouncedSearch]);
 
-  const filteredFood = currentItems.filter((item) => {
-    const matchesCategory = selectedCategory === "Tất cả" || item.category === selectedCategory;
-    const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const rawItems = Array.isArray(items) ? items : [];
+
+  // 1. Client-side Filtering
+  // 1. Client-side Filtering & Randomization
+  const filteredFood = useMemo(() => {
+    // a. Filter
+    let results = rawItems.filter((item) => {
+      const matchesCategory = selectedCategory === "Tất cả" || item.category === selectedCategory || item.categoryId?.name === selectedCategory;
+      const matchesSearch = !debouncedSearch || item.name?.toLowerCase().includes(debouncedSearch.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+
+    // b. Shuffle (Fisher-Yates) consistent for this filter state
+    // Clone array to avoid mutating source
+    results = [...results];
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [results[i], results[j]] = [results[j], results[i]];
+    }
+
+    return results;
+  }, [rawItems, selectedCategory, debouncedSearch]);
+
+  // 2. Client-side Pagination
+  const totalPages = Math.ceil(filteredFood.length / limit);
+  // Ensure currentPage is valid
+  const validPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPages));
+
+  const currentItems = filteredFood.slice((validPage - 1) * limit, validPage * limit);
 
   const paginate = (pageNumber) => {
     goToPage(pageNumber);
@@ -87,8 +131,8 @@ export default function Category() {
             key={cat}
             onClick={() => handleCategoryChange(cat)}
             className={`px-6 py-3 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${selectedCategory === cat
-                ? "bg-orange-500 text-white border-orange-500 shadow-md transform scale-105"
-                : "bg-white text-gray-600 border-gray-200 hover:border-orange-200 hover:text-orange-500 hover:bg-orange-50"
+              ? "bg-orange-500 text-white border-orange-500 shadow-md transform scale-105"
+              : "bg-white text-gray-600 border-gray-200 hover:border-orange-200 hover:text-orange-500 hover:bg-orange-50"
               }`}
           >
             {cat}
@@ -124,33 +168,33 @@ export default function Category() {
       )}
 
       {/* Items Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-8">
-        {filteredFood.map((item) => (
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-8">
+        {currentItems.map((item) => (
           <FoodCard key={item._id || item.id} food={item} />
         ))}
       </div>
 
       {/* Pagination */}
-      {!loading && backendPagination && backendPagination.totalPages > 1 && (
-        <div className="flex justify-center space-x-2 mt-12">
+      {!loading && totalPages > 1 && (
+        <div className="flex justify-center space-x-2 mt-12 pb-10">
           <button
-            onClick={() => paginate(backendPagination.page - 1)}
-            disabled={!backendPagination.hasPrevPage}
+            onClick={() => paginate(validPage - 1)}
+            disabled={validPage === 1}
             className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             Trước
           </button>
 
-          {getVisiblePages(backendPagination.page, backendPagination.totalPages).map((page, index) =>
+          {getVisiblePages(validPage, totalPages).map((page, index) =>
             page === "..." ? (
               <span key={`dots-${index}`} className="px-4 py-2 text-gray-400">...</span>
             ) : (
               <button
                 key={page}
                 onClick={() => paginate(page)}
-                className={`px-4 py-2 border rounded-lg transition ${backendPagination.page === page
-                    ? "bg-orange-500 text-white border-orange-500 shadow-sm"
-                    : "hover:bg-gray-50 text-gray-700 bg-white"
+                className={`px-4 py-2 border rounded-lg transition ${validPage === page
+                  ? "bg-orange-500 text-white border-orange-500 shadow-sm"
+                  : "hover:bg-gray-50 text-gray-700 bg-white"
                   }`}
               >
                 {page}
@@ -159,8 +203,8 @@ export default function Category() {
           )}
 
           <button
-            onClick={() => paginate(backendPagination.page + 1)}
-            disabled={!backendPagination.hasNextPage}
+            onClick={() => paginate(validPage + 1)}
+            disabled={validPage === totalPages}
             className="px-4 py-2 border rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             Sau
