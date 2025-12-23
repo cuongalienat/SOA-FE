@@ -48,6 +48,7 @@ const ENDPOINTS = {
     WITHDRAW: "/wallets/withdraw",
     DEPOSIT: "/wallets/deposit",
     GET_HISTORY: "/wallets/history",
+    CHECK_PIN: "/wallets/checkPin",
   },
   SHIPPING: {
     CALCULATE_FEE: "/shippings/calculate",

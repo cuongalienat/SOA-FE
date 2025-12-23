@@ -4,6 +4,7 @@ import {
     getWallet,
     depositWallet,
     getHistory,
+    checkPin,
 } from "../services/walletService";
 import { useAuth } from "./AuthContext";
 import { useToast } from "./ToastContext";
@@ -120,6 +121,23 @@ export const WalletProvider = ({ children }) => {
         }
     }, [showToast, fetchTransactions]);
 
+    const verifyPin = useCallback(async (pin) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await checkPin(pin);
+            console.log("Check PIN result:", data);
+            return { success: true, data };
+        } catch (err) {
+            // const msg = err.message || "Mã PIN không chính xác";
+            // setError(msg);
+            // showToast(msg, "error");
+            return { success: false, error: err };
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     const value = {
         wallet,
         transactions,
@@ -129,6 +147,7 @@ export const WalletProvider = ({ children }) => {
         fetchTransactions,
         createMyWallet,
         depositMoney,
+        verifyPin,
         pagination
     };
 

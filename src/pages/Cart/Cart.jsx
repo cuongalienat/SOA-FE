@@ -57,10 +57,12 @@ const Cart = () => {
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+
+  const [pin, setPin] = useState("");
   const [showMap, setShowMap] = useState(false);
   const { showToast } = useToast();
   const { shop, loadShopById } = useShop();
-  const { wallet, fetchWallet, fetchTransactions } = useWallet();
+  const { wallet, fetchWallet, fetchTransactions, verifyPin } = useWallet();
 
   useEffect(() => {
     fetchWallet();
@@ -119,7 +121,7 @@ const Cart = () => {
       const updatedAt = new Date(order.updatedAt);
       const now = new Date();
       const diffMinutes = (now - updatedAt) / 1000 / 60;
-      return diffMinutes < 10;
+      return diffMinutes < 3;
     }
     return false;
   };
@@ -227,8 +229,25 @@ const Cart = () => {
         showToast("Không tìm thấy thông tin ví", "error");
         return;
       }
+
+      // Verify PIN
+      if (!pin) {
+        showToast("Vui lòng nhập mã PIN", "error");
+        return;
+      }
+      setProcessingPayment(true);
+      const verifyRes = await verifyPin(pin);
+      console.log("Verify Res:", verifyRes);
+      if (!verifyRes.data.data) {
+        setProcessingPayment(false);
+        showToast("Mã PIN không chính xác!", "error");
+        return;
+      }
+
+      // Check balance AFTER pin verification
       if (wallet.balance < finalTotal) {
-        showToast("Số dư ví không đủ!", "error");
+        setProcessingPayment(false);
+        showToast("Số dư ví không đủ để thanh toán", "error");
         return;
       }
     }
@@ -245,9 +264,11 @@ const Cart = () => {
       console.log("Restaurant ID to send:", shopId);
 
       if (!shopId) {
+        setProcessingPayment(false);
         showToast("Lỗi dữ liệu món ăn (thiếu ID quán)", "error");
         return;
       }
+
 
       // Map items sang format backend cần: { item: itemID, quantity: N, note: ... }
       const orderItems = items.map(i => ({
@@ -255,7 +276,7 @@ const Cart = () => {
         quantity: i.quantity,
         imageUrl: i.imageUrl,
         price: i.price, // Giá tại thời điểm mua (quan trọng)
-        options: i.note ? [i.note] : [] // Ghi chú được lưu vào options
+        options: i.note || "" // Ghi chú được lưu vào options
       }));
 
       // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
@@ -263,6 +284,7 @@ const Cart = () => {
       // Note: We rely on backend to handle deduction. Logic moved to backend.
 
       // 5. GỌI API TẠO ĐƠN HÀNG (Dùng hook useOrders)
+      console.log("Final total:", distanceData);
       const result = await createOrder({
         userId: user._id,
         shopId: shopId,
@@ -290,16 +312,22 @@ const Cart = () => {
           await fetchWallet();
           await fetchTransactions(); // Update history even if not shown here
         }
+        setProcessingPayment(false);
       } else {
+        setProcessingPayment(false);
         if (paymentMethod === "Wallet") {
           fetchWallet(); // Re-fetch to sync if failed
         }
-        showToast(result.error, "error");
+        // Show specific error from backend if available
+        const errorMessage = result.error || result.message || "Có lỗi xảy ra khi tạo đơn hàng";
+        showToast(errorMessage, "error");
       }
 
     } catch (error) {
       console.error(error);
-      showToast("Có lỗi xảy ra khi thanh toán", "error");
+      setProcessingPayment(false);
+      const errorMessage = error.response?.data?.message || error.message || "Có lỗi xảy ra khi thanh toán";
+      showToast(errorMessage, "error");
     }
   };
 
@@ -680,7 +708,10 @@ const Cart = () => {
           <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl relative">
             <div className="bg-gray-900 p-6 text-white relative">
               <button
-                onClick={() => setShowInvoiceModal(false)}
+                onClick={() => {
+                  setShowInvoiceModal(false);
+                  setPin("");
+                }}
                 className="absolute top-4 right-4 text-gray-400 hover:text-white"
               >
                 <X size={24} />
@@ -704,7 +735,7 @@ const Cart = () => {
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Tổng tiền đơn hàng</span>
                   <span className="font-bold text-orange-600">
-                    -{finalTotal} VNĐ
+                    -{finalTotal.toLocaleString()}đ
                   </span>
                 </div>
                 <div className="h-px bg-gray-200 my-2"></div>
@@ -723,28 +754,39 @@ const Cart = () => {
                 </div>
               </div>
 
-              {(wallet?.balance || 0) - finalTotal < 0 && (
-                <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-start">
-                  <AlertTriangle
-                    size={16}
-                    className="mr-2 mt-0.5 flex-shrink-0"
+
+
+              {paymentMethod === "Wallet" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nhập mã PIN xác nhận
+                  </label>
+                  <input
+                    type="password"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    maxLength={6}
+                    placeholder="••••••"
+                    className="w-full text-center text-2xl tracking-widest p-3 border border-gray-200 rounded-xl focus:border-orange-500 outline-none"
                   />
-                  <span>Số dư không đủ. Vui lòng nạp thêm tiền.</span>
                 </div>
               )}
 
               <div className="flex space-x-3">
                 <button
-                  onClick={() => setShowInvoiceModal(false)}
+                  onClick={() => {
+                    setShowInvoiceModal(false);
+                    setPin("");
+                  }}
                   className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   onClick={confirmPayment}
-                  disabled={processingPayment || (wallet?.balance || 0) - finalTotal < 0}
+                  disabled={processingPayment}
                   className={`flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center transition shadow-lg
-                                ${(wallet?.balance || 0) - finalTotal < 0
+                                ${processingPayment
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-green-600 hover:bg-green-700"
                     }

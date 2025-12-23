@@ -40,3 +40,14 @@ export const getHistory = async (page = 1, limit = 6) => {
         throw error;
     }
 }
+
+export const checkPin = async (pin) => {
+    try {
+        const response = await api.post(ENDPOINTS.WALLET.CHECK_PIN, {
+            pin: pin
+        });
+        return response.data;
+    } catch (error) {
+        throw error;
+    }
+}
