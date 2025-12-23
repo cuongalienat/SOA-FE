@@ -97,15 +97,9 @@ export const useShop = () => {
     setDashboardLoading(true);
     try {
       const res = await getShopDashboardService(shopId);
-      setShopDashboard(res.data);
+      setShopDashboard(res.data || res);
     } catch (err) {
-      // showToast(err.message || "Không thể tải dashboard", "error");
-      setShopDashboard({
-        stats: {
-          rating: 0,
-          items: 0
-        }
-      });
+      showToast(err.message || "Không thể tải dashboard", "error");
     } finally {
       setDashboardLoading(false);
     }

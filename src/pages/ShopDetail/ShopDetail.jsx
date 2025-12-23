@@ -18,9 +18,7 @@ const ShopDetail = () => {
         }
     }, [id]);
 
-    useEffect(() => {
-        console.log("shopDashboard updated:", shopDashboard);
-    }, [shopDashboard]);
+
 
     if (shopLoading || !shop) {
         return (
