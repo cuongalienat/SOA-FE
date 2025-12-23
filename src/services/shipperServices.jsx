@@ -36,10 +36,10 @@ export const getCurrentDeliveryService = async () => {
   // Code cũ bị lỗi: axios.get(...)
   // Code mới chuẩn:
   const res = await api.get("/deliveries/current-job");
-  
-  // Lưu ý: Kiểm tra lại backend trả về format nào. 
+
+  // Lưu ý: Kiểm tra lại backend trả về format nào.
   // Nếu giống các API trên thì dùng res.data.data, nếu không thì dùng res.data
-  return res.data.data; 
+  return res.data.data;
 };
 
 /**
@@ -66,5 +66,22 @@ export const updateDeliveryStatusService = async (
   if (location) body.location = location;
 
   const res = await api.patch(`/deliveries/${deliveryId}/status`, body);
+  return res.data.data;
+};
+
+export const updateShipperProfileService = async (formData) => {
+  const res = await api.put("/shippers/edit-profile", formData);
+  return res.data.data;
+};
+
+export const getShipperHistoryService = async (status = null) => {
+  // Nếu có truyền status thì gắn vào query string, ví dụ: /shippers/history?status=COMPLETED
+  const url = status
+    ? `/shippers/history?status=${status}`
+    : "/shippers/history";
+
+  const res = await api.get(url);
+
+  // Trả về mảng danh sách các đơn hàng trong quá khứ
   return res.data.data;
 };

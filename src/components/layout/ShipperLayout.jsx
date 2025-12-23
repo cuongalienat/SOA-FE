@@ -14,50 +14,64 @@ const ShipperLayout = ({ children }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden relative">
-      {/* Header */}
+    /* SỬA: Dùng h-[100dvh] thay vì min-h-screen, dùng overflow-hidden để chặn rung lắc toàn trang */
+    <div className="h-[100dvh] w-full bg-gray-100 flex flex-col max-w-md mx-auto shadow-2xl overflow-hidden relative border-x border-gray-200">
+      {/* Header - Cố định độ cao */}
       <div
-        className={`px-4 py-3 text-white flex justify-between items-center transition-colors duration-300 ${
+        className={`px-4 py-3 text-white flex justify-between items-center transition-colors duration-300 flex-shrink-0 z-50 ${
           isOnline ? "bg-green-600" : "bg-gray-800"
         }`}
       >
         <div className="flex items-center space-x-2">
-          <div className="bg-white/20 p-1.5 rounded-full">
+          <div className="bg-white/20 p-1.5 rounded-xl">
             <Bike size={20} />
           </div>
-          <span className="font-bold text-xl tracking-tight">
+          <span className="font-black text-xl tracking-tighter uppercase italic">
             Món<span className="text-orange-500">Việt</span>
           </span>
         </div>
 
         <div className="flex items-center space-x-2">
-          <span className="text-xs font-medium px-2 py-1 bg-black/20 rounded-full">
-            {isOnline ? "TRỰC TUYẾN" : "NGOẠI TUYẾN"}
+          <span className="text-[10px] font-black px-3 py-1 bg-black/30 rounded-full tracking-widest uppercase">
+            {isOnline ? "Trực tuyến" : "Ngoại tuyến"}
           </span>
         </div>
       </div>
 
-      {/* Main */}
-      <main className="flex-1 overflow-y-auto pb-20">{children}</main>
+      {/* Main - Vùng cuộn duy nhất */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden scrolling-touch overscroll-contain pb-24 bg-[#F8F9FA]">
+        {/* scrolling-touch giúp vuốt trên iPhone cực mượt */}
+        {children}
+      </main>
 
-      {/* Bottom navigation */}
-      <nav className="absolute bottom-0 w-full bg-white border-t border-gray-200 flex justify-around py-2 z-50">
+      {/* Bottom navigation - Luôn dính chặt ở đáy container */}
+      <nav className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center py-2 px-2 z-[100] h-20 shadow-[0_-5px_15px_rgba(0,0,0,0.03)]">
         {navItems.map((item) => {
           const Icon = item.icon;
-
-          // Fix: dùng startsWith để hỗ trợ route con
           const isActive = location.pathname.startsWith(item.path);
 
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
+              className={`flex flex-col items-center justify-center w-full py-1 rounded-2xl transition-all duration-200 active:scale-90 ${
                 isActive ? "text-green-600" : "text-gray-400"
               }`}
             >
-              <Icon size={24} />
-              <span className="text-xs mt-1 font-medium">{item.label}</span>
+              <div
+                className={`p-1.5 rounded-xl transition-colors ${
+                  isActive ? "bg-green-50" : ""
+                }`}
+              >
+                <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+              </div>
+              <span
+                className={`text-[10px] mt-1 uppercase tracking-widest font-black ${
+                  isActive ? "opacity-100" : "opacity-60"
+                }`}
+              >
+                {item.label}
+              </span>
             </Link>
           );
         })}
