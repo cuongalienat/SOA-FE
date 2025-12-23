@@ -400,8 +400,8 @@ const UserProfile = () => {
                                   key={i}
                                   onClick={() => setWalletPage(p)}
                                   className={`min-w-[36px] h-9 px-2 rounded-xl text-sm font-bold transition border ${current === p
-                                      ? "bg-orange-500 border-orange-500 text-white"
-                                      : "border-transparent hover:bg-gray-100 text-gray-600"
+                                    ? "bg-orange-500 border-orange-500 text-white"
+                                    : "border-transparent hover:bg-gray-100 text-gray-600"
                                     }`}
                                 >
                                   {p}
