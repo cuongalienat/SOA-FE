@@ -22,10 +22,28 @@ const normalizeOrdersList = (response) => {
 const normalizePagination = (response) => {
     const pagination = response?.pagination || response?.data?.pagination;
     return {
-        page: pagination?.page || response?.page || response?.data?.page || 1,
-        limit: pagination?.limit || response?.limit || response?.data?.limit || 10,
-        total: pagination?.total || response?.total || response?.data?.total || 0,
-        totalPages: pagination?.totalPages || response?.totalPages || response?.data?.totalPages || 0
+        page:
+            pagination?.page ||
+            response?.currentPage ||
+            response?.data?.currentPage ||
+            response?.page ||
+            response?.data?.page ||
+            1,
+        limit:
+            pagination?.limit ||
+            response?.limit ||
+            response?.data?.limit ||
+            10,
+        total:
+            pagination?.total ||
+            response?.total ||
+            response?.data?.total ||
+            0,
+        totalPages:
+            pagination?.totalPages ||
+            response?.totalPages ||
+            response?.data?.totalPages ||
+            0
     };
 };
 

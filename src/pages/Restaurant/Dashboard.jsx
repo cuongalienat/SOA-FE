@@ -28,7 +28,7 @@ const Dashboard = () => {
     name: "Quán ăn",
   };
   const max = Math.max(...topProducts.map(p => p.value));
-  const StatCard = ({ title, value, icon: Icon, color }) => (
+  const StatCard = ({ title, value, meta, icon: Icon, color }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-4">
       <div className={`p-4 rounded-full ${color} bg-opacity-10`}>
         <Icon className={`w-8 h-8 ${color.replace("bg-", "text-")}`} />
@@ -36,6 +36,7 @@ const Dashboard = () => {
       <div>
         <p className="text-gray-500 text-sm font-medium">{title}</p>
         <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+        {meta ? <p className="text-xs text-gray-500 mt-1">{meta}</p> : null}
       </div>
     </div>
   );
@@ -72,6 +73,13 @@ const Dashboard = () => {
         <StatCard
           title="Tổng đơn hàng"
           value={stats.totalOrders}
+          meta={(
+            <>
+              Giao thành công: {stats.deliveredOrders || 0}
+              <br />
+              Đã hủy: {stats.canceledOrders || 0}
+            </>
+          )}
           icon={ShoppingBag}
           color="bg-blue-500"
         />

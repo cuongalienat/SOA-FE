@@ -1,4 +1,3 @@
-import axios from "axios"
 import ENDPOINTS from "../config/endpoints.jsx"
 import api from "../config/config.js"
 
@@ -13,9 +12,11 @@ export const createOrderService = async (orderData) => {
 };
 
 // Lấy danh sách đơn hàng của người dùng
-export const getUserOrdersService = async () => {
+export const getUserOrdersService = async (params = {}) => {
     try {
-        const response = await api.get(ENDPOINTS.ORDER.GET_USER_ORDERS);
+        const response = await api.get(ENDPOINTS.ORDER.GET_USER_ORDERS, {
+            params
+        });
         return response.data;
     } catch (error) {
         throw error.response?.data || { message: "Lỗi lấy danh sách đơn hàng" };
@@ -34,13 +35,14 @@ export const cancelOrderService = async (orderId) => {
 };
 
 // Lấy danh sách đơn hàng của cửa hàng
-export const getShopOrdersService = async (shopId) => {
+export const getShopOrdersService = async (shopId, params = {}) => {
     try {
         const response = await api.get(ENDPOINTS.ORDER.GET_SHOP_ORDERS, {
             // 👇 PHẢI BỌC TRONG 'params'
             params: {
                 // Backend của bạn đang mong đợi key là 'restaurantId' (req.query.restaurantId)
-                restaurantId: shopId 
+                restaurantId: shopId,
+                ...params
             }
         });
         return response.data;

@@ -62,12 +62,25 @@ export const updateShopService = async (shopData) => {
 export const updateShopStatusService = async (isOpen) => {
   try {
     const response = await api.patch(
-      ENDPOINTS.SHOP.TOGGLE_SHOP_STATUS,
+      ENDPOINTS.SHOP.PATCH_MY_SHOP,
       { isOpen }   // 🔥 SỬA Ở ĐÂY
     );
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: "Lỗi cập nhật trạng thái quán" };
+  }
+};
+
+// 5b. Bật/tắt auto-accept (Owner)
+export const updateShopAutoAcceptService = async (autoAccept) => {
+  try {
+    const response = await api.patch(
+      ENDPOINTS.SHOP.PATCH_MY_SHOP,
+      { autoAccept }
+    );
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Lỗi cập nhật auto-accept" };
   }
 };
 
