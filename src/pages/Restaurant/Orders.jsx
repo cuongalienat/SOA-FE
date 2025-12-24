@@ -145,18 +145,49 @@ const Orders = () => {
       });
     };
 
+    const handleOrderStatusUpdate = (payload) => {
+      const orderId = payload?.orderId;
+      const nextStatus = payload?.status;
+      if (!orderId || !nextStatus) return;
+
+      const tag = orderTag(orderId);
+      const message = payload?.msg ? `${tag} - ${payload.msg}` : `${tag} - Trạng thái: ${nextStatus}`;
+
+      if (showToast) {
+        showToast(message, nextStatus === 'Delivered' ? 'success' : 'info', {
+          dedupeKey: `ORDER_STATUS_UPDATE:${orderId}:${nextStatus}`,
+          debounceMs: 2000,
+          duration: 3500
+        });
+      }
+
+      setOrders((prev) => {
+        const exists = prev.some((o) => o._id === orderId);
+        if (!exists) return prev;
+
+        const updated = prev.map((o) => (o._id === orderId ? { ...o, status: nextStatus } : o));
+
+        // Respect status filter (if any)
+        return statusFilter && nextStatus !== statusFilter
+          ? updated.filter((o) => o._id !== orderId)
+          : updated;
+      });
+    };
+
     socket.on("NEW_ORDER_TO_SHOP", handleNewOrder);
     socket.on("ORDER_REMINDER", handleOrderReminder);
     socket.on("ORDER_AUTO_CONFIRMED", handleAutoConfirmed);
     socket.on("ORDER_CANCELLED", handleOrderCancelled);
+    socket.on("ORDER_STATUS_UPDATE", handleOrderStatusUpdate);
 
     return () => {
       socket.off("NEW_ORDER_TO_SHOP", handleNewOrder);
       socket.off("ORDER_REMINDER", handleOrderReminder);
       socket.off("ORDER_AUTO_CONFIRMED", handleAutoConfirmed);
       socket.off("ORDER_CANCELLED", handleOrderCancelled);
+      socket.off("ORDER_STATUS_UPDATE", handleOrderStatusUpdate);
     };
-  }, [currentShopId, socket, setOrders, showToast]);
+  }, [currentShopId, socket, setOrders, showToast, page, limit, statusFilter]);
 
   // ----------------------------------------------------------------
   // 4. HÀM XỬ LÝ CẬP NHẬT TRẠNG THÁI (FIX LỖI UI KHÔNG UPDATE)
