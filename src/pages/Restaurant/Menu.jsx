@@ -13,7 +13,7 @@ import {
 
 const Menu = () => {
   const {
-    items,
+    itemsShop,
     loadItemsShop,
     createShopItem,
     updateShopItem,
@@ -98,7 +98,7 @@ const Menu = () => {
   };
 
   // Filter menu theo category
-  const filteredMenu = items.filter(item => {
+  const filteredMenu = itemsShop.filter(item => {
     if (filterCategoryId === "all") return true;
     const itemCategoryId = typeof item.categoryId === "string" ? item.categoryId : item.categoryId?._id;
     return itemCategoryId === filterCategoryId;
@@ -332,8 +332,8 @@ const Menu = () => {
             key={cat.id}
             onClick={() => setFilterCategoryId(cat.id)}
             className={`px-4 py-2 rounded-lg text-sm ${filterCategoryId === cat.id
-                ? "bg-gray-900 text-white"
-                : "bg-white border text-gray-600"
+              ? "bg-gray-900 text-white"
+              : "bg-white border text-gray-600"
               }`}
           >
             {cat.name}
@@ -512,12 +512,12 @@ const Menu = () => {
                       !formData.categoryId
                     }
                     className={`px-3 py-2 border rounded ${isSubmitting ||
-                        isAddingCategory ||
-                        isUpdatingCategory ||
-                        isDeletingCategory ||
-                        !formData.categoryId
-                        ? "opacity-60 cursor-not-allowed"
-                        : "hover:bg-gray-50"
+                      isAddingCategory ||
+                      isUpdatingCategory ||
+                      isDeletingCategory ||
+                      !formData.categoryId
+                      ? "opacity-60 cursor-not-allowed"
+                      : "hover:bg-gray-50"
                       }`}
                   >
                     Sửa
@@ -534,12 +534,12 @@ const Menu = () => {
                       !formData.categoryId
                     }
                     className={`px-3 py-2 border rounded ${isSubmitting ||
-                        isAddingCategory ||
-                        isUpdatingCategory ||
-                        isDeletingCategory ||
-                        !formData.categoryId
-                        ? "opacity-60 cursor-not-allowed"
-                        : "hover:bg-gray-50"
+                      isAddingCategory ||
+                      isUpdatingCategory ||
+                      isDeletingCategory ||
+                      !formData.categoryId
+                      ? "opacity-60 cursor-not-allowed"
+                      : "hover:bg-gray-50"
                       }`}
                   >
                     {isDeletingCategory ? "..." : "Xóa"}
@@ -580,11 +580,11 @@ const Menu = () => {
                           isDeletingCategory
                         }
                         className={`px-3 py-2 rounded bg-gray-900 text-white ${isSubmitting ||
-                            isAddingCategory ||
-                            isUpdatingCategory ||
-                            isDeletingCategory
-                            ? "opacity-70 cursor-not-allowed"
-                            : "hover:bg-gray-800"
+                          isAddingCategory ||
+                          isUpdatingCategory ||
+                          isDeletingCategory
+                          ? "opacity-70 cursor-not-allowed"
+                          : "hover:bg-gray-800"
                           }`}
                       >
                         {isUpdatingCategory ? "Đang lưu..." : "Lưu"}
@@ -599,11 +599,11 @@ const Menu = () => {
                           isDeletingCategory
                         }
                         className={`px-3 py-2 border rounded ${isSubmitting ||
-                            isAddingCategory ||
-                            isUpdatingCategory ||
-                            isDeletingCategory
-                            ? "opacity-60 cursor-not-allowed"
-                            : "hover:bg-gray-50"
+                          isAddingCategory ||
+                          isUpdatingCategory ||
+                          isDeletingCategory
+                          ? "opacity-60 cursor-not-allowed"
+                          : "hover:bg-gray-50"
                           }`}
                       >
                         Hủy
@@ -620,11 +620,11 @@ const Menu = () => {
                         isDeletingCategory
                       }
                       className={`px-3 py-2 rounded bg-gray-900 text-white ${isSubmitting ||
-                          isAddingCategory ||
-                          isUpdatingCategory ||
-                          isDeletingCategory
-                          ? "opacity-70 cursor-not-allowed"
-                          : "hover:bg-gray-800"
+                        isAddingCategory ||
+                        isUpdatingCategory ||
+                        isDeletingCategory
+                        ? "opacity-70 cursor-not-allowed"
+                        : "hover:bg-gray-800"
                         }`}
                     >
                       {isAddingCategory ? "Đang thêm..." : "Thêm"}

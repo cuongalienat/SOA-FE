@@ -52,3 +52,12 @@ export const getCategoryByIdService = async (id) => {
     throw error.response?.data || { message: "Lỗi lấy danh mục" };
   }
 };
+
+export const getCategoriesByShopService = async (shopId) => {
+  try {
+    const response = await api.get(ENDPOINTS.CATEGORY.GET_BY_SHOP.replace(":shopId", shopId));
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: "Lỗi lấy danh mục" };
+  }
+};
