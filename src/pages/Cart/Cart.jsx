@@ -601,16 +601,16 @@ const Cart = () => {
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-bold ${order.status === "Delivered"
                       ? "bg-green-100 text-green-700"
-                      : order.status === "Pending"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-yellow-100 text-yellow-700"
+                      : order.status === "Canceled"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-blue-100 text-blue-700"
                       }`}
                   >
                     {order.status === 'Pending' ? 'Chờ xác nhận' :
                       order.status === 'Confirmed' ? 'Đã xác nhận' :
                         order.status === 'Shipping' ? 'Đang giao' :
-                          order.status === 'Delivered' ? 'Hoàn thành' :
-                            order.status === 'Cancelled' ? 'Đã hủy' : order.status}
+                          order.status === 'Delivered' ? 'Đã giao' :
+                            order.status === 'Canceled' ? 'Đã hủy' : order.status}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
