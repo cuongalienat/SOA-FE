@@ -2,8 +2,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import polyline from '@mapbox/polyline'; // Đảm bảo đã npm install @mapbox/polyline
 
 // 👇 CẤU HÌNH KEY (Thay bằng Key thật của bạn)
-const GOONG_MAP_KEY = "4WkfOyMzqqfcnR656w7Bk6WFVx8pHUKH8XPw27fm"; // Key cho Frontend (Map Tiles)
-const GOONG_API_KEY = "63QnExA88BuAbVaQNU4EDxGyfjAbNZRO9Bqhh2NK"; // Key cho Backend (API Services - Directions)
+const GOONG_MAP_KEY = "gBUSE2RjwAmchoX1gFsGQs6j1VhnPintZ40yXqE0"; // Key cho Frontend (Map Tiles)
+const GOONG_API_KEY = "XN2ARLSRhtV62qk1AByhx26rV82h1PtyEkVsC6Bf"; // Key cho Backend (API Services - Directions)
 
 const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
     const mapContainerRef = useRef(null);
@@ -100,13 +100,24 @@ const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
     // ---------------------------------------------------------
     useEffect(() => {
         const map = mapInstanceRef.current;
-        // Chỉ vẽ khi Map đã load + có đủ 2 điểm Pickup/Dropoff
-        if (!map || !isMapLoaded || !pickup || !dropoff) return;
+        // Cần ít nhất đích đến (dropoff) để vẽ
+        if (!map || !isMapLoaded || !dropoff) return;
 
         const fetchRoute = async () => {
             try {
-                // Gọi API Goong Directions
-                const origin = `${pickup[1]},${pickup[0]}`; // Lat,Lng
+                // 🔥 QUYẾT ĐỊNH ĐIỂM XUẤT PHÁT (ROUTING ORIGIN)
+                let startCoords = pickup; // Mặc định là Quán
+
+                // Nếu có vị trí xe -> Ưu tiên vẽ từ Xe
+                if (shipperLocation && shipperLocation.lat && shipperLocation.lng) {
+                    startCoords = [shipperLocation.lng, shipperLocation.lat];
+                }
+
+                // Nếu không có cả xe lẫn quán thì thôi không vẽ
+                if (!startCoords) return;
+
+                // Gọi API Goong
+                const origin = `${startCoords[1]},${startCoords[0]}`; // Lat,Lng
                 const destination = `${dropoff[1]},${dropoff[0]}`;
                 const url = `https://rsapi.goong.io/Direction?origin=${origin}&destination=${destination}&vehicle=bike&api_key=${GOONG_API_KEY}`;
                 
@@ -114,48 +125,31 @@ const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
                 const data = await res.json();
 
                 if (data.routes && data.routes[0]) {
-                    // Giải mã Polyline
                     const encodedPolyline = data.routes[0].overview_polyline.points;
                     const decodedPoints = polyline.decode(encodedPolyline);
-                    
-                    // Convert [lat, lng] -> [lng, lat] cho GeoJSON
                     const coordinates = decodedPoints.map(point => [point[1], point[0]]);
 
                     const routeGeoJSON = {
                         type: 'Feature',
                         properties: {},
-                        geometry: {
-                            type: 'LineString',
-                            coordinates: coordinates
-                        }
+                        geometry: { type: 'LineString', coordinates: coordinates }
                     };
 
-                    // Vẽ hoặc Cập nhật Layer
                     if (map.getSource('route')) {
                         map.getSource('route').setData(routeGeoJSON);
                     } else {
-                        map.addSource('route', {
-                            'type': 'geojson',
-                            'data': routeGeoJSON
-                        });
+                        map.addSource('route', { 'type': 'geojson', 'data': routeGeoJSON });
                         map.addLayer({
                             'id': 'route',
                             'type': 'line',
                             'source': 'route',
-                            'layout': {
-                                'line-join': 'round',
-                                'line-cap': 'round'
-                            },
+                            'layout': { 'line-join': 'round', 'line-cap': 'round' },
                             'paint': {
-                                'line-color': '#ef4444', // Màu đỏ (Red-500)
+                                'line-color': '#ef4444',
                                 'line-width': 5,
                                 'line-opacity': 0.8
                             }
                         });
-                        
-                        // Đưa layer đường xuống dưới layer marker (symbol)
-                        // map.moveLayer('route', markersRef.current.pickup ...); 
-                        // (Optional: Goong tự xử lý z-index marker div khá tốt)
                     }
                 }
             } catch (error) {
@@ -165,7 +159,7 @@ const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
 
         fetchRoute();
 
-    }, [pickup, dropoff, isMapLoaded]);
+    }, [pickup, dropoff, shipperLocation, isMapLoaded]); // Thêm shipperLocation vào dependency
 
     // ---------------------------------------------------------
     // 4. XỬ LÝ SHIPPER DI CHUYỂN (REALTIME)

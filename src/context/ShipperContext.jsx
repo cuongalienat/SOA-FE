@@ -1,24 +1,22 @@
-import { createContext, useContext, useEffect, useState, useRef } from "react";
-import { useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useMemo } from "react";
 import {
   updateShipperStatusService,
   getShipperProfileService,
   getCurrentDeliveryService,
-  updateShipperLocationService,
   updateDeliveryStatusService,
 } from "../services/shipperServices.jsx";
-import { useToast } from "./ToastContext"; // Import Toast nếu muốn thông báo
+// import { useToast } from "./ToastContext"; 
 
 const ShipperContext = createContext();
 
 export const ShipperProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
-  const [currentDelivery, setCurrentDelivery] = useState(null);
+  
+  // 🔥 THAY ĐỔI 1: State mặc định là Mảng rỗng [] thay vì null
+  const [currentDelivery, setCurrentDelivery] = useState([]); 
+  
   const [loading, setLoading] = useState(true);
-
-  // Ref để tránh re-render khi set interval
-  const orderPollingRef = useRef(null);
 
   // ---------------------------------
   // 0. Lấy profile shipper
@@ -27,7 +25,13 @@ export const ShipperProvider = ({ children }) => {
     try {
       const data = await getShipperProfileService();
       setProfile(data);
-      setIsOnline(data.status === "ONLINE");
+      
+      // ❌ CODE CŨ (SAI): Chỉ tính là online nếu status đúng bằng "ONLINE"
+      // setIsOnline(data.status === "ONLINE");
+
+      // ✅ CODE MỚI (ĐÚNG): Tính là online nếu trạng thái là ONLINE hoặc SHIPPING
+      setIsOnline(['ONLINE', 'SHIPPING', 'SEARCHING'].includes(data.status));
+      
       return data;
     } catch (error) {
       console.error("Lỗi lấy profile shipper:", error);
@@ -40,88 +44,70 @@ export const ShipperProvider = ({ children }) => {
   // ---------------------------------
   const toggleOnline = async () => {
     try {
+      // Nếu đang OFFLINE thì bật lên ONLINE
+      // Nếu đang ONLINE hoặc SHIPPING thì tắt về OFFLINE
       const newStatus = isOnline ? "OFFLINE" : "ONLINE";
+      
       await updateShipperStatusService(newStatus);
-
-      // Cập nhật state local ngay lập tức cho mượt
-      setIsOnline(!isOnline);
-
-      if (newStatus === "ONLINE") {
-        await fetchCurrentDelivery();
-      } else {
-        setCurrentDelivery(null);
-      }
+      
+      // Cập nhật state UI ngay lập tức
+      setIsOnline(newStatus === "ONLINE"); 
+      
+      // Fetch lại profile để đồng bộ chuẩn xác với Server
+      await fetchProfile();
+      
     } catch (error) {
-      console.error("Lỗi bật tắt trạng thái", error);
+      console.error("Lỗi đổi trạng thái:", error);
+      throw error;
     }
   };
 
   // ---------------------------------
-  // 2. Lấy đơn hiện tại & CHECK ĐƠN MỚI
+  // 2. Lấy danh sách đơn hàng hiện tại
   // ---------------------------------
-const fetchCurrentDelivery = async () => {
+  const fetchCurrentDelivery = async () => {
     try {
-        const delivery = await getCurrentDeliveryService();
-        if (delivery && !currentDelivery) {
-        // Play sound hoặc Toast thông báo có đơn mới
-        console.log("🔔 TING TING! Có đơn hàng mới");
+      const data = await getCurrentDeliveryService();
+      // 🔥 THAY ĐỔI 2: Xử lý data trả về để đảm bảo luôn là Mảng
+      if (Array.isArray(data)) {
+        setCurrentDelivery(data);
+      } else if (data) {
+        // Fallback: Nếu API cũ trả về 1 object thì nhét vào mảng
+        setCurrentDelivery([data]);
+      } else {
+        setCurrentDelivery([]);
       }
-        setCurrentDelivery(delivery || null);
-        return delivery; // [NEW] Return để bên Dashboard dùng nếu cần check
     } catch (error) {
-        console.error("Lỗi fetch đơn:", error);
-        setCurrentDelivery(null);
-        return null; // [NEW]
+      console.error("Lỗi lấy đơn hiện tại:", error);
+      setCurrentDelivery([]);
     }
-};
-  // ---------------------------------
-  // 3. Gửi GPS định kỳ (Chỉ gửi, không nhận đơn)
-  // ---------------------------------
-  const pingLocation = async () => {
-    if (!navigator.geolocation || !isOnline) return;
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const location = {
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        };
-        // Gửi ngầm, không cần await chặn UI
-        updateShipperLocationService(location).catch((err) =>
-          console.log("Lỗi GPS", err)
-        );
-      },
-      (err) => console.log(err)
-    );
   };
 
-  // Effect 1: Ping GPS mỗi 30s (GPS không cần gửi quá dày đặc)
-  useEffect(() => {
-    if (isOnline) {
-      const gpsInterval = setInterval(pingLocation, 30000);
-      return () => clearInterval(gpsInterval);
+  // ---------------------------------
+  // 3. Update trạng thái đơn (LOGIC MỚI CHO BATCHING)
+  // ---------------------------------
+  const updateDeliveryStatus = async (deliveryId, status, location = null) => {
+    try {
+      const updated = await updateDeliveryStatusService(deliveryId, status, location);
+      
+      // ✅ FIX: Cập nhật thông minh (Giữ nguyên mảng, chỉ thay đổi phần tử bị update)
+      setCurrentDelivery((prevDeliveries) => {
+          if (Array.isArray(prevDeliveries)) {
+              return prevDeliveries.map(d => d._id === updated._id ? updated : d);
+          }
+          // Fallback nếu state cũ đang null hoặc object
+          return [updated]; 
+      });
+
+      // Nếu hoàn thành, fetch lại để đảm bảo đồng bộ với server
+      if (status === "COMPLETED" || status === "CANCELLED") {
+        await fetchCurrentDelivery();
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật đơn:", error);
+      throw error;
     }
-  }, [isOnline]);
-
-  // 👇 EFFECT QUAN TRỌNG: Polling check đơn mới mỗi 10s
-  useEffect(() => {
-    if (isOnline) {
-      // Gọi ngay 1 lần
-      fetchCurrentDelivery();
-
-      // Sau đó cứ 10s gọi 1 lần
-      orderPollingRef.current = setInterval(() => {
-        console.log("🔄 Auto-checking orders...");
-        fetchCurrentDelivery();
-      }, 10000);
-    } else {
-      if (orderPollingRef.current) clearInterval(orderPollingRef.current);
-    }
-
-    return () => {
-      if (orderPollingRef.current) clearInterval(orderPollingRef.current);
-    };
-  }, [isOnline]); // Chỉ chạy lại khi trạng thái Online thay đổi
+  };
 
   // ---------------------------------
   // 4. Load lúc mở app
@@ -130,7 +116,8 @@ const fetchCurrentDelivery = async () => {
     const init = async () => {
       try {
         await fetchProfile();
-        // Không cần gọi fetchCurrentDelivery ở đây vì effect trên đã lo rồi
+        // Gọi thêm cái này để đảm bảo load đơn ngay khi mở app
+        await fetchCurrentDelivery(); 
       } finally {
         setLoading(false);
       }
@@ -138,41 +125,20 @@ const fetchCurrentDelivery = async () => {
     init();
   }, []);
 
-  // ---------------------------------
-  // 5. Update trạng thái đơn
-  // ---------------------------------
-  const updateDeliveryStatus = async (deliveryId, status, location = null) => {
-    try {
-      const updated = await updateDeliveryStatusService(
-        deliveryId,
-        status,
-        location
-      );
-      setCurrentDelivery(updated);
-
-      if (status === "COMPLETED" || status === "CANCELLED") {
-        // Nếu xong đơn thì load lại để xem có đơn mới luôn không
-        await fetchCurrentDelivery();
-      }
-    } catch (error) {
-      console.error("Lỗi cập nhật đơn:", error);
-      throw error; // Ném lỗi ra để component xử lý UI (nếu cần)
-    }
-  };
-
   const contextValue = useMemo(
     () => ({
       profile,
       fetchProfile,
       isOnline,
       toggleOnline,
-      currentDelivery,
+      currentDelivery, // Bây giờ biến này là Array []
       fetchCurrentDelivery,
       updateDeliveryStatus,
       loading,
     }),
     [profile, isOnline, currentDelivery, loading]
   );
+
   return (
     <ShipperContext.Provider value={contextValue}>
       {children}
@@ -180,4 +146,6 @@ const fetchCurrentDelivery = async () => {
   );
 };
 
-export const useShipper = () => useContext(ShipperContext);
+export const useShipper = () => {
+  return useContext(ShipperContext);
+};
