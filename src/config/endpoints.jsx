@@ -32,7 +32,10 @@ const ENDPOINTS = {
     GET_ALL: "/shops",
     CREATE: "/shops",
     GET_MY_SHOP: "/shops/my-shop",
+    GET_MY_SHOP_DASHBOARD: "/shops/my-shop/dashboard",
+    GET_SHOP_DASHBOARD: "/shops/:id/dashboard",
     UPDATE_SHOP_INFO: "/shops/my-shop",
+    PATCH_MY_SHOP: "/shops/my-shop",
     TOGGLE_SHOP_STATUS: "/shops/my-shop/status",
     GET_BY_ID: "/shops/:id",
   },
@@ -41,6 +44,31 @@ const ENDPOINTS = {
     UPDATE_USER_INFO: "/users",
     DELETE_USER: "/users",
   },
+  WALLET: {
+    GET_WALLET: "/wallets",
+    CREATE_WALLET: "/wallets",
+    WITHDRAW: "/wallets/withdraw",
+    DEPOSIT: "/wallets/deposit",
+    GET_HISTORY: "/wallets/history",
+    CHECK_PIN: "/wallets/checkPin",
+  },
+  SHIPPING: {
+    CALCULATE_FEE: "/shippings/calculate",
+  },
+  CATEGORY: {
+    GET_BY_ID: "/categories/:id",
+    GET_ALL: "/categories",
+    CREATE: "/categories",
+    UPDATE: "/categories/:id",
+    DELETE: "/categories/:id",
+    GET_BY_SHOP: "/categories/shop/:shopId",
+  },
+  RATING: {
+    CREATE: "/ratings",
+    GET_BY_ITEM: "/ratings/item/:itemId",
+    GET_BY_SHOP: "/ratings/shop/:shopId",
+    GET_BY_ORDER: "/ratings/order/:orderId",
+  }
 };
 
 export default ENDPOINTS;

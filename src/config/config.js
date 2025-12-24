@@ -5,9 +5,9 @@ const api = axios.create({
     import.meta.env.MODE === "production"
       ? "https://your-backend-url.com/api/v1" // URL BE khi deploy
       : "http://localhost:3000/v1", // URL BE khi dev
-  headers: {
-    "Content-Type": "application/json",
-  },
+  // headers: {
+  //   "Content-Type": "application/json",
+  // },
 });
 
 // Tự động thêm token nếu có
@@ -18,18 +18,24 @@ api.interceptors.request.use((config) => {
 });
 
 // Xử lý lỗi 401 (Unauthorized) - Token hết hạn hoặc không hợp lệ
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response && error.response.status === 401) {
+(error) => {
+  if (error.response && error.response.status === 401) {
+    // Don't redirect if it's a login attempt failure
+    const isLoginRequest = error.config && error.config.url && (error.config.url.includes("signin") || error.config.url.includes("login"));
+
+    if (!isLoginRequest) {
       console.error("Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.");
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      console.log("hello");
+
       // Optional: Redirect to login or dispatch an event
-      window.location.href = "/sign-in";
+      if (window.location.pathname !== "/sign-in") {
+        window.location.href = "/sign-in";
+      }
     }
-    return Promise.reject(error);
   }
-);
+  return Promise.reject(error);
+}
 
 export default api;

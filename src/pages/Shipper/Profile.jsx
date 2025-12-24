@@ -2,174 +2,220 @@ import React from "react";
 import {
   User,
   ChevronRight,
-  Star,
-  CreditCard,
-  Settings,
   Bike,
-  Shield,
   LogOut,
-  FileText,
-  Bell,
+  Phone,
+  ShieldCheck,
+  Wallet, // 🔥 Import thêm icon ví
 } from "lucide-react";
-import { useShipper } from "../../context/ShipperContext.jsx";
-import { useAuth } from "../../context/AuthContext.jsx";
+import { useShipper } from "../../context/ShipperContext";
+import { useAuth } from "../../hooks/useAuths";
 import { useNavigate } from "react-router-dom";
 
 const ShipperProfile = () => {
-  const { profile: driverProfile, isOnline, toggleOnline } = useShipper();
-  const { logout } = useAuth(); // <-- dùng AuthContext chuẩn
+  const { logout, user: localUser } = useAuth();
+  const { profile, isOnline, toggleOnline, currentDelivery, loading } =
+    useShipper();
   const navigate = useNavigate();
 
-  if (!driverProfile) {
-    return (
-      <div className="p-8 text-center text-gray-500">
-        Đang tải hồ sơ tài xế...
-      </div>
-    );
-  }
+  const handleLogout = async () => {
+    // Logic check busy đã sửa ở bước trước
+    const isBusy = Array.isArray(currentDelivery)
+      ? currentDelivery.length > 0
+      : !!currentDelivery;
 
-  const handleLogout = () => {
-    if (isOnline) toggleOnline(); // auto OFFLINE trước khi logout
-    logout(); // context logout → clear token + state
-    navigate("/");
+    if (isBusy) {
+      alert("⚠️ Bạn đang thực hiện đơn hàng, không thể đăng xuất!");
+      return;
+    }
+    if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi Món Việt?")) {
+      try {
+        if (isOnline) await toggleOnline();
+        logout();
+        window.location.href = "/#/";
+      } catch (error) {
+        logout();
+        window.location.href = "/#/";
+      }
+    }
   };
 
-  const MenuItem = ({ icon: Icon, label, subLabel }) => (
-    <button className="w-full bg-white p-4 flex items-center justify-between border-b border-gray-50 last:border-0 hover:bg-gray-50 transition">
-      <div className="flex items-center">
-        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 mr-4">
-          <Icon size={20} />
-        </div>
-        <div className="text-left">
-          <p className="font-semibold text-gray-800 text-sm">{label}</p>
-          {subLabel && <p className="text-xs text-gray-500">{subLabel}</p>}
-        </div>
+  if (loading)
+    return (
+      <div className="p-10 text-center text-gray-400">Đang tải hồ sơ...</div>
+    );
+  if (!profile)
+    return (
+      <div className="p-10 text-center text-red-500">
+        Không tìm thấy dữ liệu.
       </div>
-      <ChevronRight size={18} className="text-gray-400" />
-    </button>
-  );
+    );
+
+  const displayName = localUser?.name || profile?.user?.name || "Tài xế";
+  const displayAvatar = localUser?.avatar || profile?.user?.avatar;
+  const userData = profile.user || {};
+
+  const getAvatarSrc = () => {
+    if (
+      displayAvatar &&
+      displayAvatar.trim() !== "" &&
+      displayAvatar.startsWith("http")
+    ) {
+      return displayAvatar;
+    }
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      displayName
+    )}&background=2e7d32&color=fff&size=128`;
+  };
 
   return (
-    <div className="bg-gray-100 min-h-full pb-20">
-      {/* TOP CARD */}
-      <div className="bg-white p-6 pb-8 rounded-b-3xl shadow-sm">
-        <div className="flex items-center space-x-4">
-          <img
-            src={driverProfile.avatar || "/default-avatar.png"}
-            alt="Driver"
-            className="w-20 h-20 rounded-full object-cover border-4 border-gray-50"
-          />
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              {driverProfile.name}
+    <div className="bg-[#F8F9FA] min-h-screen pb-12 font-sans">
+      <div className="max-w-md mx-auto">
+        {/* UNIFIED PROFILE CARD */}
+        <div className="bg-white rounded-b-[50px] shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden border-b border-gray-100">
+          {/* 1. Phần nền trang trí phía trên */}
+          <div className="h-32 bg-gradient-to-r from-[#2e7d32] to-[#4caf50] relative">
+            <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+          </div>
+
+          {/* 2. Nội dung chính */}
+          <div className="px-6 pb-10 -mt-16 relative z-10 flex flex-col items-center">
+            {/* Avatar */}
+            <div
+              className="relative group cursor-pointer"
+              onClick={() => navigate("/shipper/edit-profile")}
+            >
+              <img
+                src={getAvatarSrc()}
+                alt="Avatar"
+                onError={(e) => {
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    displayName
+                  )}&background=2e7d32&color=fff`;
+                }}
+                className="w-32 h-32 rounded-[40px] object-cover border-8 border-white shadow-2xl transition-transform active:scale-95"
+              />
+              <div
+                className={`absolute bottom-2 right-2 w-7 h-7 rounded-full border-4 border-white shadow-sm ${
+                  isOnline ? "bg-[#4caf50]" : "bg-gray-400"
+                }`}
+              />
+            </div>
+
+            {/* Tên và Trạng thái */}
+            <h2 className="mt-4 text-2xl font-bold text-[#333] tracking-tight uppercase text-center">
+              {displayName}
             </h2>
 
-            <div className="flex items-center text-sm text-gray-500 mb-1">
-              <span className="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono mr-2">
-                #{driverProfile.id}
-              </span>
+            <div className="flex items-center gap-2 mt-2">
               <span
-                className={`px-2 py-0.5 rounded text-xs font-bold ${isOnline
-                  ? "bg-green-100 text-green-600"
-                  : "bg-gray-200 text-gray-600"
-                  }`}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border ${
+                  isOnline
+                    ? "bg-green-50 text-[#2e7d32] border-green-100"
+                    : "bg-gray-50 text-gray-400 border-gray-100"
+                }`}
               >
-                {isOnline ? "Đang hoạt động" : "Ngoại tuyến"}
+                <ShieldCheck size={12} />
+                {isOnline ? "Trực tuyến" : "Ngoại tuyến"}
               </span>
             </div>
 
-            <div className="flex items-center space-x-1 bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded-full inline-flex">
-              <Star size={12} fill="currentColor" />
-              <span className="text-xs font-bold">{driverProfile.rating}</span>
-            </div>
+            {/* KHỐI THÔNG TIN CHI TIẾT */}
+            <button
+              onClick={() => navigate("/shipper/edit-profile")}
+              className="w-full mt-10 bg-white border border-gray-200 rounded-[30px] p-6 shadow-sm active:bg-gray-50 transition-all text-left group"
+            >
+              <div className="flex justify-between items-center mb-6">
+                <p className="text-[11px] font-bold text-[#999] uppercase tracking-[2px]">
+                  Thông tin hồ sơ
+                </p>
+                <ChevronRight
+                  size={16}
+                  className="text-gray-300 group-hover:text-[#2e7d32]"
+                />
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[#2e7d32]">
+                    <Phone size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#bbb] font-bold uppercase tracking-wider">
+                      Số điện thoại
+                    </p>
+                    <p className="text-base font-bold text-[#333] tracking-tight">
+                      {userData.phone || "Chưa cập nhật"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="h-[1px] bg-gray-100 w-full" />
+
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[#2e7d32]">
+                    <Bike size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#bbb] font-bold uppercase tracking-wider">
+                      Phương tiện ({profile.vehicleType || "BIKE"})
+                    </p>
+                    <p className="text-base font-bold text-[#333] tracking-tight">
+                      {profile.licensePlate || "Chưa có biển số"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-dashed border-gray-200 text-center">
+                <p className="text-[11px] font-bold text-[#2e7d32] uppercase tracking-widest opacity-70">
+                  Chạm để chỉnh sửa
+                </p>
+              </div>
+            </button>
+
+            {/* 🔥 MỚI: NÚT XEM VÍ (Tách riêng để nổi bật) */}
+            <button
+              onClick={() => navigate("/profile")} // React Router sẽ tự xử lý hash (#/profile) nếu dùng HashRouter
+              className="w-full mt-4 bg-white border border-gray-200 rounded-[30px] p-4 shadow-sm active:bg-gray-50 transition-all text-left group flex justify-between items-center"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500">
+                  <Wallet size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#bbb] font-bold uppercase tracking-wider">
+                    Tài chính
+                  </p>
+                  <p className="text-base font-bold text-[#333] tracking-tight">
+                    Xem số dư ví
+                  </p>
+                </div>
+              </div>
+              <ChevronRight
+                size={16}
+                className="text-gray-300 group-hover:text-orange-500 transition-colors"
+              />
+            </button>
           </div>
         </div>
 
-        {/* QUICK STATS */}
-        <div className="grid grid-cols-3 gap-4 mt-8">
-          <div className="text-center">
-            <p className="text-lg font-bold text-gray-900">
-              {driverProfile.totalTrips}
-            </p>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">
-              Chuyến xe
-            </p>
-          </div>
-
-          <div className="text-center border-l border-r border-gray-100">
-            <p className="text-lg font-bold text-green-600">
-              {driverProfile.acceptanceRate || 98}%
-            </p>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">
-              Nhận đơn
-            </p>
-          </div>
-
-          <div className="text-center">
-            <p className="text-lg font-bold text-blue-600">
-              {driverProfile.completedRate || 100}%
-            </p>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">
-              Hoàn thành
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* WALLET */}
-      <div className="px-4 -mt-4 mb-6">
-        <div className="bg-gray-900 text-white p-5 rounded-2xl shadow-lg flex justify-between items-center">
-          <div>
-            <p className="text-gray-400 text-xs mb-1">Số dư ví tài xế</p>
-            <h3 className="text-2xl font-bold">
-              {driverProfile.wallet.toLocaleString('vi-VN')}đ
-            </h3>
-          </div>
-          <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition">
-            Rút tiền
+        {/* 3. NÚT ĐĂNG XUẤT */}
+        <div className="px-8 mt-10">
+          <button
+            onClick={handleLogout}
+            className="w-full py-5 text-[#d32f2f] font-bold text-[12px] uppercase tracking-[2px] bg-white rounded-[25px] border border-[#ffcdd2] shadow-sm flex items-center justify-center gap-3 active:bg-red-50 transition-all"
+          >
+            <LogOut size={16} strokeWidth={2.5} />
+            Đăng xuất tài khoản
           </button>
         </div>
-      </div>
 
-      {/* MENU */}
-      <div className="px-4 space-y-6">
-        <div>
-          <h3 className="text-xs font-bold text-gray-500 uppercase mb-2 ml-2">
-            Tài khoản
-          </h3>
-          <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-            <MenuItem
-              icon={User}
-              label="Thông tin cá nhân"
-              subLabel="SĐT, Email, Địa chỉ"
-            />
-            <MenuItem
-              icon={Bike}
-              label="Phương tiện"
-              subLabel={`${driverProfile.vehicle} • ${driverProfile.plate}`}
-            />
-            <MenuItem icon={CreditCard} label="Tài khoản ngân hàng" />
-          </div>
+        <div className="text-center mt-12 mb-8">
+          <p className="text-[10px] text-[#ccc] font-bold uppercase tracking-[4px]">
+            Món Việt Mobile
+          </p>
         </div>
-
-        <div>
-          <h3 className="text-xs font-bold text-gray-500 uppercase mb-2 ml-2">
-            Ứng dụng
-          </h3>
-          <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
-            <MenuItem icon={Bell} label="Cài đặt thông báo" />
-            <MenuItem icon={FileText} label="Chính sách & Quy định" />
-            <MenuItem icon={Shield} label="Trung tâm hỗ trợ" />
-          </div>
-        </div>
-
-        {/* LOGOUT BUTTON */}
-        <button
-          onClick={handleLogout}
-          className="w-full bg-red-50 text-red-600 p-4 rounded-2xl font-bold flex items-center justify-center hover:bg-red-100 transition"
-        >
-          <LogOut size={20} className="mr-2" /> Đăng xuất
-        </button>
       </div>
     </div>
   );

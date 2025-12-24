@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Trash2,
@@ -22,10 +22,10 @@ import { useForm } from "../../hooks/useForm.jsx";
 import { useOrders } from "../../hooks/useOrders.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import LocationPicker from "../../components/common/LocationPicker.jsx";
-import { getDistance, getCoordinates } from "../../services/goongServices";
-import { calculateShippingFee } from "../../utils/shippingUtils";
+import { useShipping } from "../../hooks/useShipping";
 import { useShop } from "../../hooks/useShop";
 import { useUser } from "../../hooks/useUser.jsx";
+import { useWallet } from "../../hooks/useWallet.jsx";
 
 const Cart = () => {
   const { items, removeFromCart, updateQuantity, updateItemNote, cartTotal, clearCart } = useCart();
@@ -57,14 +57,20 @@ const Cart = () => {
   const [trackingOrder, setTrackingOrder] = useState(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+
+  const [pin, setPin] = useState("");
   const [showMap, setShowMap] = useState(false);
   const { showToast } = useToast();
   const { shop, loadShopById } = useShop();
+  const { wallet, fetchWallet, fetchTransactions, verifyPin } = useWallet();
+
+  useEffect(() => {
+    fetchWallet();
+  }, [fetchWallet]);
+
+  const { shippingFee, distanceData, calculateFee } = useShipping();
 
   const userId = user?._id;
-
-  const [shopLocation, setShopLocation] = useState(null);
-  const [shippingFee, setShippingFee] = useState(0);
 
   useEffect(() => {
     if (userId) {
@@ -73,6 +79,9 @@ const Cart = () => {
   }, [userId, loadMyOrders]);
 
   // Fetch shop location
+  // Ref to track last loaded shop to avoid redundant calls when cart items update (e.g. quantity change)
+  const loadedShopIdRef = useRef(null);
+
   // Fetch shop location
   useEffect(() => {
     if (items.length > 0) {
@@ -80,44 +89,14 @@ const Cart = () => {
       if (shopId && typeof shopId === 'object') {
         shopId = shopId._id || shopId.id;
       }
-      if (shopId) {
+
+      // Only load if shopId exists and is different from what we already loaded
+      if (shopId && shopId !== loadedShopIdRef.current) {
+        loadedShopIdRef.current = shopId;
         loadShopById(shopId);
       }
     }
-  }, [items]); // Re-run if items change (different shop?)
-
-  useEffect(() => {
-    if (shop) {
-      const fetchShopCoordinates = async () => {
-        // If shop has explicit location coordinates, use them
-        if (shop.location && shop.location.coordinates) {
-          setShopLocation({
-            lat: shop.location.coordinates[1],
-            lng: shop.location.coordinates[0]
-          });
-          return;
-        }
-
-        // Otherwise, geocode the address
-        if (shop.address) {
-          try {
-            const coords = await getCoordinates(shop.address);
-            if (coords) {
-              setShopLocation(coords);
-              console.log("Geocoded Shop Location:", coords);
-            } else {
-              console.error("Could not geocode shop address:", shop.address);
-            }
-          } catch (error) {
-            console.error("Error geocoding shop address:", error);
-          }
-        }
-      };
-
-      fetchShopCoordinates();
-    }
-  }, [shop]);
-
+  }, [items, loadShopById]); // Items change on quantity update, but we gate the call with ref check
 
   const handleCancelOrder = async (orderId) => {
     if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
@@ -127,6 +106,9 @@ const Cart = () => {
       if (success) {
         await loadMyOrders({ userID: userId });
         showToast("Hủy đơn hàng thành công", "success");
+        // Update wallet in case of refund
+        await fetchWallet();
+        await fetchTransactions();
       }
     } catch (err) {
       console.error(err);
@@ -139,20 +121,18 @@ const Cart = () => {
       const updatedAt = new Date(order.updatedAt);
       const now = new Date();
       const diffMinutes = (now - updatedAt) / 1000 / 60;
-      return diffMinutes < 10;
+      return diffMinutes < 3;
     }
     return false;
   };
 
   // Form thông tin giao hàng
-  const { values, handleChange, handleSubmit, setValue } = useForm({
+  const { values, handleChange, setValue } = useForm({
     fullName: user?.fullName || "",
     phone: user?.phone || "",
     address: user?.address || "",
     note: "",
   });
-
-  const [userLocation, setUserLocation] = useState({ lat: null, lng: null });
 
   // Update form values when user data becomes available (e.g. after page load)
   useEffect(() => {
@@ -164,44 +144,41 @@ const Cart = () => {
   }, [user]);
 
   // Automatically calculate shipping fee for default address
+  // Ref to track last calculated params to avoid duplicate calls
+  const lastFeeParams = useRef({ address: null, shopId: null });
+
+  // Automatically calculate shipping fee check
   useEffect(() => {
     const calcDefaultAddressFee = async () => {
-      // Condition: User has address, currently showing default address, shop location known, and coords not yet set
-      if (user?.address && values.address === user.address && shopLocation && !userLocation.lat) {
+      // Condition: User has address, currently showing default address, and we have a shop
+      if (user?.address && values.address === user.address && shop?._id) {
+
+        // Prevent duplicate calls if address and shopId haven't changed
+        if (lastFeeParams.current.address === values.address && lastFeeParams.current.shopId === shop._id) {
+          return;
+        }
+
         try {
-          // 1. Geocode the default address
-          const coords = await getCoordinates(user.address);
+          // Update ref immediately to block subsequent triggers
+          lastFeeParams.current = { address: values.address, shopId: shop._id };
 
-          if (coords) {
-            setUserLocation(coords);
-            console.log("Geocoded Default User Address:", coords);
-
-            // 2. Calculate distance and fee
-            const origin = `${coords.lat},${coords.lng}`;
-            const shopLat = shopLocation.lat || shopLocation.latitude;
-            const shopLng = shopLocation.lng || shopLocation.longitude;
-
-            if (shopLat && shopLng) {
-              const destination = `${shopLat},${shopLng}`;
-              const distanceData = await getDistance(origin, destination);
-
-              if (distanceData) {
-                const fee = calculateShippingFee(distanceData.distanceValue);
-                setShippingFee(fee);
-                console.log("Calculated Default Shipping Fee:", fee);
-              }
-            }
-          }
+          await calculateFee({ userLocation: values.address, shopId: shop._id });
         } catch (error) {
           console.error("Error calculating fee for default address:", error);
         }
       }
     };
-
     calcDefaultAddressFee();
-  }, [user, values.address, shopLocation, userLocation.lat]);
+  }, [user, values.address, shop, calculateFee]);
 
-  const handleAddressConfirm = async ({ address, lat, lng }) => {
+  const handleAddressBlur = async () => {
+    if (values.address && shop?._id) {
+      console.log("Address Blur - Recalculating Fee:", values.address);
+      await calculateFee({ userLocation: values.address, shopId: shop._id });
+    }
+  };
+
+  const handleAddressConfirm = async ({ address }) => {
     const event = {
       target: {
         name: "address",
@@ -209,30 +186,13 @@ const Cart = () => {
       }
     };
     handleChange(event);
-    setUserLocation({ lat, lng });
     setShowMap(false);
 
-    console.log("Handle Address Confirm:", { address, lat, lng, shopLocation });
+    console.log("Handle Address Confirm:", address);
 
-    // Calculate Distance and Fee
-    if (shopLocation && lat && lng) {
-      // Construct strings "lat,lng"
-      const origin = `${lat},${lng}`;
-      // Ensure shopLocation has lat/lng
-      const shopLat = shopLocation.lat || shopLocation.latitude;
-      const shopLng = shopLocation.lng || shopLocation.longitude;
-
-      if (shopLat && shopLng) {
-        const destination = `${shopLat},${shopLng}`;
-        const distanceData = await getDistance(origin, destination);
-
-        if (distanceData) {
-          const fee = calculateShippingFee(distanceData.distanceValue);
-          setShippingFee(fee);
-          // Optional: Show distance toast or info
-          // showToast(`Khoảng cách: ${distanceData.distanceText}, Phí ship: ${fee.toLocaleString('vi-VN')}đ`, "info");
-        }
-      }
+    // Calculate Fee via Backend (using Hook)
+    if (shop?._id) {
+      await calculateFee({ userLocation: address, shopId: shop._id });
     }
   };
   // Tính toán chi phí
@@ -264,10 +224,32 @@ const Cart = () => {
     if (!user) return;
 
     // 1. Kiểm tra số dư ví (Nếu dùng ví)
-    if (paymentMethod === "Wallet" && user.balance < finalTotal) {
-      console.log(user.balance);
-      showToast("Số dư ví không đủ!", "error");
-      return;
+    if (paymentMethod === "Wallet") {
+      if (!wallet) {
+        showToast("Không tìm thấy thông tin ví", "error");
+        return;
+      }
+
+      // Verify PIN
+      if (!pin) {
+        showToast("Vui lòng nhập mã PIN", "error");
+        return;
+      }
+      setProcessingPayment(true);
+      const verifyRes = await verifyPin(pin);
+      console.log("Verify Res:", verifyRes);
+      if (!verifyRes.data.data) {
+        setProcessingPayment(false);
+        showToast("Mã PIN không chính xác!", "error");
+        return;
+      }
+
+      // Check balance AFTER pin verification
+      if (wallet.balance < finalTotal) {
+        setProcessingPayment(false);
+        showToast("Số dư ví không đủ để thanh toán", "error");
+        return;
+      }
     }
 
     try {
@@ -282,9 +264,11 @@ const Cart = () => {
       console.log("Restaurant ID to send:", shopId);
 
       if (!shopId) {
+        setProcessingPayment(false);
         showToast("Lỗi dữ liệu món ăn (thiếu ID quán)", "error");
         return;
       }
+
 
       // Map items sang format backend cần: { item: itemID, quantity: N, note: ... }
       const orderItems = items.map(i => ({
@@ -292,31 +276,26 @@ const Cart = () => {
         quantity: i.quantity,
         imageUrl: i.imageUrl,
         price: i.price, // Giá tại thời điểm mua (quan trọng)
-        options: i.note ? [i.note] : [] // Ghi chú được lưu vào options
+        options: i.note || "" // Ghi chú được lưu vào options
       }));
 
       // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
-      if (paymentMethod === "Wallet") {
-        const newBalance = user.balance - finalTotal; // FIXED: Should deduct the total, not just set to current balance (which was a bug in previous code 'user.balance')
-        // Wait, previous code was: const newBalance = user.balance; updateUser({...}); This looks like a bug in previous code?
-        // Ah, typically client-side update handles formatted logic. The previous code `const newBalance = user.balance;` actually did NOT deduct anything locally? Or maybe I misread.
-        // Let's look at previous code: `const newBalance = user.balance; updateUser({ ...user, balance: newBalance });` -> This effectively did NOTHING to the balance locally.
-        // Let's implement correct optimistic update if Wallet is used.
-        updateUser({ ...user, balance: newBalance });
-      }
+      // 4. Trừ tiền ví ảo ở Client (Cập nhật UI ngay cho mượt)
+      // Note: We rely on backend to handle deduction. Logic moved to backend.
 
       // 5. GỌI API TẠO ĐƠN HÀNG (Dùng hook useOrders)
+      console.log("Final total:", distanceData);
       const result = await createOrder({
         userId: user._id,
         shopId: shopId,
         items: orderItems,
         paymentMethod: paymentMethod === "Wallet" ? "Wallet" : "COD",
         shippingFee: shippingFee, // Send shipping fee to backend
+        totalAmount: finalTotal,
         userLocation: {
-          address: values.address,
-          lat: userLocation.lat,
-          lng: userLocation.lng
+          address: values.address
         },
+        distanceData: distanceData,
       });
 
       if (result.success) {
@@ -329,25 +308,26 @@ const Cart = () => {
         setActiveTab("orders"); // Chuyển sang tab đơn hàng
         window.scrollTo(0, 0);
         window.scrollTo(0, 0);
-      } else {
-        // Nếu lỗi API -> Hoàn tiền ảo lại (Rollback UI)
         if (paymentMethod === "Wallet") {
-          // Rollback logic is complicated if we don't know original balance precisely, but we can just reload user? 
-          // Or simpler: restore user.balance + finalTotal. 
-          // Actually, simplest is to not do optimistic update or just trust reload. 
-          // Let's just restore from user.balance (which is state). Wait, `user` is from AuthContext.
-          // If I updated it, `user.balance` is new.
-          // Let's stick to simple reload or just `loadUser()` if available? 
-          // useAuth provides `user`, `updateUser`.
-          // For safety in this hacky optimistic update, let's just reverse the operation.
-          updateUser({ ...user, balance: user.balance + finalTotal });
+          await fetchWallet();
+          await fetchTransactions(); // Update history even if not shown here
         }
-        showToast(result.error, "error");
+        setProcessingPayment(false);
+      } else {
+        setProcessingPayment(false);
+        if (paymentMethod === "Wallet") {
+          fetchWallet(); // Re-fetch to sync if failed
+        }
+        // Show specific error from backend if available
+        const errorMessage = result.error || result.message || "Có lỗi xảy ra khi tạo đơn hàng";
+        showToast(errorMessage, "error");
       }
 
     } catch (error) {
       console.error(error);
-      showToast("Có lỗi xảy ra khi thanh toán", "error");
+      setProcessingPayment(false);
+      const errorMessage = error.response?.data?.message || error.message || "Có lỗi xảy ra khi thanh toán";
+      showToast(errorMessage, "error");
     }
   };
 
@@ -355,7 +335,7 @@ const Cart = () => {
 
   // Filter active orders for this view
   const activeOrders = orderHistory.filter(order =>
-    ['Pending', 'Confirmed', 'Shipping'].includes(order.status)
+    ['Pending', 'Confirmed', 'Preparing', 'Shipping'].includes(order.status)
   );
 
   // Render Tab Giỏ hàng + Form Thanh toán
@@ -392,9 +372,9 @@ const Cart = () => {
               {items.length})
             </h2>
             <div className="space-y-4">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <div
-                  key={item.id}
+                  key={item._id || item.id || index}
                   className="border-b border-gray-50 pb-4 last:border-0 last:pb-0"
                 >
                   <div className="flex items-center space-x-4">
@@ -413,7 +393,7 @@ const Cart = () => {
 
                     <div className="flex items-center space-x-2 bg-gray-50 rounded-lg p-1">
                       <button
-                        onClick={() => updateQuantity(item.id, -1)}
+                        onClick={() => updateQuantity(item._id || item.id, -1)}
                         className="p-1 hover:bg-white rounded-md transition shadow-sm"
                       >
                         <Minus size={14} />
@@ -422,7 +402,7 @@ const Cart = () => {
                         {item.quantity}
                       </span>
                       <button
-                        onClick={() => updateQuantity(item.id, 1)}
+                        onClick={() => updateQuantity(item._id || item.id, 1)}
                         className="p-1 hover:bg-white rounded-md transition shadow-sm"
                       >
                         <Plus size={14} />
@@ -430,7 +410,7 @@ const Cart = () => {
                     </div>
 
                     <button
-                      onClick={() => removeFromCart(item.id)}
+                      onClick={() => removeFromCart(item._id || item.id)}
                       className="text-gray-400 hover:text-red-500 p-2"
                     >
                       <Trash2 size={18} />
@@ -444,7 +424,7 @@ const Cart = () => {
                       placeholder="Ghi chú cho món này (VD: Ít cay, không hành...)"
                       className="w-full text-sm bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-lg px-3 py-2 outline-none transition-all placeholder-gray-400 text-gray-700"
                       value={item.note || ""}
-                      onChange={(e) => updateItemNote(item.id, e.target.value)}
+                      onChange={(e) => updateItemNote(item._id || item.id, e.target.value)}
                     />
                   </div>
                 </div>
@@ -486,6 +466,7 @@ const Cart = () => {
                   name="address"
                   value={values.address}
                   onChange={handleChange}
+                  onBlur={handleAddressBlur}
                   className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-orange-500"
                   placeholder="Số nhà, đường, phường..."
                 />
@@ -516,7 +497,7 @@ const Cart = () => {
                   <div>
                     <p className={`text-sm font-bold ${paymentMethod === "Wallet" ? "text-orange-700" : "text-gray-700"
                       }`}>Ví FlavorDash</p>
-                    {user && <p className="text-xs text-gray-500">Số dư: {user.balance?.toLocaleString('vi-VN')}đ</p>}
+                    {wallet && <p className="text-xs text-gray-500">Số dư: {Number(wallet.balance).toLocaleString('vi-VN')}đ</p>}
                   </div>
                 </div>
                 {paymentMethod === "Wallet" && <div className="w-4 h-4 rounded-full bg-orange-500" />}
@@ -550,7 +531,7 @@ const Cart = () => {
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Phí giao hàng</span>
-                <span>{shippingFee.toLocaleString('vi-VN')} VNĐ</span>
+                <span>{(shippingFee || 0).toLocaleString('vi-VN')} VNĐ</span>
               </div>
               <div className="h-px bg-gray-200 my-4"></div>
               <div className="flex justify-between text-xl font-bold text-gray-900">
@@ -620,16 +601,16 @@ const Cart = () => {
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-bold ${order.status === "Delivered"
                       ? "bg-green-100 text-green-700"
-                      : order.status === "Pending"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-yellow-100 text-yellow-700"
+                      : order.status === "Canceled"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-blue-100 text-blue-700"
                       }`}
                   >
                     {order.status === 'Pending' ? 'Chờ xác nhận' :
                       order.status === 'Confirmed' ? 'Đã xác nhận' :
-                        order.status === 'Shipping' ? 'Đang giao' :
-                          order.status === 'Delivered' ? 'Hoàn thành' :
-                            order.status === 'Cancelled' ? 'Đã hủy' : order.status}
+                        order.status === 'Preparing' ? 'Đã xác nhận' :
+                          order.status === 'Shipping' ? 'Đang giao' :
+                            order.status}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
@@ -727,7 +708,10 @@ const Cart = () => {
           <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl relative">
             <div className="bg-gray-900 p-6 text-white relative">
               <button
-                onClick={() => setShowInvoiceModal(false)}
+                onClick={() => {
+                  setShowInvoiceModal(false);
+                  setPin("");
+                }}
                 className="absolute top-4 right-4 text-gray-400 hover:text-white"
               >
                 <X size={24} />
@@ -745,13 +729,13 @@ const Cart = () => {
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Số dư ví hiện tại</span>
                   <span className="font-medium text-gray-900">
-                    {(user.balance || 0).toLocaleString()}đ
+                    {(wallet?.balance || 0).toLocaleString()}đ
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Tổng tiền đơn hàng</span>
                   <span className="font-bold text-orange-600">
-                    -{finalTotal} VNĐ
+                    -{finalTotal.toLocaleString()}đ
                   </span>
                 </div>
                 <div className="h-px bg-gray-200 my-2"></div>
@@ -760,38 +744,49 @@ const Cart = () => {
                     Số dư còn lại (ước tính)
                   </span>
                   <span
-                    className={`font-bold text-lg ${user.balance - finalTotal < 0
+                    className={`font-bold text-lg ${(wallet?.balance || 0) - finalTotal < 0
                       ? "text-red-500"
                       : "text-green-600"
                       }`}
                   >
-                    {(user.balance - finalTotal).toLocaleString()}đ
+                    {((wallet?.balance || 0) - finalTotal).toLocaleString()}đ
                   </span>
                 </div>
               </div>
 
-              {user.balance - finalTotal < 0 && (
-                <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-start">
-                  <AlertTriangle
-                    size={16}
-                    className="mr-2 mt-0.5 flex-shrink-0"
+
+
+              {paymentMethod === "Wallet" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nhập mã PIN xác nhận
+                  </label>
+                  <input
+                    type="password"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    maxLength={6}
+                    placeholder="••••••"
+                    className="w-full text-center text-2xl tracking-widest p-3 border border-gray-200 rounded-xl focus:border-orange-500 outline-none"
                   />
-                  <span>Số dư không đủ. Vui lòng nạp thêm tiền.</span>
                 </div>
               )}
 
               <div className="flex space-x-3">
                 <button
-                  onClick={() => setShowInvoiceModal(false)}
+                  onClick={() => {
+                    setShowInvoiceModal(false);
+                    setPin("");
+                  }}
                   className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   onClick={confirmPayment}
-                  disabled={processingPayment || user.balance - finalTotal < 0}
+                  disabled={processingPayment}
                   className={`flex-1 py-3 text-white font-bold rounded-xl flex items-center justify-center transition shadow-lg
-                                ${user.balance - finalTotal < 0
+                                ${processingPayment
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-green-600 hover:bg-green-700"
                     }

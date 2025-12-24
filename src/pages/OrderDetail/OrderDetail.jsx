@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Clock, Star, Package, MessageSquare, Truck, AlertCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Star, MessageSquare } from "lucide-react";
 import { useOrders } from "../../hooks/useOrders.jsx";
-import { useToast } from "../../context/ToastContext.jsx";
+import { useRatings } from "../../hooks/useRatings.jsx";
 
 const OrderDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { loadOrderDetails, orderDetail, loading, error } = useOrders();
-    const { showToast } = useToast();
+    const { ratingsOrder, createRating, getRatingByOrder } = useRatings();
 
-    // Review State (Local Mock)
+    // Review State
+    const [existingRating, setExistingRating] = useState(false);
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,8 +19,23 @@ const OrderDetail = () => {
     useEffect(() => {
         if (id) {
             loadOrderDetails(id);
+            checkRating(id);
         }
     }, [id, loadOrderDetails]);
+
+    const checkRating = async (orderId) => {
+        try {
+            const data = await getRatingByOrder(orderId);
+            console.log(!data.data);
+            if (!data.data) {
+                setExistingRating(false);
+            } else {
+                setExistingRating(true);
+            }
+        } catch (err) {
+            // 404 or error
+        }
+    }
 
     if (loading) return <div className="p-10 text-center">Đang tải thông tin đơn hàng...</div>;
     if (error) return <div className="p-10 text-center text-red-500">{error}</div>;
@@ -29,26 +45,28 @@ const OrderDetail = () => {
 
     const handleCancel = async () => {
         if (!window.confirm("Bạn có chắc chắn muốn hủy đơn hàng này?")) return;
-
-        const success = await cancelOrder(orderDetail._id || orderDetail.id);
-        if (success) {
-            loadOrderDetails(id); // Reload to update status
-        }
+        // logic placeholder
     };
-
-
 
     const handleSubmitReview = async () => {
         if (!comment.trim()) return;
         setIsSubmitting(true);
-
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        showToast("Đã gửi đánh giá thành công!", "success");
-        setComment("");
-        setIsSubmitting(false);
+        try {
+            await createRating({
+                orderId: id,
+                stars: rating,
+                comment: comment
+            });
+            await checkRating(id);
+            setComment("");
+        } catch (error) {
+            // Error handled by hook
+        } finally {
+            setIsSubmitting(false);
+        }
     };
+
+    console.log(ratingsOrder);
 
     return (
         <div className="max-w-3xl mx-auto px-4 py-10">
@@ -68,15 +86,15 @@ const OrderDetail = () => {
                         <span className="text-gray-500 text-sm block">Mã đơn hàng</span>
                         <h1 className="text-2xl font-bold text-gray-900">#{orderDetail._id?.slice(-6).toUpperCase()}</h1>
                     </div>
-                    <div className={`px-4 py-2 rounded-full text-sm font-bold ${orderDetail.status === 'Completed' ? 'bg-green-100 text-green-600' :
-                        orderDetail.status === 'Cancelled' ? 'bg-red-100 text-red-600' :
+                    <div className={`px-4 py-2 rounded-full text-sm font-bold ${orderDetail.status === 'Delivered' ? 'bg-green-100 text-green-600' :
+                        orderDetail.status === 'Canceled' ? 'bg-red-100 text-red-600' :
                             'bg-blue-100 text-blue-600'
                         }`}>
                         {orderDetail.status === 'Pending' ? 'Chờ xác nhận' :
                             orderDetail.status === 'Confirmed' ? 'Đã xác nhận' :
                                 orderDetail.status === 'Shipping' ? 'Đang giao' :
                                     orderDetail.status === 'Delivered' ? 'Đã giao' :
-                                        orderDetail.status === 'Cancelled' ? 'Đã hủy' : orderDetail.status}
+                                        orderDetail.status === 'Canceled' ? 'Đã hủy' : orderDetail.status}
                     </div>
                 </div>
 
@@ -151,43 +169,63 @@ const OrderDetail = () => {
                 </div>
             </div>
 
-            {/* Review Form (Side or Bottom? User asked for layout of Detail. I'll put Review in a nice card below) */}
-            {orderDetail.status === 'Delivered' && (
+            {/* Review Form */}
+            {(orderDetail.status === 'Delivered' || orderDetail.status === 'Completed') && (
                 <div className="bg-white border-2 border-orange-100 p-8 rounded-3xl shadow-lg">
                     <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                        <MessageSquare size={24} className="mr-3 text-orange-500" /> Viết đánh giá
+                        <MessageSquare size={24} className="mr-3 text-orange-500" />
+                        {existingRating ? "Đánh giá của bạn" : "Viết đánh giá"}
                     </h3>
 
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-center space-x-4 bg-orange-50 p-4 rounded-2xl">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <button
-                                    key={star}
-                                    onClick={() => setRating(star)}
-                                    className="focus:outline-none hover:scale-110 transition-transform p-1"
-                                >
+                    {existingRating ? (
+                        <div className="space-y-6">
+                            <div className="flex items-center space-x-4 bg-orange-50 p-4 rounded-2xl">
+                                {[1, 2, 3, 4, 5].map((star) => (
                                     <Star
-                                        className={`w-10 h-10 ${star <= rating ? "fill-yellow-400 text-yellow-400 drop-shadow-sm" : "text-gray-300"}`}
+                                        key={star}
+                                        className={`w-10 h-10 ${star <= ratingsOrder.data.stars ? "fill-yellow-400 text-yellow-400 drop-shadow-sm" : "text-gray-300"}`}
                                     />
-                                </button>
-                            ))}
+                                ))}
+                            </div>
+                            <div className="p-4 border border-gray-200 rounded-2xl bg-gray-50">
+                                <p className="text-gray-700 text-lg">{ratingsOrder.data.comment}</p>
+                            </div>
+                            <div className="text-sm text-gray-500 text-right">
+                                Đã đánh giá vào: {new Date(ratingsOrder.data.createdAt).toLocaleString('vi-VN')}
+                            </div>
                         </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-center space-x-4 bg-orange-50 p-4 rounded-2xl">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                        key={star}
+                                        onClick={() => setRating(star)}
+                                        className="focus:outline-none hover:scale-110 transition-transform p-1"
+                                    >
+                                        <Star
+                                            className={`w-10 h-10 ${star <= rating ? "fill-yellow-400 text-yellow-400 drop-shadow-sm" : "text-gray-300"}`}
+                                        />
+                                    </button>
+                                ))}
+                            </div>
 
-                        <textarea
-                            value={comment}
-                            onChange={(e) => setComment(e.target.value)}
-                            placeholder="Món ăn thế nào? Hãy chia sẻ cảm nhận của bạn..."
-                            className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none resize-none text-base bg-gray-50 min-h-[120px]"
-                        ></textarea>
+                            <textarea
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                placeholder="Món ăn thế nào? Hãy chia sẻ cảm nhận của bạn..."
+                                className="w-full p-4 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none resize-none text-base bg-gray-50 min-h-[120px]"
+                            ></textarea>
 
-                        <button
-                            onClick={handleSubmitReview}
-                            disabled={!comment.trim() || isSubmitting}
-                            className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition disabled:opacity-50 shadow-lg shadow-orange-200"
-                        >
-                            {isSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
-                        </button>
-                    </div>
+                            <button
+                                onClick={handleSubmitReview}
+                                disabled={!comment.trim() || isSubmitting}
+                                className="w-full bg-orange-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-600 transition disabled:opacity-50 shadow-lg shadow-orange-200"
+                            >
+                                {isSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
