@@ -3,6 +3,7 @@ import {
   getMyShopService,
   updateShopService,
   updateShopStatusService,
+  updateShopAutoAcceptService,
   getShopByIdService,
   getMyShopDashboardService,
   getShopDashboardService,
@@ -66,13 +67,37 @@ export const useShop = () => {
     setLoading(true);
     try {
       const res = await updateShopStatusService(!shop.isOpen);
-      setShop(res.shop);
+      const updatedShop = res?.data || res?.shop || res;
+      setShop(updatedShop);
       showToast(
-        res.shop.isOpen ? "Cửa hàng đã MỞ CỬA" : "Cửa hàng đã ĐÓNG CỬA",
-        res.shop.isOpen ? "success" : "warning"
+        updatedShop.isOpen ? "Cửa hàng đã MỞ CỬA" : "Cửa hàng đã ĐÓNG CỬA",
+        updatedShop.isOpen ? "success" : "warning"
       );
     } catch (err) {
       showToast(err.message || "Không thể đổi trạng thái", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =======================
+     TOGGLE AUTO-ACCEPT
+  ======================= */
+  const toggleAutoAccept = async () => {
+    if (!shop) return;
+    setLoading(true);
+    try {
+      const next = !shop.autoAccept;
+      const res = await updateShopAutoAcceptService(next);
+      // API returns { success, data } or { shop } depending on controller style
+      const updatedShop = res?.data || res?.shop || res;
+      setShop(updatedShop);
+      showToast(
+        next ? "Đã bật auto-accept" : "Đã tắt auto-accept",
+        next ? "success" : "info"
+      );
+    } catch (err) {
+      showToast(err.message || "Không thể cập nhật auto-accept", "error");
     } finally {
       setLoading(false);
     }
@@ -154,6 +179,7 @@ export const useShop = () => {
     loadShopDashboard,
     updateShopInfo,
     toggleShopStatus,
+    toggleAutoAccept,
     loadShopById,
   };
 };
