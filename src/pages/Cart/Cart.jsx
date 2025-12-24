@@ -335,7 +335,7 @@ const Cart = () => {
 
   // Filter active orders for this view
   const activeOrders = orderHistory.filter(order =>
-    ['Pending', 'Confirmed', 'Shipping'].includes(order.status)
+    ['Pending', 'Confirmed', 'Preparing', 'Shipping'].includes(order.status)
   );
 
   // Render Tab Giỏ hàng + Form Thanh toán
@@ -608,9 +608,9 @@ const Cart = () => {
                   >
                     {order.status === 'Pending' ? 'Chờ xác nhận' :
                       order.status === 'Confirmed' ? 'Đã xác nhận' :
-                        order.status === 'Shipping' ? 'Đang giao' :
-                          order.status === 'Delivered' ? 'Đã giao' :
-                            order.status === 'Canceled' ? 'Đã hủy' : order.status}
+                        order.status === 'Preparing' ? 'Đã xác nhận' :
+                          order.status === 'Shipping' ? 'Đang giao' :
+                            order.status}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">

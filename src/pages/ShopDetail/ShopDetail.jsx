@@ -11,7 +11,7 @@ import FoodCard from "../../components/FoodCard";
 const ShopDetail = () => {
     const { id } = useParams();
     const { shop, shopDashboard, loadShopDashboard, loadShopById, loading: shopLoading } = useShop();
-    const { items, loadItemsShop, loading: itemsLoading } = useItems();
+    const { itemsShop, loadItemsShop, loading: itemsLoading } = useItems();
     const { ratingsShop, getRatingByShop } = useRatings();
     const { categoriesByShop, fetchCategoriesByShop } = useCategories(); // Use categories hook
     const [reviewPage, setReviewPage] = React.useState(1);
@@ -37,7 +37,7 @@ const ShopDetail = () => {
     }, [ratingsShop, reviewPage]);
 
     const totalPages = Math.ceil((ratingsShop?.data?.length || 0) / 8);
-
+    console.log(itemsShop);
 
 
     if (shopLoading || !shop) {
@@ -93,7 +93,7 @@ const ShopDetail = () => {
                             <div className="w-px h-8 bg-gray-200"></div>
                             <div className="text-center">
                                 <div className="font-bold text-lg text-gray-900">
-                                    {items ? items.length : shopDashboard.stats.items}
+                                    {itemsShop ? itemsShop.length : shopDashboard.stats.items}
                                 </div>
                                 <div className="text-xs text-gray-500">Món ăn</div>
                             </div>
@@ -113,14 +113,14 @@ const ShopDetail = () => {
                     <div className="flex justify-center py-10">
                         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
                     </div>
-                ) : items.length > 0 ? (
+                ) : itemsShop.length > 0 ? (
                     <div className="space-y-12">
                         {/* Group items by category. We iterate through categories to maintain order (if any), 
                             or we can just group dynamically. Since we fetched categories, let's use them as the base. */}
                         {categoriesByShop.map(category => {
                             // Filter items for this category
-                            const categoryItems = items.filter(item => {
-                                const itemCatId = typeof item.categoryId === 'object' ? item.categoryId._id || item.categoryId.id : item.categoryId;
+                            const categoryItems = itemsShop.filter(item => {
+                                const itemCatId = item.categoryId && typeof item.categoryId === 'object' ? item.categoryId._id || item.categoryId.id : item.categoryId;
                                 const catId = category._id || category.id;
                                 return itemCatId === catId;
                             });
@@ -142,8 +142,8 @@ const ShopDetail = () => {
                         })}
 
                         {/* Items without category or category not in list (Uncategorized) */}
-                        {items.filter(item => {
-                            const itemCatId = typeof item.categoryId === 'object' ? item.categoryId._id || item.categoryId.id : item.categoryId;
+                        {itemsShop.filter(item => {
+                            const itemCatId = item.categoryId && typeof item.categoryId === 'object' ? item.categoryId._id || item.categoryId.id : item.categoryId;
                             // Check if this item's category is NOT in the fetched categories list
                             return !categoriesByShop.some(c => (c._id || c.id) === itemCatId);
                         }).length > 0 && (
@@ -152,8 +152,8 @@ const ShopDetail = () => {
                                         Khác
                                     </h3>
                                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                                        {items.filter(item => {
-                                            const itemCatId = typeof item.categoryId === 'object' ? item.categoryId._id || item.categoryId.id : item.categoryId;
+                                        {itemsShop.filter(item => {
+                                            const itemCatId = item.categoryId && typeof item.categoryId === 'object' ? item.categoryId._id || item.categoryId.id : item.categoryId;
                                             return !categoriesByShop.some(c => (c._id || c.id) === itemCatId);
                                         }).map(item => (
                                             <FoodCard key={item._id} food={item} />
