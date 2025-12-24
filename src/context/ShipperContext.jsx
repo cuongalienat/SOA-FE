@@ -1,28 +1,21 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  useRef,
-  useMemo,
-} from "react";
+import { createContext, useContext, useEffect, useState, useRef, useMemo } from "react";
 import {
   updateShipperStatusService,
   getShipperProfileService,
   getCurrentDeliveryService,
   updateDeliveryStatusService,
 } from "../services/shipperServices.jsx";
-// import { useToast } from "./ToastContext";
+// import { useToast } from "./ToastContext"; 
 
 const ShipperContext = createContext();
 
 export const ShipperProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
-
+  
   // 🔥 THAY ĐỔI 1: State mặc định là Mảng rỗng [] thay vì null
-  const [currentDelivery, setCurrentDelivery] = useState([]);
-
+  const [currentDelivery, setCurrentDelivery] = useState([]); 
+  
   const [loading, setLoading] = useState(true);
 
   // ---------------------------------
@@ -32,13 +25,13 @@ export const ShipperProvider = ({ children }) => {
     try {
       const data = await getShipperProfileService();
       setProfile(data);
-
+      
       // ❌ CODE CŨ (SAI): Chỉ tính là online nếu status đúng bằng "ONLINE"
       // setIsOnline(data.status === "ONLINE");
 
       // ✅ CODE MỚI (ĐÚNG): Tính là online nếu trạng thái là ONLINE hoặc SHIPPING
-      setIsOnline(["ONLINE", "SHIPPING", "SEARCHING"].includes(data.status));
-
+      setIsOnline(['ONLINE', 'SHIPPING', 'SEARCHING'].includes(data.status));
+      
       return data;
     } catch (error) {
       console.error("Lỗi lấy profile shipper:", error);
@@ -54,14 +47,15 @@ export const ShipperProvider = ({ children }) => {
       // Nếu đang OFFLINE thì bật lên ONLINE
       // Nếu đang ONLINE hoặc SHIPPING thì tắt về OFFLINE
       const newStatus = isOnline ? "OFFLINE" : "ONLINE";
-
+      
       await updateShipperStatusService(newStatus);
-
+      
       // Cập nhật state UI ngay lập tức
-      setIsOnline(newStatus === "ONLINE");
-
+      setIsOnline(newStatus === "ONLINE"); 
+      
       // Fetch lại profile để đồng bộ chuẩn xác với Server
       await fetchProfile();
+      
     } catch (error) {
       console.error("Lỗi đổi trạng thái:", error);
       throw error;
@@ -94,22 +88,18 @@ export const ShipperProvider = ({ children }) => {
   // ---------------------------------
   const updateDeliveryStatus = async (deliveryId, status, location = null) => {
     try {
-      // Gọi API cập nhật
-      const updated = await updateDeliveryStatusService(
-        deliveryId,
-        status,
-        location
-      );
-
-      // 🔥 THAY ĐỔI 3: Cập nhật cục bộ trong mảng (Optimistic Update)
+      const updated = await updateDeliveryStatusService(deliveryId, status, location);
+      
+      // ✅ FIX: Cập nhật thông minh (Giữ nguyên mảng, chỉ thay đổi phần tử bị update)
       setCurrentDelivery((prevDeliveries) => {
-        if (!Array.isArray(prevDeliveries)) return [updated];
-
-        // Tìm và thay thế đơn hàng vừa update trong danh sách
-        return prevDeliveries.map((d) => (d._id === updated._id ? updated : d));
+          if (Array.isArray(prevDeliveries)) {
+              return prevDeliveries.map(d => d._id === updated._id ? updated : d);
+          }
+          // Fallback nếu state cũ đang null hoặc object
+          return [updated]; 
       });
 
-      // Nếu đơn Hoàn thành hoặc Hủy -> Nên fetch lại để danh sách sạch sẽ (loại bỏ đơn đó ra)
+      // Nếu hoàn thành, fetch lại để đảm bảo đồng bộ với server
       if (status === "COMPLETED" || status === "CANCELLED") {
         await fetchCurrentDelivery();
       }
@@ -127,7 +117,7 @@ export const ShipperProvider = ({ children }) => {
       try {
         await fetchProfile();
         // Gọi thêm cái này để đảm bảo load đơn ngay khi mở app
-        await fetchCurrentDelivery();
+        await fetchCurrentDelivery(); 
       } finally {
         setLoading(false);
       }

@@ -429,43 +429,34 @@ const ShipperDashboard = () => {
                   boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
                 }}
               >
-                {selectedDelivery &&
-                  (() => {
+                {selectedDelivery && (() => {
+                    // Helper: Chuyển mọi thứ về mảng [lng, lat]
                     const toLngLat = (loc) => {
-                      if (!loc) return null;
-                      if (Array.isArray(loc)) return loc;
-                      if (loc.lat !== undefined && loc.lng !== undefined)
-                        return [loc.lng, loc.lat];
-                      return null;
+                        if (!loc) return null;
+                        if (Array.isArray(loc)) return loc;
+                        if (loc.lat !== undefined && loc.lng !== undefined) return [loc.lng, loc.lat];
+                        return null;
                     };
-                    const rawStart =
-                      shipperLoc ||
-                      selectedDelivery.pickup.location.coordinates;
-                    const rawEnd =
-                      selectedDelivery.dropoff.location.coordinates;
-                    const startPoint = toLngLat(rawStart);
-                    const targetPoint = toLngLat(rawEnd);
 
-                    if (!startPoint || !targetPoint)
-                      return (
-                        <div style={{ padding: 20, textAlign: "center" }}>
-                          ⏳ Đang lấy toạ độ...
-                        </div>
-                      );
+                    // 1. LẤY DỮ LIỆU GỐC (KHÔNG HACK)
+                    const pickupCoords = toLngLat(selectedDelivery.pickup.location.coordinates);
+                    const dropoffCoords = toLngLat(selectedDelivery.dropoff.location.coordinates);
+                    
+                    // Lấy vị trí xe (Nếu chưa có thì null)
+                    const shipperCoords = toLngLat(shipperLoc);
 
+                    // 2. RENDER MAP
                     return (
-                      <RealtimeMap
-                        pickup={startPoint}
-                        dropoff={targetPoint}
-                        shipperLocation={{
-                          lat: startPoint[1],
-                          lng: startPoint[0],
-                        }}
-                        destination={targetPoint}
-                        isNavigationMode={true}
-                      />
+                        <RealtimeMap 
+                            // Truyền đúng tọa độ để Marker hiển thị đúng chỗ
+                            pickup={pickupCoords}      // Icon Nhà kho -> Nằm ở Quán
+                            dropoff={dropoffCoords}    // Icon Khách -> Nằm ở Khách
+                            
+                            // Truyền vị trí xe (Dạng Object {lat, lng} vì RealtimeMap của bạn yêu cầu thế)
+                            shipperLocation={shipperCoords ? { lat: shipperCoords[1], lng: shipperCoords[0] } : null}
+                        />
                     );
-                  })()}
+                })()}
               </div>
 
               {/* STATS */}
