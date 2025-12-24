@@ -5,6 +5,7 @@ import {
     updateCategoryService,
     deleteCategoryService,
     getCategoryByIdService,
+    getCategoriesByShopService,
 } from "../services/categoryServices";
 import { useToast } from "../context/ToastContext";
 
@@ -14,6 +15,7 @@ export const useCategories = () => {
     const [error, setError] = useState(null);
     const { showToast } = useToast();
     const [category, setCategory] = useState(null);
+    const [categoriesByShop, setCategoriesByShop] = useState([]);
 
     const getCategoryById = useCallback(async (id) => {
         setLoading(true);
@@ -36,6 +38,21 @@ export const useCategories = () => {
             const data = await fetchCategoriesByShopService(shopId);
             // Adjust based on API response structure. Usually data.data or data itself.
             setCategories(data.data || data);
+        } catch (err) {
+            setError(err);
+            showToast(err.message || "Không thể tải danh mục", "error");
+        } finally {
+            setLoading(false);
+        }
+    }, [showToast]);
+
+    const fetchCategoriesByShop = useCallback(async (shopId) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await getCategoriesByShopService(shopId);
+            // Adjust based on API response structure. Usually data.data or data itself.
+            setCategoriesByShop(data.data || data);
         } catch (err) {
             setError(err);
             showToast(err.message || "Không thể tải danh mục", "error");
@@ -97,8 +114,10 @@ export const useCategories = () => {
         loading,
         error,
         category,
+        categoriesByShop,
         getCategoryById,
         fetchCategories,
+        fetchCategoriesByShop,
         createCategory,
         updateCategory,
         deleteCategory,

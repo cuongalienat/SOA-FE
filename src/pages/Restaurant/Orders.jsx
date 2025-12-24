@@ -1,5 +1,5 @@
 // src/pages/Restaurant/Orders.jsx
-import React, { useEffect, useRef } from "react"; // Thêm useRef để quản lý Audio tốt hơn
+import React, { useEffect, useRef, useState } from "react"; // Thêm useRef để quản lý Audio tốt hơn
 import { CheckCircle, Truck, ChefHat, Bell } from "lucide-react";
 import { useOrders } from "../../hooks/useOrders";
 import { updateOrderStatusService } from "../../services/orderServices";
@@ -9,15 +9,25 @@ import { useShop } from "../../hooks/useShop";
 
 const NOTIFICATION_SOUND = new Audio("/sounds/ding.mp3");
 
+const orderTag = (orderId) => {
+  if (!orderId || typeof orderId !== 'string') return '#??????';
+  return `#${orderId.slice(-6).toUpperCase()}`;
+};
+
 const Orders = () => {
-  const { shop, loading: shopLoading, loadMyShop } = useShop(); 
-  const { orders, setOrders, loadShopOrders } = useOrders();
+  const { shop, loading: shopLoading, loadMyShop, toggleAutoAccept } = useShop(); 
+  const { orders, setOrders, loadShopOrders, pagination } = useOrders();
   
   // 👇 1. SỬA QUAN TRỌNG: Lấy đúng tên hàm showToast
   const { showToast } = useToast(); 
   
   const socket = useSocket();
   const audioRef = useRef(NOTIFICATION_SOUND);
+
+  // Filters + pagination
+  const [statusFilter, setStatusFilter] = useState(""); // empty = all
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   // Helper lấy Shop ID
   const currentShopId = shop?.shops?.[0]?._id || shop?._id;
@@ -32,48 +42,124 @@ const Orders = () => {
   }, [shop, loadMyShop]);
 
   // ----------------------------------------------------------------
-  // 2. Load Đơn hàng & Setup Socket (Logic gộp)
+  // 2. Load Đơn hàng (chỉ khi đổi shop)
   // ----------------------------------------------------------------
   useEffect(() => {
-    if (currentShopId) {
-        console.log("🚀 Setup Orders cho Shop:", currentShopId);
+    if (!currentShopId) return;
+    console.log("🚀 Load orders cho Shop:", currentShopId);
+    setPage(1);
+    loadShopOrders(currentShopId, { page: 1, limit, ...(statusFilter ? { status: statusFilter } : {}) });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentShopId]);
 
-        // A. Load API
-        loadShopOrders(currentShopId);
-
-        // B. Socket
-        if (socket) {
-            const roomName = `shop_${currentShopId}`;
-            //socket.emit("JOIN_ROOM", roomName);
-            //console.log("🔌 Joined room:", roomName);
-
-            const handleNewOrder = (newOrder) => {
-                console.log("🔔 Đơn mới:", newOrder);
-                
-                // Play Sound
-                audioRef.current.play().catch(() => {});
-                
-                // Show Toast
-                if (showToast) showToast(`Đơn mới: ${newOrder.user?.fullName || 'Khách'}!`, 'success');
-
-                // Update UI (Thêm vào đầu danh sách)
-                setOrders((prev) => {
-                    if (prev.find(o => o._id === newOrder._id)) return prev;
-                    return [newOrder, ...prev];
-                });
-            };
-
-            socket.on("NEW_ORDER_TO_SHOP", handleNewOrder);
-
-            return () => {
-                socket.off("NEW_ORDER_TO_SHOP", handleNewOrder);
-            };
-        }
-    }
-  }, [currentShopId, socket, loadShopOrders, setOrders, showToast]);
+  // Reload when page/limit/status changes
+  useEffect(() => {
+    if (!currentShopId) return;
+    loadShopOrders(currentShopId, { page, limit, ...(statusFilter ? { status: statusFilter } : {}) });
+  }, [currentShopId, page, limit, statusFilter, loadShopOrders]);
 
   // ----------------------------------------------------------------
-  // 3. HÀM XỬ LÝ CẬP NHẬT TRẠNG THÁI (FIX LỖI UI KHÔNG UPDATE)
+  // 3. Setup Socket listeners (không gọi API liên tục)
+  // ----------------------------------------------------------------
+  useEffect(() => {
+    if (!currentShopId || !socket) return;
+
+    const handleNewOrder = (newOrder) => {
+      console.log("🔔 Đơn mới:", newOrder);
+
+      audioRef.current.play().catch(() => {});
+      const tag = orderTag(newOrder?._id);
+      const customerName = newOrder?.user?.fullName || 'Khách';
+      if (showToast) showToast(`Đơn mới ${tag}: ${customerName}`, 'success', {
+        dedupeKey: `NEW_ORDER_TO_SHOP:${newOrder?._id}`,
+        debounceMs: 3000,
+        duration: 4500
+      });
+
+      setOrders((prev) => {
+        // If user is not on page 1, don't mutate list (avoid confusing pagination)
+        if (page !== 1) return prev;
+
+        // Respect status filter (if any)
+        if (statusFilter && newOrder?.status !== statusFilter) return prev;
+
+        if (prev.find((o) => o._id === newOrder._id)) return prev;
+        const next = [newOrder, ...prev];
+        return next.slice(0, limit);
+      });
+    };
+
+    const handleOrderReminder = (payload) => {
+      const level = payload?.level;
+      const tag = orderTag(payload?.orderId);
+      const message = payload?.msg ? `${tag} - ${payload.msg}` : `${tag} - Bạn có đơn mới cần xử lý`;
+
+      if (level >= 2) audioRef.current.play().catch(() => {});
+
+      const type = level === 1 ? 'info' : (level === 2 ? 'warning' : 'warning');
+      if (showToast) showToast(message, type, {
+        dedupeKey: `ORDER_REMINDER:${payload?.orderId}:${level}`,
+        debounceMs: 2500
+      });
+    };
+
+    const handleAutoConfirmed = (payload) => {
+      const orderId = payload?.orderId;
+      if (!orderId) return;
+      const tag = orderTag(orderId);
+      const message = payload?.msg ? `${tag} - ${payload.msg}` : `${tag} - Đơn hàng được tự động xác nhận`;
+      if (showToast) showToast(message, 'info', {
+        dedupeKey: `ORDER_AUTO_CONFIRMED:${orderId}`,
+        debounceMs: 3000
+      });
+
+      setOrders((prev) => {
+        const updated = prev.map((o) => (o._id === orderId ? { ...o, status: 'Confirmed' } : o));
+        return statusFilter && statusFilter !== 'Confirmed'
+          ? updated.filter((o) => o._id !== orderId)
+          : updated;
+      });
+    };
+
+    const handleOrderCancelled = (payload) => {
+      const orderId = payload?.orderId;
+      const reason = payload?.reason;
+      if (!orderId) return;
+
+      const tag = orderTag(orderId);
+
+      const msg = reason === 'SHOP_NO_RESPONSE'
+        ? `${tag} - Đơn bị huỷ do quá hạn xác nhận`
+        : (reason === 'NO_SHIPPER' ? `${tag} - Đơn bị huỷ do không tìm được tài xế` : (payload?.msg ? `${tag} - ${payload.msg}` : `${tag} - Đơn đã bị huỷ`));
+
+      if (showToast) showToast(msg, 'error', {
+        dedupeKey: `ORDER_CANCELLED:${orderId}:${reason || 'UNKNOWN'}`,
+        debounceMs: 3000
+      });
+
+      setOrders((prev) => {
+        const updated = prev.map((o) => (o._id === orderId ? { ...o, status: 'Canceled', cancelReason: reason } : o));
+        return statusFilter && statusFilter !== 'Canceled'
+          ? updated.filter((o) => o._id !== orderId)
+          : updated;
+      });
+    };
+
+    socket.on("NEW_ORDER_TO_SHOP", handleNewOrder);
+    socket.on("ORDER_REMINDER", handleOrderReminder);
+    socket.on("ORDER_AUTO_CONFIRMED", handleAutoConfirmed);
+    socket.on("ORDER_CANCELLED", handleOrderCancelled);
+
+    return () => {
+      socket.off("NEW_ORDER_TO_SHOP", handleNewOrder);
+      socket.off("ORDER_REMINDER", handleOrderReminder);
+      socket.off("ORDER_AUTO_CONFIRMED", handleAutoConfirmed);
+      socket.off("ORDER_CANCELLED", handleOrderCancelled);
+    };
+  }, [currentShopId, socket, setOrders, showToast]);
+
+  // ----------------------------------------------------------------
+  // 4. HÀM XỬ LÝ CẬP NHẬT TRẠNG THÁI (FIX LỖI UI KHÔNG UPDATE)
   // ----------------------------------------------------------------
   const handleUpdateStatus = async (orderId, nextStatus) => {
     try {
@@ -100,7 +186,7 @@ const Orders = () => {
       // (Giúp tránh lỗi sai lệch dữ liệu nếu backend có xử lý phụ)
       if (currentShopId) {
           setTimeout(() => {
-             loadShopOrders(currentShopId);
+           loadShopOrders(currentShopId, { page, limit, ...(statusFilter ? { status: statusFilter } : {}) });
           }, 500); // Delay nhẹ để DB kịp update
       }
 
@@ -145,6 +231,88 @@ const Orders = () => {
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
             Realtime Active
         </span>
+      </div>
+
+      {/* Filters + Pagination */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="Pending">Pending</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Preparing">Preparing</option>
+            <option value="Shipping">Shipping</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Canceled">Canceled</option>
+          </select>
+
+          <select
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            value={limit}
+            onChange={(e) => {
+              setLimit(Number(e.target.value) || 10);
+              setPage(1);
+            }}
+          >
+            <option value={10}>10 / trang</option>
+            <option value={20}>20 / trang</option>
+            <option value={50}>50 / trang</option>
+          </select>
+
+          {/* Auto-accept toggle (menu đơn) */}
+          <button
+            type="button"
+            onClick={() => toggleAutoAccept && toggleAutoAccept()}
+            disabled={!toggleAutoAccept || shopLoading}
+            className={`border border-gray-200 rounded-lg px-3 py-2 text-sm flex items-center gap-2 disabled:opacity-50 ${
+              shop?.autoAccept ? "bg-blue-50" : "bg-white"
+            }`}
+            title="Tự động xác nhận đơn khi quán đang mở"
+          >
+            <span
+              className={`w-9 h-5 rounded-full relative transition ${
+                shop?.autoAccept ? "bg-blue-600" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition ${
+                  shop?.autoAccept ? "right-0.5" : "left-0.5"
+                }`}
+              />
+            </span>
+            Auto-accept
+          </button>
+        </div>
+
+        <div className="flex items-center justify-between sm:justify-end gap-3">
+          <span className="text-sm text-gray-500">
+            Tổng: {pagination?.total || 0}
+          </span>
+          <button
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50"
+            disabled={(pagination?.page || page) <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Trước
+          </button>
+          <span className="text-sm text-gray-700">
+            Trang {pagination?.page || page} / {pagination?.totalPages || 1}
+          </span>
+          <button
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg disabled:opacity-50"
+            disabled={pagination?.totalPages ? (pagination.page >= pagination.totalPages) : false}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            Sau
+          </button>
+        </div>
       </div>
 
       <div className="space-y-4">

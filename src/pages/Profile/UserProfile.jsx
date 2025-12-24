@@ -431,10 +431,10 @@ const UserProfile = () => {
               <h2 className="text-xl font-bold text-gray-900 mb-6">Đơn hàng của bạn</h2>
               {loadingOrders ? (
                 <div className="text-center py-10">Đang tải đơn hàng...</div>
-              ) : orders.filter(o => ['Delivered', 'Cancelled'].includes(o.status)).length === 0 ? (
+              ) : orders.filter(o => ['Delivered', 'Canceled'].includes(o.status)).length === 0 ? (
                 <div className="text-center py-10 text-gray-500">Bạn chưa có đơn hàng nào trong lịch sử.</div>
               ) : (
-                orders.filter(o => ['Delivered', 'Cancelled'].includes(o.status)).map((order) => (
+                orders.filter(o => ['Delivered', 'Canceled'].includes(o.status)).map((order) => (
                   <div
                     key={order._id}
                     onClick={() => navigate(`/order/${order._id}`)}
@@ -446,14 +446,14 @@ const UserProfile = () => {
                         <p className="text-sm text-gray-500">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${order.status === 'Delivered' ? 'bg-green-100 text-green-600' :
-                        order.status === 'Cancelled' ? 'bg-red-100 text-red-600' :
+                        order.status === 'Canceled' ? 'bg-red-100 text-red-600' :
                           'bg-blue-100 text-blue-600'
                         }`}>
                         {order.status === 'Pending' && 'Chờ xác nhận'}
                         {order.status === 'Confirmed' && 'Đã xác nhận'}
                         {order.status === 'Shipping' && 'Đang giao'}
-                        {order.status === 'Delivered' && 'Hoàn thành'}
-                        {order.status === 'Cancelled' && 'Đã hủy'}
+                        {order.status === 'Delivered' && 'Đã giao'}
+                        {order.status === 'Canceled' && 'Đã hủy'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">

@@ -35,6 +35,7 @@ const ENDPOINTS = {
     GET_MY_SHOP_DASHBOARD: "/shops/my-shop/dashboard",
     GET_SHOP_DASHBOARD: "/shops/:id/dashboard",
     UPDATE_SHOP_INFO: "/shops/my-shop",
+    PATCH_MY_SHOP: "/shops/my-shop",
     TOGGLE_SHOP_STATUS: "/shops/my-shop/status",
     GET_BY_ID: "/shops/:id",
   },
@@ -60,7 +61,14 @@ const ENDPOINTS = {
     CREATE: "/categories",
     UPDATE: "/categories/:id",
     DELETE: "/categories/:id",
+    GET_BY_SHOP: "/categories/shop/:shopId",
   },
+  RATING: {
+    CREATE: "/ratings",
+    GET_BY_ITEM: "/ratings/item/:itemId",
+    GET_BY_SHOP: "/ratings/shop/:shopId",
+    GET_BY_ORDER: "/ratings/order/:orderId",
+  }
 };
 
 export default ENDPOINTS;

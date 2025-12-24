@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { 
+import {
     fetchAllItemsServices,
     fetchItemsByShopService,
     createItemService,
     updateItemService,
-    deleteItemService } from "../services/itemServices.jsx";
+    deleteItemService
+} from "../services/itemServices.jsx";
 
 export const useItems = () => {
     const [items, setItems] = useState([]);
+    const [itemsShop, setItemmsShop] = useState([]);
     const [loading, setLoading] = useState(false);
     const [pagination, setPagination] = useState({
         totalPages: 1,
@@ -81,9 +83,9 @@ export const useItems = () => {
         try {
             const response = await fetchItemsByShopService(shopId); // Gọi API với shopId
             if (response && response.data) {
-                setItems(response.data);
+                setItemmsShop(response.data);
             } else {
-                setItems([]); // Fallback nếu không có data
+                setItemmsShop([]); // Fallback nếu không có data
             }
         } catch (error) {
             console.error(error);
@@ -113,5 +115,5 @@ export const useItems = () => {
     };
 
 
-    return { items, loadItems, loadItemsShop, loading, pagination, createShopItem, updateShopItem, deleteShopItem };
+    return { items, itemsShop, loadItems, loadItemsShop, loading, pagination, createShopItem, updateShopItem, deleteShopItem };
 };

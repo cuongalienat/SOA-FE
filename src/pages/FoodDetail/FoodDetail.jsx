@@ -9,6 +9,8 @@ import { useToast } from "../../context/ToastContext.jsx";
 import { fetchItemByIdService } from "../../services/itemServices.jsx";
 import { useShop } from "../../hooks/useShop.jsx";
 import { useCategories } from "../../hooks/useCategories.jsx";
+import { useRatings } from "../../hooks/useRatings.jsx"
+import { calculateAverageRating } from "../../utils/ratingUtils.js";
 
 const FoodDetail = () => {
   const { id } = useParams();
@@ -21,21 +23,16 @@ const FoodDetail = () => {
   const [loading, setLoading] = useState(true);
 
   const { category, getCategoryById } = useCategories();
-
-  // Review State
-  const [reviews, setReviews] = useState([
-    { id: 1, user: "Nguyễn Văn A", rating: 5, comment: "Món ăn rất ngon, đậm đà hương vị!", date: "2024-03-15" },
-    { id: 2, user: "Trần Thị B", rating: 4, comment: "Giao hàng nhanh, đóng gói cẩn thận.", date: "2024-03-14" },
-  ]);
+  const { ratingsItem, getRatingByItem } = useRatings();
 
   useEffect(() => {
     const fetchFood = async () => {
       setLoading(true);
       try {
         const data = await fetchItemByIdService(id);
-        await getCategoryById(data.data.categoryId);
-        // Handle various response structures
+        await getRatingByItem(id);
         if (data && data.data) {
+          await getCategoryById(data.data.categoryId);
           setFood(data.data);
         } else {
           setFood(data);
@@ -64,6 +61,10 @@ const FoodDetail = () => {
     }
   }, [food]);
 
+  const ratingData = React.useMemo(() => {
+    return calculateAverageRating(ratingsItem?.data);
+  }, [ratingsItem]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -71,10 +72,6 @@ const FoodDetail = () => {
       </div>
     );
   }
-
-  if (!food) return null;
-
-
 
   if (!food) return null;
 
@@ -152,45 +149,47 @@ const FoodDetail = () => {
         <div className="flex items-center mb-8">
           <div className="flex text-yellow-500">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className={`w-5 h-5 ${i < Math.floor(food.rating || 3.6) ? "fill-current" : "text-gray-300"}`} />
+              <Star key={i} className={`w-5 h-5 ${i < Math.floor(ratingData?.avgStars || 0) ? "fill-current" : "text-gray-300"}`} />
             ))}
           </div>
           <span className="ml-2 text-sm font-bold text-gray-600">
-            {food.rating || 3.6} (128 đánh giá)
+            {ratingData?.avgStars ? ratingData.avgStars.toFixed(1) : "0"} ({ratingData?.length || 0} đánh giá)
           </span>
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-8">Đánh giá & Nhận xét (128)</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-8">Đánh giá & Nhận xét ({ratingsItem?.data?.length || 0})</h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Reviews List */}
           <div className="lg:col-span-3 space-y-6">
             <h3 className="text-xl font-bold mb-4">Đánh giá từ khách hàng</h3>
-            {reviews.map((review) => (
-              <div key={review.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            {ratingsItem?.data?.map((rating, index) => (
+              <div key={rating._id || index} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center">
                     <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold mr-3">
-                      {review.user.charAt(0)}
+                      {(rating.userId?.username?.charAt(0) || "U").toUpperCase()}
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900">{review.user}</h4>
+                      <h4 className="font-bold text-gray-900">{rating.userId?.username || "Người dùng ẩn danh"}</h4>
                       <div className="flex text-yellow-500 text-xs">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} className={`w-3 h-3 ${i < review.rating ? "fill-current" : "text-gray-300"}`} />
+                          <Star key={i} className={`w-3 h-3 ${i < rating.stars ? "fill-current" : "text-gray-300"}`} />
                         ))}
                       </div>
                     </div>
                   </div>
-                  <span className="text-sm text-gray-400">{review.date}</span>
+                  <span className="text-sm text-gray-400">
+                    {new Date(rating.createdAt).toLocaleDateString('vi-VN')}
+                  </span>
                 </div>
                 <p className="text-gray-600 ml-13 pl-13 mt-2">
-                  {review.comment}
+                  {rating.comment}
                 </p>
               </div>
             ))}
 
-            {reviews.length === 0 && (
-              <p className="text-center text-gray-500 py-10">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+            {(!ratingsItem?.data || ratingsItem.data.length === 0) && (
+              <p className="text-center text-gray-500 py-10">Chưa có đánh giá nào.</p>
             )}
           </div>
         </div>
