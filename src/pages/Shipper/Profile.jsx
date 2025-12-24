@@ -6,6 +6,7 @@ import {
   LogOut,
   Phone,
   ShieldCheck,
+  Wallet, // 🔥 Import thêm icon ví
 } from "lucide-react";
 import { useShipper } from "../../context/ShipperContext";
 import { useAuth } from "../../hooks/useAuths";
@@ -18,7 +19,12 @@ const ShipperProfile = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    if (currentDelivery) {
+    // Logic check busy đã sửa ở bước trước
+    const isBusy = Array.isArray(currentDelivery)
+      ? currentDelivery.length > 0
+      : !!currentDelivery;
+
+    if (isBusy) {
       alert("⚠️ Bạn đang thực hiện đơn hàng, không thể đăng xuất!");
       return;
     }
@@ -57,7 +63,6 @@ const ShipperProfile = () => {
     ) {
       return displayAvatar;
     }
-    // Nếu không có ảnh hoặc link sai, trả về link tạo ảnh chữ cái
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
       displayName
     )}&background=2e7d32&color=fff&size=128`;
@@ -68,14 +73,14 @@ const ShipperProfile = () => {
       <div className="max-w-md mx-auto">
         {/* UNIFIED PROFILE CARD */}
         <div className="bg-white rounded-b-[50px] shadow-[0_10px_40px_rgba(0,0,0,0.04)] overflow-hidden border-b border-gray-100">
-          {/* 1. Phần nền trang trí phía trên (Giữ nguyên layout cũ) */}
+          {/* 1. Phần nền trang trí phía trên */}
           <div className="h-32 bg-gradient-to-r from-[#2e7d32] to-[#4caf50] relative">
             <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
           </div>
 
-          {/* 2. Nội dung chính đẩy lên trên nền */}
+          {/* 2. Nội dung chính */}
           <div className="px-6 pb-10 -mt-16 relative z-10 flex flex-col items-center">
-            {/* Avatar lớn duy nhất */}
+            {/* Avatar */}
             <div
               className="relative group cursor-pointer"
               onClick={() => navigate("/shipper/edit-profile")}
@@ -84,7 +89,6 @@ const ShipperProfile = () => {
                 src={getAvatarSrc()}
                 alt="Avatar"
                 onError={(e) => {
-                  // Nếu link ảnh die, tự động chuyển về ảnh chữ cái
                   e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                     displayName
                   )}&background=2e7d32&color=fff`;
@@ -98,7 +102,7 @@ const ShipperProfile = () => {
               />
             </div>
 
-            {/* Tên và Trạng thái - Style Dashboard */}
+            {/* Tên và Trạng thái */}
             <h2 className="mt-4 text-2xl font-bold text-[#333] tracking-tight uppercase text-center">
               {displayName}
             </h2>
@@ -116,7 +120,7 @@ const ShipperProfile = () => {
               </span>
             </div>
 
-            {/* KHỐI THÔNG TIN CHI TIẾT GỘP (Sửa theo Dashboard) */}
+            {/* KHỐI THÔNG TIN CHI TIẾT */}
             <button
               onClick={() => navigate("/shipper/edit-profile")}
               className="w-full mt-10 bg-white border border-gray-200 rounded-[30px] p-6 shadow-sm active:bg-gray-50 transition-all text-left group"
@@ -132,7 +136,6 @@ const ShipperProfile = () => {
               </div>
 
               <div className="space-y-6">
-                {/* Dòng Liên hệ */}
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[#2e7d32]">
                     <Phone size={18} />
@@ -147,10 +150,8 @@ const ShipperProfile = () => {
                   </div>
                 </div>
 
-                {/* Đường kẻ mảnh giữa 2 nội dung */}
                 <div className="h-[1px] bg-gray-100 w-full" />
 
-                {/* Dòng Phương tiện */}
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-[#2e7d32]">
                     <Bike size={18} />
@@ -171,6 +172,30 @@ const ShipperProfile = () => {
                   Chạm để chỉnh sửa
                 </p>
               </div>
+            </button>
+
+            {/* 🔥 MỚI: NÚT XEM VÍ (Tách riêng để nổi bật) */}
+            <button
+              onClick={() => navigate("/profile")} // React Router sẽ tự xử lý hash (#/profile) nếu dùng HashRouter
+              className="w-full mt-4 bg-white border border-gray-200 rounded-[30px] p-4 shadow-sm active:bg-gray-50 transition-all text-left group flex justify-between items-center"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-500">
+                  <Wallet size={18} />
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#bbb] font-bold uppercase tracking-wider">
+                    Tài chính
+                  </p>
+                  <p className="text-base font-bold text-[#333] tracking-tight">
+                    Xem số dư ví
+                  </p>
+                </div>
+              </div>
+              <ChevronRight
+                size={16}
+                className="text-gray-300 group-hover:text-orange-500 transition-colors"
+              />
             </button>
           </div>
         </div>
