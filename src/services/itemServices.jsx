@@ -14,7 +14,7 @@ export const fetchAllItemsServices = async (params) => {
 
 export const fetchItemsByShopService = async (shopId) => {
   try {
-    const response = await api.get(ENDPOINTS.ITEM.GET_ALL_ITEMS, { params: { shopId } });
+    const response = await api.get(ENDPOINTS.ITEM.GET_ALL_ITEMS, { params: { shopId, limit: 1000 } });
     return response.data;
   } catch (error) {
     throw error.response?.data || { message: "Lỗi không xác định" };
