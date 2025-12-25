@@ -2,13 +2,13 @@ import React, { useRef, useEffect, useState } from 'react';
 import polyline from '@mapbox/polyline'; // Đảm bảo đã npm install @mapbox/polyline
 
 // 👇 CẤU HÌNH KEY (Thay bằng Key thật của bạn)
-const GOONG_MAP_KEY = "gBUSE2RjwAmchoX1gFsGQs6j1VhnPintZ40yXqE0"; // Key cho Frontend (Map Tiles)
-const GOONG_API_KEY = "XN2ARLSRhtV62qk1AByhx26rV82h1PtyEkVsC6Bf"; // Key cho Backend (API Services - Directions)
+const GOONG_MAP_KEY = import.meta.env.VITE_GOONG_API_KEY_FE;
+const GOONG_API_KEY = import.meta.env.VITE_GOONG_API_KEY_BE;
 
 const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
-    
+
     // 👇 KHAI BÁO BIẾN QUAN TRỌNG NÀY (Để fix lỗi ReferenceError)
     const [isMapLoaded, setIsMapLoaded] = useState(false);
 
@@ -36,7 +36,7 @@ const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
         });
 
         map.addControl(new goongjs.NavigationControl(), 'top-right');
-        
+
         // Sự kiện khi Map tải xong
         map.on('load', () => {
             console.log("✅ Map Loaded & Ready!");
@@ -67,7 +67,7 @@ const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
                 const el = document.createElement('div');
                 el.innerHTML = iconHTML;
                 el.style.cursor = 'pointer';
-                
+
                 markersRef.current[type] = new goongjs.Marker(el)
                     .setLngLat([coords[0], coords[1]])
                     .addTo(map);
@@ -85,13 +85,13 @@ const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
 
         // Zoom map để thấy cả 2 điểm
         if (pickup && dropoff) {
-             const bounds = new goongjs.LngLatBounds();
-             bounds.extend(pickup);
-             bounds.extend(dropoff);
-             try {
+            const bounds = new goongjs.LngLatBounds();
+            bounds.extend(pickup);
+            bounds.extend(dropoff);
+            try {
                 // padding: khoảng cách từ marker đến mép bản đồ
                 map.fitBounds(bounds, { padding: 80, maxZoom: 15 });
-             } catch(e) {}
+            } catch (e) { }
         }
     }, [pickup, dropoff, isMapLoaded]);
 
@@ -120,7 +120,7 @@ const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
                 const origin = `${startCoords[1]},${startCoords[0]}`; // Lat,Lng
                 const destination = `${dropoff[1]},${dropoff[0]}`;
                 const url = `https://rsapi.goong.io/Direction?origin=${origin}&destination=${destination}&vehicle=bike&api_key=${GOONG_API_KEY}`;
-                
+
                 const res = await fetch(url);
                 const data = await res.json();
 
@@ -182,22 +182,22 @@ const RealtimeMap = ({ pickup, dropoff, shipperLocation }) => {
             markersRef.current.shipper.setLngLat(coords);
             // Đảm bảo marker luôn được gắn vào map
             if (!markersRef.current.shipper.getElement().parentElement) {
-                 markersRef.current.shipper.addTo(map);
+                markersRef.current.shipper.addTo(map);
             }
         }
 
         // Camera bay theo xe
         try {
             // Speed thấp (0.5 - 0.8) để camera mượt, ko bị giật cục
-            map.flyTo({ center: coords, zoom: 15, speed: 0.8 }); 
-        } catch(e) {}
+            map.flyTo({ center: coords, zoom: 15, speed: 0.8 });
+        } catch (e) { }
 
     }, [shipperLocation, isMapLoaded]);
 
     return (
-        <div 
-            ref={mapContainerRef} 
-            style={{ width: '100%', height: '500px', borderRadius: '12px', border: '2px solid #ddd', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+        <div
+            ref={mapContainerRef}
+            style={{ width: '100%', height: '500px', borderRadius: '12px', border: '2px solid #ddd', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
         />
     );
 };

@@ -98,16 +98,13 @@ export const WalletProvider = ({ children }) => {
         setError(null);
         try {
             const data = await depositWallet(amount);
-            // Updating wallet is critical here for synchronization
-            setWallet(prev => {
-                // If the backend returns the full wallet object, use it. 
-                // Otherwise, optimistically update balance if appropriate, but safer to use server response.
-                const newWalletData = data.data || data;
-                return newWalletData;
-            });
+
+            // Fetch the latest wallet data to ensure consistency and avoid NaN issues
+            await fetchWallet();
+
             showToast("Nạp tiền thành công!", "success");
 
-            // Refresh transactions after deposit to show the new entry?
+            // Refresh transactions after deposit to show the new entry
             fetchTransactions();
 
             return { success: true, data };
@@ -119,7 +116,7 @@ export const WalletProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [showToast, fetchTransactions]);
+    }, [showToast, fetchTransactions, fetchWallet]);
 
     const verifyPin = useCallback(async (pin) => {
         setLoading(true);

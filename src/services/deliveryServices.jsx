@@ -1,6 +1,6 @@
 import axios from 'axios'; // Hoặc instance axios bạn đã config
 // Import URL
-const API_URL = 'http://localhost:3000/v1';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const getCurrentJob = async (token) => {
     const response = await axios.get(`${API_URL}/deliveries/current-job`, {
@@ -14,10 +14,10 @@ export const acceptDelivery = async (deliveryId, token, location) => {
     // location format: { lat: 21.xxx, lng: 105.xxx }
     const response = await axios.patch(
         `${API_URL}/deliveries/${deliveryId}`,
-        { 
+        {
             status: "ASSIGNED",
             location: location // 👈 Gửi thêm cái này
-        }, 
+        },
         { headers: { Authorization: `Bearer ${token}` } }
     );
     return response.data;

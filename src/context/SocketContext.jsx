@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 // 👇 1. Import hook lấy user hiện tại
-import { useAuth } from '../hooks/useAuths'; 
+import { useAuth } from './AuthContext'; // 👇 Change to import from Context
 
 const SocketContext = createContext();
 
@@ -9,9 +9,9 @@ export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
-    
+
     // 👇 2. Lấy thông tin user đăng nhập
-    const { user } = useAuth(); 
+    const { user } = useAuth();
 
     useEffect(() => {
         // Chỉ kết nối khi đã có User (Đã login)
@@ -37,7 +37,19 @@ export const SocketProvider = ({ children }) => {
         console.log("🔌 Connecting Socket with params:", queryParams);
 
         // 👇 2. KHỞI TẠO KẾT NỐI
-        const newSocket = io('http://localhost:3000', {
+        // Fallback to localhost if env is missing
+        let socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+        // Remove path (e.g., /v1) from URL because Socket.IO treats it as a namespace
+        try {
+            const urlObj = new URL(socketUrl);
+            socketUrl = urlObj.origin;
+        } catch (e) {
+            console.error("Invalid URL for socket:", socketUrl);
+            socketUrl = 'http://localhost:3000';
+        }
+
+        const newSocket = io(socketUrl, {
             transports: ['websocket'],
             autoConnect: true,
             query: queryParams // Truyền object đã chuẩn bị vào đây
@@ -49,9 +61,10 @@ export const SocketProvider = ({ children }) => {
             // Log cả ID để chắc chắn
             console.log(`🟢 Socket Connected [ID: ${user._id}]:`, newSocket.id);
         });
-        
+
         newSocket.on('connect_error', (err) => {
-            console.error("🔴 Socket Error:", err.message);
+            // eslint-disable-next-line no-console
+            console.error("🔴 Socket Error:", err);
         });
 
         return () => {

@@ -321,8 +321,15 @@ const UserProfile = () => {
                     ) : (
                       <div className="bg-gray-50 rounded-2xl p-2">
                         {transactions?.map((transaction) => {
-                          const isDeposit = transaction.type === 'DEPOSIT';
-                          // If no type, assume it's a payment (negative) based on user context
+                          const isPositive = ['DEPOSIT', 'ORDER_REFUND', 'SHIPPER_PAYOUT', 'SHOP_PAYOUT'].includes(transaction.type);
+
+                          let defaultDesc = "Giao dịch";
+                          if (transaction.type === 'DEPOSIT') defaultDesc = "Nạp tiền vào ví";
+                          else if (transaction.type === 'ORDER_PAYMENT') defaultDesc = "Thanh toán đơn hàng";
+                          else if (transaction.type === 'ORDER_REFUND') defaultDesc = "Hoàn tiền hủy đơn";
+                          else if (transaction.type === 'SHIPPER_PAYOUT') defaultDesc = "Thu nhập từ giao hàng";
+                          else if (transaction.type === 'SHOP_PAYOUT') defaultDesc = "Doanh thu từ đơn hàng";
+
                           return (
                             <div
                               key={transaction._id || transaction.id}
@@ -330,12 +337,12 @@ const UserProfile = () => {
                             >
                               <div className="flex items-center">
                                 <div
-                                  className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${isDeposit
+                                  className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${isPositive
                                     ? "bg-green-100 text-green-600"
                                     : "bg-red-100 text-red-600"
                                     }`}
                                 >
-                                  {isDeposit ? (
+                                  {isPositive ? (
                                     <Plus size={20} />
                                   ) : (
                                     <CreditCard size={20} />
@@ -343,7 +350,7 @@ const UserProfile = () => {
                                 </div>
                                 <div>
                                   <p className="font-semibold text-gray-800">
-                                    {transaction.description || transaction.desc || (isDeposit ? "Nạp tiền vào ví" : "Thanh toán đơn hàng")}
+                                    {transaction.description || transaction.desc || defaultDesc}
                                   </p>
                                   <p className="text-xs text-gray-500 flex items-center">
                                     <Clock size={12} className="mr-1" /> {new Date(transaction.createdAt || transaction.date).toLocaleString('vi-VN')}
@@ -351,11 +358,11 @@ const UserProfile = () => {
                                 </div>
                               </div>
                               <span
-                                className={`font-bold ${isDeposit ? "text-green-600" : "text-red-900"
+                                className={`font-bold ${isPositive ? "text-green-600" : "text-red-900"
                                   }`}
                               >
-                                {isDeposit ? "+" : "-"}
-                                {Number(transaction.amount).toLocaleString()}đ
+                                {isPositive ? "+" : "-"}
+                                {Math.abs(Number(transaction.amount)).toLocaleString()}đ
                               </span>
                             </div>
                           );
